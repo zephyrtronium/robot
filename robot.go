@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"flag"
+	// "fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,15 +21,15 @@ import (
 )
 
 const (
-	Server = "irc.twitch.tv:6667"
-	//Pass    = "oauth:longgibberishgoeshere"
-	Nick    = "robotisbroken"
-	User    = "robotisbroken"
-	Real    = "robotisbroken"
-	Channel = "#brokencowleg,#robotisbroken"
-	Listen  = ""
-	Ignore  = "zbot,nightbot"
-	Admins  = "brokencowleg,zephyrtronium"
+	Server      = "irc.twitch.tv:6667"
+	Nick        = "robotisbroken"
+	User        = "robotisbroken"
+	Real        = "robotisbroken"
+	Channel     = "#brokencowleg,#robotisbroken"
+	Listen      = ""
+	Ignore      = "zbot,nightbot"
+	RegexIgnore = `^!|://|\.(com|net|org|tv|edu)|^\001`
+	Admins      = "brokencowleg,zephyrtronium"
 
 	PREFIX = 2
 	DICT   = "markov.2.dict"
@@ -43,8 +45,13 @@ var (
 )
 
 func Filter(c map[string][]string, words []string) {
-	if len(words) < prefix {
-		return
+	for i := 0; i < prefix; i++ {
+		word := strings.Repeat("\x01 ", prefix-i) + strings.ToLower(strings.Join(words[0:i], " "))
+		if i >= len(words) {
+			c[word] = append(c[word], "\x00")
+			return
+		}
+		c[word] = append(c[word], words[i])
 	}
 	for i := prefix; i < len(words); i++ {
 		if len(words[i]) == 0 {
@@ -63,7 +70,7 @@ func Filter(c map[string][]string, words []string) {
 
 func Walk(c map[string][]string, word string) string {
 	s := make([]string, 0, 20)
-	s = append(s, word)
+	// s = append(s, word)
 	sum := 0
 	for sum < 400 {
 		words := c[strings.ToLower(word)]
@@ -74,9 +81,11 @@ func Walk(c map[string][]string, word string) string {
 		if nextword == "\x00" {
 			break
 		}
-		sum += len(nextword) + 1
-		s = append(s, nextword)
-		word = strings.Join(append(strings.Split(word, " ")[1:], nextword), " ")
+		if nextword != "\x01" {
+			sum += len(nextword) + 1
+			s = append(s, nextword)
+		}
+		word = strings.Join(append(strings.Fields(strings.TrimRight(word, " "))[1:], nextword), " ")
 	}
 	return strings.Join(s, " ")
 }
@@ -134,6 +143,7 @@ func recver(recv chan<- string, f net.Conn) {
 			case nil: // do nothing
 			case net.Error:
 				if e.Temporary() {
+					log.Println("temporary net error while recving:", e)
 					break
 				}
 				log.Fatalln("net error while recving:", e)
@@ -156,25 +166,30 @@ func recver(recv chan<- string, f net.Conn) {
 	close(recv)
 }
 
+func talk(send chan<- string, meta, msg string) {
+	time.Sleep(33 * time.Millisecond * time.Duration(len(msg)))
+	send <- meta + msg + lennie()
+}
+
 func main() {
-	var server, pass, nick, user, real, channel, listen, dict, secret, ign, adm string
+	var server, pass, nick, user, real, channel, listen, dict, secret, ign, ri, adm string
 	var sendprob float64
-	var caps bool
+	var caps, respond bool
 	flag.StringVar(&server, "server", Server, "server and port to which to connect")
 	flag.StringVar(&pass, "pass", "", "server login password")
 	flag.StringVar(&nick, "nick", Nick, "nickname to use")
 	flag.StringVar(&user, "user", User, "username to use")
 	flag.StringVar(&real, "real", Real, "realname to use")
-	flag.StringVar(&channel, "channel", Channel,
-		"(comma-separated list of) channel(s) to join and in which to speak")
-	flag.StringVar(&listen, "listen", Listen,
-		"(comma-separated list of) channel(s) to join and in which to listen")
+	flag.StringVar(&channel, "channel", Channel, "(comma-separated list of) channel(s) to join and in which to speak")
+	flag.StringVar(&listen, "listen", Listen, "(comma-separated list of) channel(s) to join and in which to listen")
 	flag.IntVar(&prefix, "length", PREFIX, "length of markov chain prefixes")
 	flag.StringVar(&dict, "dict", DICT, "chain serialization file")
 	flag.StringVar(&secret, "secret", "", "password for commands; unavailable by default")
 	flag.Float64Var(&sendprob, "sendprob", 0.2, "probability of responding")
+	flag.BoolVar(&respond, "respond", true, "guarantee response when first word contains the bot's nick")
 	flag.BoolVar(&caps, "caps", false, "send CAP REQ messages for twitch extensions")
 	flag.StringVar(&ign, "ignore", Ignore, "comma-sep list of users from whom not to learn")
+	flag.StringVar(&ri, "regexignore", RegexIgnore, "regular expression for PRIVMSGs to ignore")
 	flag.StringVar(&adm, "admin", Admins, "comma-sep list of users from whom to accept cmds")
 	flag.Parse()
 	secret = hash(":" + secret)
@@ -186,6 +201,14 @@ func main() {
 		for _, name := range strings.Split(strings.ToLower(ign), ",") {
 			ignored[name] = true
 		}
+	}
+	log.Printf("filter expression: %q\n", ri)
+	re, err := regexp.Compile(ri)
+	if err != nil {
+		log.Println("error compiling regexignore:", err)
+		log.Println("##############################################")
+		log.Println("##        !!!no message filtering!!!        ##")
+		log.Println("##############################################")
 	}
 	admins := make(map[string]bool)
 	if len(adm) > 0 {
@@ -305,6 +328,16 @@ func main() {
 									for _, c := range stuff[5:] {
 										admins[c] = true
 									}
+								case "respond":
+									respond = strings.EqualFold(stuff[5], "on")
+									log.Println("guaranteed response set to", respond)
+								case "regexignore":
+									ri = strings.Join(stuff[5:], "\\s+")
+									log.Printf("filter expression: %q\n", ri)
+									if re, err = regexp.Compile(ri); err != nil {
+										log.Println("error compiling regexignore:", err)
+										log.Println("no message filtering!")
+									}
 								}
 							}
 							break
@@ -314,31 +347,27 @@ func main() {
 						}
 						words := stuff[3:]
 						words[0] = words[0][1:]
-						// for i, word := range words {
-						// 	words[i] = strings.TrimFunc(word,
-						// 		func(r rune) bool {
-						// 			return !(unicode.IsLetter(r) || unicode.IsDigit(r))
-						// 		})
-						// 	// if len(words[i]) == 1 && !strings.ContainsAny(words[i], "AIaioruy") {
-						// 	// 	break out
-						// 	// }
-						// }
+						addressed := strings.Contains(strings.ToLower(words[0]), strings.ToLower(nick))
+						if addressed {
+							log.Println("someone is talking to me")
+						}
+						if !addressed && re != nil && re.MatchString(strings.Join(words, " ")) {
+							log.Println("filtered out message")
+							break
+						}
 						if line[len(line)-1] != 1 { // drop ctcps
-							if strings.Contains(line, "://") || strings.Contains(line, ".com/") {
-								break // drop urls
-							}
-							if len(words) > prefix {
-								Filter(chain, words)
-								if chanset[stuff[2]] && rand.Float64() < sendprob {
-									// r := rand.Intn(len(words) - prefix)
-									r := 0
-									word := strings.Join(words[r:r+prefix], " ")
+							if len(words) >= 1 {
+								if !addressed {
+									Filter(chain, words)
+								}
+								if chanset[stuff[2]] && (addressed || rand.Float64() < sendprob) {
+									word := strings.Repeat("\x01 ", prefix)
 									wk := Walk(chain, word)
 									if badmatch(strings.Fields(wk), words) {
 										log.Println("generated:", wk)
 										break // drop unoriginal messages
 									}
-									send <- "PRIVMSG " + stuff[2] + " :" + wk + lennie()
+									talk(send, "PRIVMSG "+stuff[2]+" :", wk)
 								}
 							}
 						}
@@ -384,6 +413,9 @@ var lennies = []string{
 	"(╭☞ ͠°ᗜ °)╭☞",
 	"∠( ᐛ 」∠)＿",
 	"(´；ω；｀)",
+	";)",
+	"PogChamp",
+	"",
 	"",
 }
 
