@@ -166,8 +166,8 @@ func recver(recv chan<- string, f net.Conn) {
 	close(recv)
 }
 
-func talk(send chan<- string, meta, msg string) {
-	time.Sleep(33 * time.Millisecond * time.Duration(len(msg)))
+func talk(send chan<- string, meta, msg string, speed int) {
+	time.Sleep(time.Millisecond * time.Duration(len(msg)*speed))
 	send <- meta + msg + lennie()
 }
 
@@ -175,6 +175,7 @@ func main() {
 	var server, pass, nick, user, real, channel, listen, dict, secret, ign, ri, adm string
 	var sendprob float64
 	var caps, respond bool
+	var speed int
 	flag.StringVar(&server, "server", Server, "server and port to which to connect")
 	flag.StringVar(&pass, "pass", "", "server login password")
 	flag.StringVar(&nick, "nick", Nick, "nickname to use")
@@ -191,6 +192,7 @@ func main() {
 	flag.StringVar(&ign, "ignore", Ignore, "comma-sep list of users from whom not to learn")
 	flag.StringVar(&ri, "regexignore", RegexIgnore, "regular expression for PRIVMSGs to ignore")
 	flag.StringVar(&adm, "admin", Admins, "comma-sep list of users from whom to accept cmds")
+	flag.IntVar(&speed, "speed", 80, "\"typing\" speed in ms/char")
 	flag.Parse()
 	secret = hash(":" + secret)
 	if prefix < 1 {
@@ -338,10 +340,18 @@ func main() {
 										log.Println("error compiling regexignore:", err)
 										log.Println("no message filtering!")
 									}
+								case "speed":
+									if v, err := strconv.ParseInt(stuff[5], 10, 32); err == nil && v >= 0 {
+										speed = int(v)
+										log.Println("typing speed", speed)
+									}
+								default:
+									goto thisisanokuseofgotoiswear
 								}
+								break
 							}
-							break
 						}
+					thisisanokuseofgotoiswear:
 						if ignored[from] {
 							break
 						}
@@ -367,7 +377,11 @@ func main() {
 										log.Println("generated:", wk)
 										break // drop unoriginal messages
 									}
-									talk(send, "PRIVMSG "+stuff[2]+" :", wk)
+									if !addressed {
+										talk(send, "PRIVMSG "+stuff[2]+" :", wk, speed)
+									} else {
+										talk(send, "PRIVMSG "+stuff[2]+" :", wk, speed/3)
+									}
 								}
 							}
 						}
