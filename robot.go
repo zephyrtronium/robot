@@ -172,7 +172,7 @@ func talk(send chan<- string, meta, msg string, speed int) {
 }
 
 func main() {
-	var server, pass, nick, user, real, channel, listen, dict, secret, ign, ri, adm string
+	var server, pass, nick, user, real, channel, listen, dict, secret, ssp, ign, ri, adm string
 	var sendprob float64
 	var caps, respond bool
 	var speed int
@@ -186,7 +186,8 @@ func main() {
 	flag.IntVar(&prefix, "length", PREFIX, "length of markov chain prefixes")
 	flag.StringVar(&dict, "dict", DICT, "chain serialization file")
 	flag.StringVar(&secret, "secret", "", "password for commands; unavailable by default")
-	flag.Float64Var(&sendprob, "sendprob", 0.2, "probability of responding")
+	flag.Float64Var(&sendprob, "sendprob", 0.2, "default probability of responding")
+	flag.StringVar(&ssp, "ssp", "", "special sendprobs, comma-sep list of chan=p")
 	flag.BoolVar(&respond, "respond", true, "guarantee response when first word contains the bot's nick")
 	flag.BoolVar(&caps, "caps", false, "send CAP REQ messages for twitch extensions")
 	flag.StringVar(&ign, "ignore", Ignore, "comma-sep list of users from whom not to learn")
@@ -226,9 +227,20 @@ func main() {
 		log.Println("failed to unmarshal from", dict+":", err)
 		chain = make(map[string][]string)
 	}
-	chanset := make(map[string]bool)
+	chanset := make(map[string]float64)
 	for _, c := range strings.Split(channel, ",") {
-		chanset[c] = true
+		chanset[c] = sendprob
+	}
+	if len(ssp) > 0 {
+		for _, cv := range strings.Split(ssp, ",") {
+			s := strings.Split(cv, "=")
+			if v, err := strconv.ParseFloat(s[1], 64); err == nil {
+				chanset[s[0]] = v
+			} else {
+				log.Println("malformed ssp on", cv)
+				continue
+			}
+		}
 	}
 	addr, err := net.ResolveTCPAddr("tcp", server)
 	if err != nil {
@@ -296,25 +308,36 @@ func main() {
 									end()
 								case "join":
 									for _, c := range stuff[5:] {
-										chanset[c] = true
+										chanset[c] = sendprob
 										send <- "JOIN " + c
 									}
 								case "listen":
 									for _, c := range stuff[5:] {
-										chanset[c] = false
+										chanset[c] = 0
 										send <- "JOIN " + c
 									}
 								case "part":
 									for _, c := range stuff[5:] {
-										chanset[c] = false
+										delete(chanset, c)
 										send <- "PART " + c
 									}
 								case "nick":
 									send <- "NICK " + stuff[5]
 								case "sendprob":
 									if v, err := strconv.ParseFloat(stuff[5], 64); err == nil {
-										sendprob = v
-										log.Println("send probability", sendprob)
+										if l > 6 {
+											for _, c := range stuff[6:] {
+												chanset[c] = v
+											}
+										} else {
+											sendprob = v
+											log.Println("send probability", sendprob)
+											for c, p := range chanset {
+												if p > 0 {
+													chanset[c] = sendprob
+												}
+											}
+										}
 									}
 								case "raw":
 									send <- strings.Join(stuff[5:], " ")
@@ -370,7 +393,7 @@ func main() {
 								if !addressed {
 									Filter(chain, words)
 								}
-								if chanset[stuff[2]] && (addressed || rand.Float64() < sendprob) {
+								if addressed || rand.Float64() < chanset[stuff[2]] {
 									word := strings.Repeat("\x01 ", prefix)
 									wk := Walk(chain, word)
 									if badmatch(strings.Fields(wk), words) {
