@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"flag"
-	// "fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -17,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	// "unicode"
 )
 
 const (
@@ -70,7 +68,6 @@ func Filter(c map[string][]string, words []string) {
 
 func Walk(c map[string][]string, word string) string {
 	s := make([]string, 0, 20)
-	// s = append(s, word)
 	sum := 0
 	for sum < 400 {
 		words := c[strings.ToLower(word)]
@@ -276,7 +273,6 @@ func main() {
 		complete = true
 		time.AfterFunc(5*time.Second, func() { os.Exit(0) })
 	}
-	// WINDOWS-DEPENDENT:
 	isig := make(chan os.Signal, 3)
 	ksig := make(chan os.Signal, 3)
 	signal.Notify(isig, os.Interrupt)
@@ -293,7 +289,6 @@ func main() {
 			} else {
 				log.Println(line)
 				if len(stuff) > 1 {
-					// out:
 					switch stuff[1] {
 					case "376":
 						send <- "JOIN " + channel
@@ -427,14 +422,6 @@ func main() {
 			complete = true
 			sending = false
 			continue
-			// case isig := <-signal.Incoming:
-			// 	if usig, ok := sig.(os.UnixSignal); ok && usig == os.SIGINT {
-			// 		end()
-			// 	} else if ok && usig == os.SIGTERM {
-			// 		complete = true
-			// 		sending = false
-			// 		continue
-			// 	}
 		}
 	}
 }
