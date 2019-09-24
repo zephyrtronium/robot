@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -35,8 +36,8 @@ const (
 
 var (
 	prefix   int
-	complete bool
-	sending  bool
+	complete uint32
+	sending  uint32
 	hasher   = sha1.New()
 
 	TIMEOUT = 300 * time.Second
@@ -62,7 +63,7 @@ func Filter(c map[string][]string, words []string) {
 		word := strings.ToLower(strings.Join(words[i-prefix:i], " "))
 		c[word] = append(c[word], words[i])
 	}
-	word := strings.ToLower(strings.Join(words[len(words)-prefix:len(words)], " "))
+	word := strings.ToLower(strings.Join(words[len(words)-prefix:], " "))
 	c[word] = append(c[word], "\x00")
 }
 
@@ -87,11 +88,106 @@ func Walk(c map[string][]string, word string) string {
 	return strings.Join(s, " ")
 }
 
+type Brain struct {
+	// queue is the queue of messages to learn.
+	queue []string
+	// chain is the Markov chain.
+	chain map[string][]string
+	// prefix is the prefix length.
+	prefix int
+}
+
+func (b *Brain) Learn(msg string) {
+	if cap(b.queue) == 0 {
+		b.filter(msg)
+		return
+	}
+	if len(b.queue) == cap(b.queue) {
+		b.filter(b.queue[0])
+		copy(b.queue, b.queue[1:])
+		b.queue = b.queue[:len(b.queue)-1]
+	}
+	b.queue = append(b.queue, msg)
+}
+
+func (b *Brain) Marshal() ([]byte, error) {
+	for _, msg := range b.queue {
+		b.filter(msg)
+	}
+	b.queue = b.queue[:0]
+	return json.Marshal(b.chain)
+}
+
+func (b *Brain) Say() string {
+	word := strings.Repeat("\x01 ", b.prefix)
+	return Walk(b.chain, word)
+}
+
+func (b *Brain) Clear(sender string) int {
+	n := 0
+	for i, line := range b.queue {
+		if len(line) == 0 || line[0] != ':' {
+			continue
+		}
+		line = line[1:]
+		k := strings.IndexByte(line, ' ')
+		if k < 0 {
+			continue
+		}
+		j := strings.IndexByte(line, '!')
+		if j < 0 {
+			j = k
+		}
+		if line[:j] != sender {
+			if n == 0 {
+				continue
+			}
+			b.queue[i-n] = line
+		} else {
+			n++
+		}
+		if i+n >= len(b.queue) {
+			break
+		}
+	}
+	b.queue = b.queue[:len(b.queue)-n]
+	return n
+}
+
+func (b *Brain) SetRoll(n int) {
+	switch {
+	case cap(b.queue) > n:
+		for i := 0; i < cap(b.queue)-n; i++ {
+			b.filter(b.queue[i])
+		}
+		q := make([]string, n)
+		copy(q, b.queue[cap(b.queue)-n:])
+		b.queue = q
+	case cap(b.queue) < n:
+		q := make([]string, len(b.queue), n)
+		copy(q, b.queue)
+		b.queue = q
+	}
+}
+
+func (b *Brain) filter(msg string) {
+	stuff := strings.Fields(msg)
+	if len(stuff) < 4 {
+		panic("unexpectedly short message: " + msg)
+	}
+	if stuff[1] != "PRIVMSG" {
+		panic("unexpected message type " + stuff[1] + ": " + msg)
+	}
+	words := stuff[3:]
+	words[0] = words[0][1:]
+	Filter(b.chain, words)
+}
+
 func sender(send <-chan string, f net.Conn) {
-	sending = true
+	atomic.StoreUint32(&sending, 1)
 	t := time.Now().UnixNano()
 	buf := make([]byte, 512)
-	for !complete {
+	for atomic.LoadUint32(&complete) == 0 {
 		msg := <-send
 		if len(msg) > 450 {
 			continue
@@ -119,7 +215,7 @@ func sender(send <-chan string, f net.Conn) {
 			log.Fatalln("error while sending:", err)
 		}
 	}
-	sending = false
+	atomic.StoreUint32(&sending, 0)
 }
 
 func hash(word string) string {
@@ -130,34 +226,37 @@ func hash(word string) string {
 
 func recver(recv chan<- string, f net.Conn) {
 	b := bufio.NewReader(f)
-	cache := ""
-	for !complete {
+	cache := strings.Builder{}
+	for atomic.LoadUint32(&complete) == 0 {
 		f.SetReadDeadline(time.Now().Add(TIMEOUT))
 		data, isPrefix, err := b.ReadLine()
 		if len(data) > 0 {
-			cache += string(data)
-			switch e := err.(type) {
-			case nil: // do nothing
-			case net.Error:
-				if e.Temporary() {
-					log.Println("temporary net error while recving:", e)
-					break
-				}
-				log.Fatalln("net error while recving:", e)
-			default:
-				log.Fatalln("error while sending:", err)
+			cache.Write(data)
+		}
+		switch e := err.(type) {
+		case nil: // do nothing
+		case net.Error:
+			if e.Temporary() && !e.Timeout() {
+				log.Println("temporary net error while recving:", e)
+				break
 			}
-			if isPrefix {
-				continue
-			}
-			if cache[0] == '@' {
+			log.Fatalln("net error while recving:", e)
+		default:
+			log.Fatalln("error while sending:", err)
+		}
+		if isPrefix {
+			continue
+		}
+		if cache.Len() > 0 {
+			line := cache.String()
+			if line[0] == '@' {
 				// trim off tags
-				i := strings.Index(cache, " ")
-				// log.Println("tags:", cache[:i])
-				cache = cache[i+1:]
+				i := strings.Index(line, " ")
+				// log.Println("tags:", line[:i])
+				line = line[i+1:]
 			}
-			recv <- cache
-			cache = ""
+			recv <- line
+			cache.Reset()
 		}
 	}
 	close(recv)
@@ -172,7 +271,7 @@ func main() {
 	var server, pass, nick, user, real, channel, listen, dict, secret, ssp, ign, ri, adm string
 	var sendprob float64
 	var caps, respond bool
-	var speed int
+	var speed, roll int
 	flag.StringVar(&server, "server", Server, "server and port to which to connect")
 	flag.StringVar(&pass, "pass", "", "server login password")
 	flag.StringVar(&nick, "nick", Nick, "nickname to use")
@@ -191,6 +290,7 @@ func main() {
 	flag.StringVar(&ri, "regexignore", RegexIgnore, "regular expression for PRIVMSGs to ignore")
 	flag.StringVar(&adm, "admin", Admins, "comma-sep list of users from whom to accept cmds")
 	flag.IntVar(&speed, "speed", 80, "\"typing\" speed in ms/char")
+	flag.IntVar(&roll, "roll", 0, "number of messages to delay learning")
 	flag.Parse()
 	secret = hash(":" + secret)
 	if prefix < 1 {
@@ -217,12 +317,13 @@ func main() {
 		}
 	}
 	rand.Seed(time.Now().UnixNano())
-	var chain map[string][]string
+	brain := Brain{queue: make([]string, 0, roll), prefix: prefix}
 	if j, err := ioutil.ReadFile(dict); err != nil {
-		chain = make(map[string][]string)
-	} else if err = json.Unmarshal(j, &chain); err != nil {
+		log.Println("unable to open", dict+":", err)
+		brain.chain = make(map[string][]string)
+	} else if err = json.Unmarshal(j, &brain.chain); err != nil {
 		log.Println("failed to unmarshal from", dict+":", err)
-		chain = make(map[string][]string)
+		brain.chain = make(map[string][]string)
 	}
 	chanset := make(map[string]float64)
 	for _, c := range strings.Split(channel, ",") {
@@ -252,8 +353,18 @@ func main() {
 	recv := make(chan string)
 	go sender(send, sock)
 	go recver(recv, sock)
+	req := make([]string, 0, 3)
+	if roll > 0 {
+		req = append(req, "twitch.tv/commands")
+	}
 	if caps {
-		send <- "CAP REQ :twitch.tv/membership twitch.tv/commands twitch.tv/tags"
+		if len(req) == 0 {
+			req = append(req, "twitch.tv/commands")
+		}
+		req = append(req, "twitch.tv/tags", "twitch.tv/membership")
+	}
+	if len(req) > 0 {
+		send <- "CAP REQ :" + strings.Join(req, " ")
 	}
 	if pass != "" {
 		send <- "PASS " + pass
@@ -261,7 +372,7 @@ func main() {
 	send <- "NICK " + nick
 	send <- "USER " + user + " * * :" + real
 	end := func() {
-		if j, err := json.Marshal(chain); err != nil {
+		if j, err := brain.Marshal(); err != nil {
 			log.Println("failed to marshal dict:", err)
 			return
 		} else if err = ioutil.WriteFile(dict, j, 0644); err != nil {
@@ -270,14 +381,14 @@ func main() {
 		} else {
 			send <- "QUIT :goodbye"
 		}
-		complete = true
+		atomic.StoreUint32(&complete, 1)
 		time.AfterFunc(5*time.Second, func() { os.Exit(0) })
 	}
 	isig := make(chan os.Signal, 3)
 	ksig := make(chan os.Signal, 3)
 	signal.Notify(isig, os.Interrupt)
 	signal.Notify(ksig, os.Kill)
-	for sending {
+	for atomic.LoadUint32(&sending) != 0 {
 		select {
 		case line, ok := <-recv:
 			if !ok {
@@ -340,14 +451,33 @@ func main() {
 									for _, c := range stuff[5:] {
 										ignored[c] = true
 									}
+									o := make([]string, 0, len(ignored))
+									for a, ok := range ignored {
+										if ok {
+											o = append(o, a)
+										}
+									}
+									log.Println("ignored:", o)
 								case "unignore":
 									for _, c := range stuff[5:] {
 										ignored[c] = false
 									}
+									o := make([]string, 0, len(ignored))
+									for a, ok := range ignored {
+										if ok {
+											o = append(o, a)
+										}
+									}
+									log.Println("ignored:", o)
 								case "admin":
 									for _, c := range stuff[5:] {
 										admins[c] = true
 									}
+									o := make([]string, 0, len(admins))
+									for a := range admins {
+										o = append(o, a)
+									}
+									log.Println("admins:", o)
 								case "respond":
 									respond = strings.EqualFold(stuff[5], "on")
 									log.Println("guaranteed response set to", respond)
@@ -363,6 +493,15 @@ func main() {
 										speed = int(v)
 										log.Println("typing speed", speed)
 									}
+								case "roll":
+									if roll == 0 && !caps {
+										send <- "PRIVMSG " + stuff[2] + " :I can't see CLEARCHAT commands, so the roll queue is disabled."
+										continue
+									}
+									if v, err := strconv.ParseInt(stuff[5], 10, 32); err == nil && v >= 0 {
+										brain.SetRoll(int(v))
+										log.Println("roll length:", v)
+									}
 								default:
 									goto thisisanokuseofgotoiswear
 								}
@@ -371,11 +510,12 @@ func main() {
 						}
 					thisisanokuseofgotoiswear:
 						if ignored[from] {
+							log.Println(from, "is ignored")
 							break
 						}
 						words := stuff[3:]
 						words[0] = words[0][1:]
-						addressed := strings.Contains(strings.ToLower(words[0]), strings.ToLower(nick))
+						addressed := respond && strings.Contains(strings.ToLower(words[0]), strings.ToLower(nick))
 						if addressed {
 							log.Println("someone is talking to me")
 						}
@@ -386,11 +526,10 @@ func main() {
 						if line[len(line)-1] != 1 { // drop ctcps
 							if len(words) >= 1 {
 								if !addressed {
-									Filter(chain, words)
+									brain.Learn(line)
 								}
 								if addressed || rand.Float64() < chanset[stuff[2]] {
-									word := strings.Repeat("\x01 ", prefix)
-									wk := Walk(chain, word)
+									wk := brain.Say()
 									if badmatch(strings.Fields(wk), words) {
 										log.Println("generated:", wk)
 										break // drop unoriginal messages
@@ -413,14 +552,20 @@ func main() {
 							nick = stuff[2][1:]
 							println("nick is " + nick)
 						}
+					case "CLEARCHAT":
+						if len(stuff) == 4 {
+							sender := stuff[3][1:]
+							cleared := brain.Clear(sender)
+							log.Println("cleared", cleared, "messages from", sender)
+						}
 					}
 				}
 			}
 		case <-isig:
 			end()
 		case <-ksig:
-			complete = true
-			sending = false
+			atomic.StoreUint32(&complete, 1)
+			atomic.StoreUint32(&sending, 0)
 			continue
 		}
 	}
@@ -431,7 +576,6 @@ var lennies = []string{
 	"xD",
 	"( ͡° ͜ʖ ͡°)",
 	"(◕◡◕)",
-	"(∩⊜◡⊜)⊃━☆ﾟ.*",
 	"(╯°□°）╯︵ ┻━┻",
 	"(/ω＼)",
 	"(╭☞ ͠°ᗜ °)╭☞",
@@ -439,6 +583,8 @@ var lennies = []string{
 	"(´；ω；｀)",
 	";)",
 	"PogChamp",
+	"ლ(´ڡ`ლ)",
+	"D:",
 	"",
 	"",
 }

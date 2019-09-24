@@ -23,6 +23,7 @@ robot.go is `go run`-able. Alternatively, the binary distribution works standalo
  - `-regexignore="expression"` Regular expression of PRIVMSG arguments to ignore. The default is `^!|://|\.(com|net|org|tv|edu)|^\001`, which ignores, in order, messages beginning with `!`; containing `://`, `.com`, `.net`, `.org`, `.tv`, or `.edu`; and CTCP messages (`/me`).
  - `-admin=user1,user2` Comma-separated list of administrator usernames. Users given here can use special commands.
  - `-speed=<integer>` "Typing" speed; the bot will delay this many milliseconds per character when sending a message.
+ - `-roll=<integer>` Roll queue length. See the documentation of the `roll` command below. The default value is 0, meaning the roll queue is disabled and messages are learned immediately.
 
 It is helpful to create a batch script to run the bot on a double-click. An example might look like:
 
@@ -54,6 +55,7 @@ The full list of commands:
 - `respond {on|off}` Control whether to always respond when addressed, which is when the first word of a message contains the bot's current nickname.
 - `regexignore <expression>` Set a new regular expression to filter messages.
 - `speed <integer>` Set a new typing speed.
+- `roll <integer>` Set a new roll queue length. This is the number of messages the bot delays before actually learning. If the roll queue length is greater than zero and a Twitch user is banned or timed out, all messages within the roll queue from that user are deleted. If the bot is launched with a zero roll queue length and without caps, then the roll queue cannot be activated.
 
 # Stopping
 
