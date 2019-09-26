@@ -61,5 +61,3 @@ The full list of commands:
 # Stopping
 
 To stop the bot, press Ctrl+C at the command prompt or use the `quit` command.
-
-Robot does not understand the concept of network errors (despite how much I tried to get them to be understood) and will hang indefinitely when they happen. You'll have to manually stop and restart the bot whenever your internet (or the server's) fails, or after your computer sleeps, &c.
