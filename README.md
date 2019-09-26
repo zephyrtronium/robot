@@ -56,6 +56,7 @@ The full list of commands:
 - `regexignore <expression>` Set a new regular expression to filter messages.
 - `speed <integer>` Set a new typing speed.
 - `roll <integer>` Set a new roll queue length. This is the number of messages the bot delays before actually learning. If the roll queue length is greater than zero and a Twitch user is banned or timed out, all messages within the roll queue from that user are deleted. If the bot is launched with a zero roll queue length and without caps, then the roll queue cannot be activated.
+- `status <kind>` Inquire about the bot's status. The argument may be `nick` to have the bot say what it believes its nick is, `req` for Twitch capabilities requested, `admin` for the current list of admins, `ignored` for the list of ignored users, `chans` for the list of channels the bot is in along with their respective send probabilities, `re` for the current regex ignore, `respond` for whether the bot responds when addressed, `roll` for the roll queue length, `speed` for the bot's simulated typing speed, `knowledge` for the prefix length and the number of prefixes and suffixes the bot knows, or `all` for all of the above in separate messages.
 
 # Stopping
 

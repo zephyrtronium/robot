@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -502,6 +503,66 @@ func main() {
 										brain.SetRoll(int(v))
 										log.Println("roll length:", v)
 									}
+								case "status":
+									cfg := statusconfigs[strings.ToLower(stuff[5])]
+									if cfg.nick {
+										send <- fmt.Sprintf("PRIVMSG %s :I believe I am %s.", stuff[2], nick)
+									}
+									if cfg.req {
+										if len(req) != 0 {
+											send <- fmt.Sprintf("PRIVMSG %s :Twitch capabilities I've requested: %v", stuff[2], req)
+										} else {
+											send <- fmt.Sprintf("PRIVMSG %s :I haven't requested any Twitch capabilities.", stuff[2])
+										}
+									}
+									o := []string{}
+									if cfg.admin {
+										for a := range admins {
+											o = append(o, a)
+										}
+										send <- fmt.Sprintf("PRIVMSG %s :Admins: %s", stuff[2], strings.Join(o, ", "))
+										o = o[:0]
+									}
+									if cfg.ignored {
+										for a := range ignored {
+											o = append(o, a)
+										}
+										send <- fmt.Sprintf("PRIVMSG %s :Ignored: %s", stuff[2], strings.Join(o, ", "))
+										o = o[:0]
+									}
+									if cfg.chans {
+										for c, p := range chanset {
+											o = append(o, fmt.Sprintf("%s: %g%%", c, p*100))
+										}
+										send <- fmt.Sprintf("PRIVMSG %s :Channels with send probabilities: %s", stuff[2], strings.Join(o, ", "))
+									}
+									if cfg.re {
+										send <- fmt.Sprintf("PRIVMSG %s :I ignore messages matching this regular expression: %v", stuff[2], re)
+									}
+									if cfg.respond {
+										if respond {
+											send <- fmt.Sprintf("PRIVMSG %s :I respond to messages directed at me.", stuff[2])
+										} else {
+											send <- fmt.Sprintf("PRIVMSG %s :I do not respond to messages directed to me.", stuff[2])
+										}
+									}
+									if cfg.roll {
+										if cap(brain.queue) == 0 {
+											send <- fmt.Sprintf("PRIVMSG %s :I do not wait before learning messages.", stuff[2])
+										} else {
+											send <- fmt.Sprintf("PRIVMSG %s :I wait for %d messages before learning, with %d currently pending.", stuff[2], cap(brain.queue), len(brain.queue))
+										}
+									}
+									if cfg.speed {
+										send <- fmt.Sprintf("PRIVMSG %s :I type at a rate of %d ms/char = %d char/s.", stuff[2], speed, 1000/speed)
+									}
+									if cfg.knowledge {
+										nw := 0
+										for _, w := range brain.chain {
+											nw += len(w)
+										}
+										send <- fmt.Sprintf("PRIVMSG %s :I know %d prefixes of length %d with %d total suffixes.", stuff[2], len(brain.chain), brain.prefix, nw)
+									}
 								default:
 									goto thisisanokuseofgotoiswear
 								}
@@ -605,4 +666,22 @@ func badmatch(walk, src []string) (match bool) {
 		}
 	}
 	return true
+}
+
+type statusconfig struct {
+	nick, req, admin, ignored, chans, re, respond, roll, speed, knowledge bool
+}
+
+var statusconfigs = map[string]statusconfig{
+	"all":       {true, true, true, true, true, true, true, true, true, true},
+	"nick":      {nick: true},
+	"req":       {req: true},
+	"admin":     {admin: true},
+	"ignored":   {ignored: true},
+	"chans":     {chans: true},
+	"re":        {re: true},
+	"respond":   {respond: true},
+	"roll":      {roll: true},
+	"speed":     {speed: true},
+	"knowledge": {knowledge: true},
 }
