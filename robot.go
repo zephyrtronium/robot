@@ -271,7 +271,7 @@ func talk(send chan<- string, meta, msg string, speed int) {
 func main() {
 	var server, pass, nick, user, real, channel, listen, dict, secret, ssp, ign, ri, adm string
 	var sendprob float64
-	var caps, respond bool
+	var caps, respond, dins bool
 	var speed, roll int
 	flag.StringVar(&server, "server", Server, "server and port to which to connect")
 	flag.StringVar(&pass, "pass", "", "server login password")
@@ -292,6 +292,7 @@ func main() {
 	flag.StringVar(&adm, "admin", Admins, "comma-sep list of users from whom to accept cmds")
 	flag.IntVar(&speed, "speed", 80, "\"typing\" speed in ms/char")
 	flag.IntVar(&roll, "roll", 0, "number of messages to delay learning")
+	flag.BoolVar(&dins, "dins", false, "ask what was for dins")
 	flag.Parse()
 	secret = hash(":" + secret)
 	if prefix < 1 {
@@ -340,6 +341,9 @@ func main() {
 				continue
 			}
 		}
+	}
+	if dins {
+		lennies = append(lennies, "btw what was for dins?")
 	}
 	addr, err := net.ResolveTCPAddr("tcp", server)
 	if err != nil {
@@ -395,7 +399,7 @@ func main() {
 			if !ok {
 				break
 			}
-			stuff := strings.Split(line, " ")
+			stuff := strings.Fields(line)
 			if stuff[0] == "PING" {
 				send <- "PONG " + strings.Join(stuff[1:], " ")
 			} else {
