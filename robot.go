@@ -562,10 +562,19 @@ func main() {
 									}
 									if cfg.knowledge {
 										nw := 0
+										uw := 0
 										for _, w := range brain.chain {
+											mm := make(map[string]bool)
 											nw += len(w)
+											for _, word := range w {
+												if mm[word] {
+													continue
+												}
+												mm[word] = true
+												uw++
+											}
 										}
-										send <- fmt.Sprintf("PRIVMSG %s :I know %d prefixes of length %d with %d total suffixes.", stuff[2], len(brain.chain), brain.prefix, nw)
+										send <- fmt.Sprintf("PRIVMSG %s :I know %d prefixes of length %d with %d total suffixes, %d of which are unique per prefix. This means a %.2f:1 learning ratio and a %.2f%% uniqueness index.", stuff[2], len(brain.chain), brain.prefix, nw, uw, float64(nw)/float64(len(brain.chain)), float64(uw)*100/float64(nw))
 									}
 								default:
 									goto thisisanokuseofgotoiswear
