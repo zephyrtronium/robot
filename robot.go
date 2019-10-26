@@ -33,6 +33,8 @@ const (
 
 	PREFIX = 2
 	DICT   = "markov.2.dict"
+
+	GenerateLength = 375
 )
 
 var (
@@ -71,7 +73,7 @@ func Filter(c map[string][]string, words []string) {
 func Walk(c map[string][]string, word string) string {
 	s := make([]string, 0, 20)
 	sum := 0
-	for sum < 400 {
+	for sum < GenerateLength {
 		words := c[strings.ToLower(word)]
 		if words == nil {
 			break
@@ -184,6 +186,11 @@ func (b *Brain) filter(msg string) {
 	Filter(b.chain, words)
 }
 
+func fail(args ...interface{}) {
+	log.Println(args...)
+	atomic.StoreUint32(&complete, 1)
+}
+
 func sender(send <-chan string, f net.Conn) {
 	atomic.StoreUint32(&sending, 1)
 	t := time.Now().UnixNano()
@@ -208,12 +215,12 @@ func sender(send <-chan string, f net.Conn) {
 		switch e := err.(type) {
 		case nil: // do nothing
 		case net.Error:
-			log.Fatalln("net error while sending:", e)
+			fail("net error while sending:", e)
 			if e.Temporary() {
 				continue
 			}
 		default:
-			log.Fatalln("error while sending:", err)
+			fail("error while sending:", err)
 		}
 	}
 	atomic.StoreUint32(&sending, 0)
@@ -241,9 +248,9 @@ func recver(recv chan<- string, f net.Conn) {
 				log.Println("temporary net error while recving:", e)
 				break
 			}
-			log.Fatalln("net error while recving:", e)
+			fail("net error while recving:", e)
 		default:
-			log.Fatalln("error while sending:", err)
+			fail("error while sending:", err)
 		}
 		if isPrefix {
 			continue
@@ -343,7 +350,7 @@ func main() {
 		}
 	}
 	if dins {
-		lennies = append(lennies, "btw what was for dins?")
+		lennies = append(lennies, "btw you should stretch, hydrate, and take care of yourself <3")
 	}
 	addr, err := net.ResolveTCPAddr("tcp", server)
 	if err != nil {
@@ -659,6 +666,8 @@ var lennies = []string{
 	"PogChamp",
 	"ლ(´ڡ`ლ)",
 	"D:",
+	"",
+	"",
 	"",
 	"",
 }
