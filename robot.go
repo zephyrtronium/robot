@@ -196,31 +196,31 @@ func sender(send <-chan string, f net.Conn) {
 	t := time.Now().UnixNano()
 	buf := make([]byte, 512)
 	for atomic.LoadUint32(&complete) == 0 {
-		msg := <-send
-		if len(msg) > 450 {
-			continue
-		}
-		if t < time.Now().UnixNano() {
-			t = time.Now().UnixNano()
-		} else if t > time.Now().UnixNano()+7e9 {
-			time.Sleep(2 * time.Second)
-		}
-		if !strings.HasPrefix(msg, "PONG") {
-			log.Println(msg)
-		}
-		copy(buf, msg)
-		copy(buf[len(msg):], "\r\n")
-		f.SetWriteDeadline(time.Now().Add(TIMEOUT))
-		_, err := f.Write(buf[:len(msg)+2])
-		switch e := err.(type) {
-		case nil: // do nothing
-		case net.Error:
-			fail("net error while sending:", e)
-			if e.Temporary() {
+		select {
+		case msg := <-send:
+			if len(msg) > 450 {
 				continue
 			}
-		default:
-			fail("error while sending:", err)
+			if t < time.Now().UnixNano() {
+				t = time.Now().UnixNano()
+			} else if t > time.Now().UnixNano()+7e9 {
+				time.Sleep(2 * time.Second)
+			}
+			if !strings.HasPrefix(msg, "PONG") {
+				log.Println(msg)
+			}
+			copy(buf, msg)
+			copy(buf[len(msg):], "\r\n")
+			f.SetWriteDeadline(time.Now().Add(TIMEOUT))
+			_, err := f.Write(buf[:len(msg)+2])
+			switch e := err.(type) {
+			case nil: // do nothing
+			case net.Error:
+				fail("net error while sending:", e)
+			default:
+				fail("error while sending:", err)
+			}
+		case <-time.After(TIMEOUT): // do nothing
 		}
 	}
 	atomic.StoreUint32(&sending, 0)
@@ -359,6 +359,9 @@ func main() {
 	sock, err := net.DialTCP("tcp", nil, addr)
 	if err != nil {
 		log.Fatalln("error connecting to", server+":", err)
+	}
+	if err := sock.SetKeepAlive(false); err != nil {
+		log.Println("unable to disable keep-alive:", err)
 	}
 	sock.SetWriteDeadline(time.Now().Add(TIMEOUT))
 	send := make(chan string)
