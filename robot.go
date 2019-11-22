@@ -169,7 +169,7 @@ func (b *Brain) Forget(search *regexp.Regexp) int {
 			continue
 		}
 		line = line[k+1:]
-		if search.MatchString(line) {
+		if !search.MatchString(line) {
 			if n == 0 {
 				continue
 			}
