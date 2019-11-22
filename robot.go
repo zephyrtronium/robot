@@ -157,6 +157,34 @@ func (b *Brain) Clear(sender string) int {
 	return n
 }
 
+func (b *Brain) Forget(search *regexp.Regexp) int {
+	n := 0
+	for i, line := range b.queue {
+		if len(line) == 0 || line[0] != ':' {
+			continue
+		}
+		line = line[1:]
+		k := strings.IndexByte(line, ':')
+		if k < 0 {
+			continue
+		}
+		line = line[k+1:]
+		if search.MatchString(line) {
+			if n == 0 {
+				continue
+			}
+			b.queue[i-n] = line
+		} else {
+			n++
+		}
+		if i+n >= len(b.queue) {
+			break
+		}
+	}
+	b.queue = b.queue[:len(b.queue)-n]
+	return n
+}
+
 func (b *Brain) SetRoll(n int) {
 	switch {
 	case cap(b.queue) > n:
@@ -517,6 +545,15 @@ func main() {
 										brain.SetRoll(int(v))
 										log.Println("roll length:", v)
 									}
+								case "forget":
+									fg := strings.Join(stuff[5:], "\\s+")
+									log.Printf("forget expression: %q\n", fg)
+									fe, err := regexp.Compile(fg)
+									if err != nil {
+										send <- fmt.Sprintf("PRIVMSG %s :Failed to compile %q: %v", stuff[2], fg, err)
+										continue
+									}
+									log.Println("forgot", brain.Forget(fe), "messages")
 								case "status":
 									cfg := statusconfigs[strings.ToLower(stuff[5])]
 									if cfg.nick {
