@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	"os/signal"
@@ -18,6 +17,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/zephyrtronium/crazy"
 )
 
 const (
@@ -44,6 +45,9 @@ var (
 	hasher   = sha1.New()
 
 	TIMEOUT = 300 * time.Second
+
+	rng     crazy.RNG
+	uniform crazy.Uniform0_1
 )
 
 func Filter(c map[string][]string, words []string) {
@@ -78,7 +82,7 @@ func Walk(c map[string][]string, word string) string {
 		if words == nil {
 			break
 		}
-		nextword := words[rand.Intn(len(words))]
+		nextword := words[rng.Intn(len(words))]
 		if nextword == "\x00" {
 			break
 		}
@@ -353,7 +357,10 @@ func main() {
 			admins[name] = true
 		}
 	}
-	rand.Seed(time.Now().UnixNano())
+	xoshi := &crazy.Xoshiro{}
+	crazy.CryptoSeeded(xoshi, 32)
+	rng = crazy.RNG{xoshi}
+	uniform = crazy.Uniform0_1{xoshi}
 	brain := Brain{queue: make([]string, 0, roll), prefix: prefix}
 	if j, err := ioutil.ReadFile(dict); err != nil {
 		log.Println("unable to open", dict+":", err)
@@ -649,7 +656,7 @@ func main() {
 								if !addressed {
 									brain.Learn(line)
 								}
-								if addressed || rand.Float64() < chanset[stuff[2]] {
+								if addressed || uniform.Next() < chanset[stuff[2]] {
 									wk := brain.Say()
 									if badmatch(strings.Fields(wk), words) {
 										log.Println("generated:", wk)
@@ -713,7 +720,7 @@ var lennies = []string{
 }
 
 func lennie() string {
-	return " " + lennies[rand.Intn(len(lennies))]
+	return " " + lennies[rng.Intn(len(lennies))]
 }
 
 func badmatch(walk, src []string) (match bool) {
