@@ -357,10 +357,10 @@ func main() {
 			admins[name] = true
 		}
 	}
-	xoshi := &crazy.Xoshiro{}
-	crazy.CryptoSeeded(xoshi, 32)
-	rng = crazy.RNG{xoshi}
-	uniform = crazy.Uniform0_1{xoshi}
+	mt := &crazy.MT64{}
+	crazy.CryptoSeeded(mt, 8)
+	rng = crazy.RNG{mt}
+	uniform = crazy.Uniform0_1{mt}
 	brain := Brain{queue: make([]string, 0, roll), prefix: prefix}
 	if j, err := ioutil.ReadFile(dict); err != nil {
 		log.Println("unable to open", dict+":", err)
