@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/sha1"
 	"encoding/json"
 	"flag"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"golang.org/x/time/rate"
 
 	"github.com/zephyrtronium/crazy"
 )
@@ -46,8 +49,17 @@ var (
 
 	TIMEOUT = 300 * time.Second
 
+	limiter = rate.NewLimiter(rate.Every(2050*time.Millisecond), 1)
+
 	rng     crazy.RNG
 	uniform crazy.Uniform0_1
+
+	queueAdd  = regexp.MustCompile(`(?i)(?P<please1>please,?\s+)?add\s+(?P<code>(?-i)[A-Z0-9]{4}-[A-Z0-9]{4})(?:\s+to\s+the\s+queue,?)?(?P<please2>\s+please)?`)
+	queueNum  = regexp.MustCompile(`(?i)how\s+many\s+levels`)
+	queueNext = regexp.MustCompile(`(?i)(?P<op>next|random)(?:\s+level,?)?(?:\s+please)?`)
+	queueBan  = regexp.MustCompile(`(?i)(?P<op>ban|unban)\s+(\P{S}+)`)
+	queueOpen = regexp.MustCompile(`(?i)(?P<op>open|close)(?:\s+the\s+queue)?`)
+	queueMax  = regexp.MustCompile(`(?i)(?P<op>max(?:\s+per\s+user)?)\s+(?P<n>\d+|inf(?:inity)?)`)
 )
 
 func Filter(c map[string][]string, words []string) {
@@ -218,6 +230,90 @@ func (b *Brain) filter(msg string) {
 	Filter(b.chain, words)
 }
 
+type viewerLevel struct {
+	code      string
+	submitter string
+}
+
+type levelQueue struct {
+	current *viewerLevel
+	queue   []viewerLevel
+	open    bool
+	banned  map[string]bool
+	perUser int
+	max     int
+}
+
+func (q *levelQueue) add(code, submitter string) error {
+	code = strings.ToUpper(code)
+	if !q.open {
+		return fmt.Errorf("the queue is closed")
+	}
+	if q.max > 0 && len(q.queue) >= q.max {
+		return fmt.Errorf("the queue is full")
+	}
+	if q.banned[submitter] {
+		return fmt.Errorf("you're banned lolmao")
+	}
+	if n := q.check(submitter); q.perUser > 0 && len(n) >= q.perUser {
+		if q.perUser == 1 {
+			return fmt.Errorf("you already have a level in the queue")
+		}
+		return fmt.Errorf("you already have %d levels in the queue", len(n))
+	}
+	for _, l := range q.queue {
+		if l.code == code {
+			return fmt.Errorf("%v is already in the queue", code)
+		}
+	}
+	q.queue = append(q.queue, viewerLevel{code: code, submitter: submitter})
+	return nil
+}
+
+func (q *levelQueue) next(random bool) (*viewerLevel, error) {
+	if len(q.queue) == 0 {
+		return nil, fmt.Errorf("the queue is empty")
+	}
+	k := 0
+	if random {
+		k = rng.Intn(len(q.queue))
+	}
+	q.current = &q.queue[k]
+	copy(q.queue[k:], q.queue[k+1:])
+	q.queue = q.queue[:len(q.queue)-1]
+	return q.current, nil
+}
+
+func (q *levelQueue) check(submitter string) (r []string) {
+	if q.current != nil && q.current.submitter == submitter {
+		r = append(r, q.current.code)
+	}
+	for _, l := range q.queue {
+		if l.submitter == submitter {
+			r = append(r, l.code)
+		}
+	}
+	return r
+}
+
+func (q *levelQueue) ban(submitter string) {
+	if q.banned == nil {
+		q.banned = make(map[string]bool)
+	}
+	q.banned[submitter] = true
+	n := make([]viewerLevel, 0, len(q.queue))
+	for _, l := range q.queue {
+		if l.submitter != submitter {
+			n = append(n, l)
+		}
+	}
+	q.queue = n
+}
+
+func (q *levelQueue) unban(submitter string) {
+	delete(q.banned, submitter)
+}
+
 func fail(args ...interface{}) {
 	log.Println(args...)
 	atomic.StoreUint32(&complete, 1)
@@ -225,7 +321,6 @@ func fail(args ...interface{}) {
 
 func sender(send <-chan string, f net.Conn) {
 	atomic.StoreUint32(&sending, 1)
-	t := time.Now().UnixNano()
 	buf := make([]byte, 512)
 	for atomic.LoadUint32(&complete) == 0 {
 		select {
@@ -233,10 +328,12 @@ func sender(send <-chan string, f net.Conn) {
 			if len(msg) > 450 {
 				continue
 			}
-			if t < time.Now().UnixNano() {
-				t = time.Now().UnixNano()
-			} else if t > time.Now().UnixNano()+7e9 {
-				time.Sleep(2 * time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), TIMEOUT)
+			err := limiter.Wait(ctx)
+			cancel()
+			if err != nil {
+				log.Println("rate limiter wait error:", err)
+				continue
 			}
 			if !strings.HasPrefix(msg, "PONG") {
 				log.Println(msg)
@@ -244,7 +341,7 @@ func sender(send <-chan string, f net.Conn) {
 			copy(buf, msg)
 			copy(buf[len(msg):], "\r\n")
 			f.SetWriteDeadline(time.Now().Add(TIMEOUT))
-			_, err := f.Write(buf[:len(msg)+2])
+			_, err = f.Write(buf[:len(msg)+2])
 			switch e := err.(type) {
 			case nil: // do nothing
 			case net.Error:
@@ -369,6 +466,7 @@ func main() {
 		log.Println("failed to unmarshal from", dict+":", err)
 		brain.chain = make(map[string][]string)
 	}
+	levelqs := make(map[string]*levelQueue)
 	chanset := make(map[string]float64)
 	for _, c := range strings.Split(channel, ",") {
 		chanset[c] = sendprob
@@ -552,6 +650,11 @@ func main() {
 										brain.SetRoll(int(v))
 										log.Println("roll length:", v)
 									}
+								case "viewerlevels":
+									for _, c := range stuff[5:] {
+										levelqs[c] = &levelQueue{}
+									}
+									log.Printf("levelqs: %#v\n", levelqs)
 								case "forget":
 									fg := strings.Join(stuff[5:], "\\s+")
 									log.Printf("forget expression: %q\n", fg)
@@ -617,6 +720,7 @@ func main() {
 									if cfg.knowledge {
 										nw := 0
 										uw := 0
+										aw := make(map[string]bool)
 										for _, w := range brain.chain {
 											mm := make(map[string]bool)
 											nw += len(w)
@@ -626,9 +730,10 @@ func main() {
 												}
 												mm[word] = true
 												uw++
+												aw[word] = true
 											}
 										}
-										send <- fmt.Sprintf("PRIVMSG %s :I know %d prefixes of length %d with %d total suffixes, %d of which are unique per prefix. This means a %.2f:1 learning ratio and a %.2f%% uniqueness index.", stuff[2], len(brain.chain), brain.prefix, nw, uw, float64(nw)/float64(len(brain.chain)), float64(uw)*100/float64(nw))
+										send <- fmt.Sprintf("PRIVMSG %s :I know %d prefixes of length %d with %d total suffixes, %d of which are unique per prefix, and %d of which are unique overall. This means a %.2f:1 learning ratio and a %.2f%% uniqueness index.", stuff[2], len(brain.chain), brain.prefix, nw, uw, len(aw), float64(nw)/float64(len(brain.chain)), float64(uw)*100/float64(nw))
 									}
 								default:
 									goto thisisanokuseofgotoiswear
@@ -643,10 +748,76 @@ func main() {
 						}
 						words := stuff[3:]
 						words[0] = words[0][1:]
-						addressed := respond && strings.Contains(strings.ToLower(words[0]), strings.ToLower(nick))
+						addressed := strings.Contains(strings.ToLower(words[0]), strings.ToLower(nick))
 						if addressed {
 							log.Println("someone is talking to me")
 						}
+						if q := levelqs[stuff[2]]; addressed && q != nil {
+							msgline := strings.Join(words, " ")
+							if m := queueAdd.FindStringSubmatch(msgline); m != nil {
+								if m[1] == "" && m[3] == "" {
+									talk(send, "PRIVMSG "+stuff[2]+" :", "be polite", 0)
+									break
+								}
+								if err := q.add(m[2], from); err != nil {
+									talk(send, "PRIVMSG "+stuff[2]+" :", "@"+from+" "+err.Error(), 0)
+									break
+								}
+								talk(send, "PRIVMSG "+stuff[2]+" :", fmt.Sprintf("@%s added %v - there are now %d levels waiting in the queue", from, m[2], len(q.queue)), 0)
+								break
+							}
+							if admins[from] {
+								if m := queueNext.FindStringSubmatch(msgline); m != nil {
+									level, err := q.next(m[1] == "random")
+									if err != nil {
+										talk(send, "PRIVMSG "+stuff[2]+" :", "Couldn't get a level because "+err.Error(), 0)
+										break
+									}
+									talk(send, "PRIVMSG "+stuff[2]+" :", fmt.Sprintf("Next level is %v from @%v", level.code, level.submitter), 0)
+									break
+								}
+								if m := queueBan.FindStringSubmatch(msgline); m != nil {
+									if m[1] == "ban" {
+										q.ban(m[2])
+									} else {
+										q.unban(m[2])
+									}
+									break
+								}
+								if m := queueOpen.FindStringSubmatch(msgline); m != nil {
+									q.open = m[1] == "open"
+									break
+								}
+								if m := queueMax.FindStringSubmatch(msgline); m != nil {
+									var n int
+									if strings.HasPrefix(strings.ToLower(m[2]), "inf") {
+										n = 0
+									} else {
+										k, err := strconv.ParseInt(m[2], 10, 32)
+										if err != nil {
+											talk(send, "PRIVMSG "+stuff[2]+" :", err.Error(), 0)
+											break
+										}
+										n = int(k)
+									}
+									if m[1] == "max" {
+										q.max = n
+									} else {
+										q.perUser = n
+									}
+									break
+								}
+								if queueNum.MatchString(msgline) {
+									if len(q.queue) == 1 {
+										talk(send, "PRIVMSG "+stuff[2]+" :", "There is one more level in the qUwUe", 0)
+										break
+									}
+									talk(send, "PRIVMSG "+stuff[2]+" :", fmt.Sprintf("There are %d more levels in the queue", len(q.queue)), 0)
+									break
+								}
+							}
+						}
+						addressed = addressed && respond
 						if !addressed && re != nil && re.MatchString(strings.Join(words, " ")) {
 							log.Println("filtered out message")
 							break
