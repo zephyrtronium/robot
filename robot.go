@@ -134,7 +134,7 @@ func (b *Brain) Marshal() ([]byte, error) {
 		b.filter(msg)
 	}
 	b.queue = b.queue[:0]
-	return json.Marshal(b.chain)
+	return json.MarshalIndent(b.chain, "", "\t")
 }
 
 func (b *Brain) Say() string {
@@ -483,7 +483,12 @@ func main() {
 		}
 	}
 	if dins {
-		lennies = append(lennies, "btw you should stretch, hydrate, and take care of yourself <3")
+		memes := []string{
+			"btw you should stretch, hydrate, and take care of yourself <3",
+			"btw remember to check for bounties",
+			"btw you should stretch, hydrate, and stay the h*ck inside <3",
+		}
+		lennies = append(lennies, memes...)
 	}
 	addr, err := net.ResolveTCPAddr("tcp", server)
 	if err != nil {
