@@ -485,8 +485,8 @@ func main() {
 	if dins {
 		memes := []string{
 			"btw you should stretch, hydrate, and take care of yourself <3",
-			"btw remember to check for bounties",
-			"btw you should stretch, hydrate, and stay the h*ck inside <3",
+			"desu",
+			"desu",
 		}
 		lennies = append(lennies, memes...)
 	}
