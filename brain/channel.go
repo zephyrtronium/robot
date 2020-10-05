@@ -355,7 +355,7 @@ func (b *Brain) Privilege(ctx context.Context, channel, nick, badges string) (st
 		} else {
 			break
 		}
-		k = strings.IndexByte(badges, '/')
+		k = strings.IndexByte(badge, '/')
 		// Assume k > 0, otherwise there's been a significant change to the
 		// Twitch API that we should loudly know about.
 		switch badge[:k] {
