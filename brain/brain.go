@@ -253,10 +253,10 @@ CREATE TABLE IF NOT EXISTS emotes (
 CREATE INDEX IF NOT EXISTS history_id_index ON history(tid);
 CREATE INDEX IF NOT EXISTS history_sender_index ON history(chan, sender);
 CREATE TRIGGER IF NOT EXISTS history_limit AFTER INSERT ON history BEGIN
-	DELETE FROM history WHERE time < strftime('%s', 'now', '-15 minutes');
+	DELETE FROM history WHERE strftime('%s', time) < strftime('%s', 'now', '-15 minutes');
 END;
 CREATE TRIGGER IF NOT EXISTS generated_limit AFTER INSERT ON generated BEGIN
-	DELETE FROM generated WHERE time < strftime('%s', 'now', '-15 minutes');
+	DELETE FROM generated WHERE strftime('%s', time) < strftime('%s', 'now', '-15 minutes');
 END;
 `
 
