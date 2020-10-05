@@ -1,0 +1,74 @@
+{
+	"me": "RobotIsBroken",
+	"prefix": 6,
+	"block": "^[]!?>]|://|\\.(com|net|org|tv|edu)|^\\001|^\\S+$",
+	"chans": {
+		"#robotisbroken": {
+			"send": "brex",
+			"respond": true
+		},
+		"#bananasaurus_rex": {
+			"learn": "brex",
+			"send": "brex",
+			"lim": 375,
+			"prob": 0.02,
+			"rate": 0.1,
+			"burst": 2,
+			"respond": true,
+			"emotes": [{"e": "desu", "w": 2}, {"e": "btw you should stretch, hydrate, and take care of yourself <3", "w": 1}],
+			"privs": [{"user": "brexbot", "priv": "bot"}]
+		},
+		"#brokencowleg": {
+			"learn": "bcl",
+			"send": "bcl",
+			"lim": 400,
+			"prob": 0.1,
+			"respond": true,
+			"privs": [{"user": "sirbrokenbot", "priv": "bot"}]
+		},
+		"#skyestang": {
+			"learn": "skye",
+			"send": "skye",
+			"lim": 375,
+			"prob": 0.08,
+			"respond": true,
+			"emotes": [{"e": "btw you should stretch, hydrate, and take care of yourself <3", "w": 1}]
+		},
+		"#jeraspites": {
+			"learn": "jera",
+			"send": "jera",
+			"lim": 400,
+			"prob": 0.1,
+			"respond": true,
+			"privs": [{"user": "slenderverse", "priv": "bot"}]
+		},
+		"#isittopee": {
+			"learn": "ROOF",
+			"send": "ROOF",
+			"lim": 375,
+			"prob": 0.1,
+			"respond": true,
+			"emotes": [{"e": "btw you should stretch, hydrate, and take care of yourself <3", "w": 1}]
+		}
+	},
+	"emotes": [
+		{"e": "", "w": 4},
+		{"e": "¯\\_( ͡° ͜ʖ ͡°)_/¯", "w": 1},
+		{"e": "xD", "w": 1},
+		{"e": "( ͡° ͜ʖ ͡°)", "w": 1},
+		{"e": "(◕◡◕)", "w": 1},
+		{"e": "( •̀︹•́)", "w": 1},
+		{"e": "(/ω＼)", "w": 1},
+		{"e": "(╭☞ ͠°ᗜ °)╭☞", "w": 1},
+		{"e": "∠( ᐛ 」∠)＿", "w": 1},
+		{"e": "(´；ω；｀)", "w": 1},
+		{"e": ";)", "w": 1},
+		{"e": "PogChamp", "w": 1},
+		{"e": "ლ(´ڡ`ლ)", "w": 1},
+		{"e": "D:", "w": 1}
+	],
+	"privs": [
+		{"user": "zephyrtronium", "priv": "owner"},
+		{"user": "nightbot", "priv": "bot"}
+	]
+}
