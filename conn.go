@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/zephyrtronium/robot/irc"
+	"golang.org/x/time/rate"
 )
 
 // contextDialer is typically either *net.Dialer or *tls.Dialer.
@@ -83,7 +84,12 @@ func connect(ctx context.Context, config connectConfig, send <-chan irc.Message,
 func connSender(ctx context.Context, cancel context.CancelFunc, config connectConfig, send <-chan irc.Message, sem chan struct{}, conn net.Conn, lg *log.Logger) {
 	defer func() { sem <- struct{}{} }()
 	defer conn.Close()
+	lim := rate.NewLimiter(100/30.0, 1)
 	write := func(msg string) error {
+		if err := lim.Wait(ctx); err != nil {
+			lg.Println("aborted send:", err)
+			return err
+		}
 		lg.Println("send:", msg)
 		conn.SetWriteDeadline(time.Now().Add(config.timeout))
 		_, err := io.WriteString(conn, msg+"\r\n")
