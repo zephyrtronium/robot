@@ -12,12 +12,14 @@ import (
 // given chain. chain may be any length or nil; if it is shorter than b's
 // order, it is padded with nulls as needed, and if it is longer, then only the
 // last (order) elements are taken (but the generated message still contains
-// the earlier ones).
+// the earlier ones). If the resulting walk has no more words than the starting
+// chain, then the result is the empty string.
 func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) string {
 	if chain != nil {
 		// Ensure that an append causes a copy.
 		chain = chain[:len(chain):len(chain)]
 	}
+	min := len(chain)
 	args := make([]interface{}, b.order+1)
 	args[0] = tag
 	l := 0
@@ -54,6 +56,9 @@ func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) str
 		chain = append(chain, w)
 		copy(args[1:], args[2:])
 		args[len(args)-1] = strings.ToLower(w)
+	}
+	if len(chain) <= min {
+		return ""
 	}
 	msg := strings.TrimSpace(strings.Join(chain, " ") + " " + b.Emote(ctx, tag))
 	tx.StmtContext(ctx, b.stmts.thought).ExecContext(ctx, tag, msg)

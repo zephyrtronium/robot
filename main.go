@@ -146,7 +146,10 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		}
 	}
 	if br.ShouldTalk(ctx, msg, true) {
-		send <- irc.Privmsg(msg.To(), br.TalkIn(ctx, msg.To(), nil))
+		m := br.TalkIn(ctx, msg.To(), nil)
+		if m != "" {
+			send <- irc.Privmsg(msg.To(), m)
+		}
 	}
 	if err := br.Learn(ctx, msg); err != nil {
 		lg.Println("error learning message:", err)

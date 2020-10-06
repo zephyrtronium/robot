@@ -14,7 +14,11 @@ func talk(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 	}
 	with := strings.TrimSpace(matches[1])
 	toks := brain.Tokens(with)
-	selsend(ctx, send, msg.Reply(br.TalkIn(ctx, msg.To(), toks)))
+	m := br.TalkIn(ctx, msg.To(), toks)
+	if m == "" {
+		return
+	}
+	selsend(ctx, send, msg.Reply(m))
 }
 
 func talkCatchall(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -29,6 +33,9 @@ func uwu(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.
 		return
 	}
 	m := br.TalkIn(ctx, msg.To(), nil)
+	if m == "" {
+		return
+	}
 	selsend(ctx, send, msg.Reply(uwuRep.Replace(m)))
 }
 
