@@ -252,13 +252,6 @@ func init() {
 		},
 		{
 			admin: true,
-			name:  "leave",
-			re:    regexp.MustCompile(`(?i)^go\s+away[.!]*$`),
-			f:     leave,
-			help:  `["go away"] Leave the channel. The bot will return the next time it's booted.`,
-		},
-		{
-			admin: true,
 			name:  "too-active",
 			re:    regexp.MustCompile(`(?i)^(?:you'?re?|you\s+are|u\s*r)\s+(?:too?|2)\s+active$`),
 			f:     tooActive,

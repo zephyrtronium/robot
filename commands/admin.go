@@ -139,14 +139,6 @@ func unsilence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 	selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s thanks for letting me talk again!`, msg.Nick)))
 }
 
-func leave(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
-	m := irc.Message{
-		Command: "PART",
-		Params:  []string{msg.To()},
-	}
-	selsend(ctx, send, m)
-}
-
 func tooActive(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := br.Activity(ctx, msg.To(), func(x float64) float64 { return x / 2 })
 	if err != nil {
