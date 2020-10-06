@@ -273,7 +273,7 @@ CREATE TRIGGER IF NOT EXISTS history_limit AFTER INSERT ON history BEGIN
 	DELETE FROM history WHERE strftime('%s', time) < strftime('%s', 'now', '-15 minutes');
 END;
 CREATE TRIGGER IF NOT EXISTS generated_limit AFTER INSERT ON generated BEGIN
-	DELETE FROM generated WHERE strftime('%s', time) < strftime('%s', 'now', '-15 minutes');
+	DELETE FROM generated WHERE time < strftime('%s', 'now', '-15 minutes');
 END;
 `
 
