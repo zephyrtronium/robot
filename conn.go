@@ -116,6 +116,13 @@ func connSender(ctx context.Context, cancel context.CancelFunc, config connectCo
 				cancel()
 				write(msg.String()) // error doesn't matter
 				return
+			case "PRIVMSG":
+				// Check that the message is ok to send.
+				if badmatch(msg) {
+					lg.Println("blocked", msg)
+					continue
+				}
+				fallthrough
 			default:
 				err := write(msg.String())
 				if err != nil {
@@ -136,7 +143,10 @@ func connRecver(ctx context.Context, cancel context.CancelFunc, config connectCo
 		conn.SetReadDeadline(time.Now().Add(config.timeout))
 		msg, err := irc.Parse(r)
 		if err != nil {
-			lg.Println("error while recving:", err)
+			lg.Printf("error while recving: %v (got msg %#v)", err, msg)
+			if _, ok := err.(irc.Malformed); ok {
+				continue
+			}
 			conn.Close()
 			return
 		}
