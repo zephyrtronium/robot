@@ -132,7 +132,7 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 			return
 		}
 		if r != ' ' {
-			err = malformed{stage: "message (only has tags)"}
+			err = Malformed{stage: "message (only has tags)"}
 			return
 		}
 	} else {
@@ -166,7 +166,7 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 			return
 		}
 		if r != '\n' {
-			err = malformed{stage: "message"}
+			err = Malformed{stage: "message"}
 		}
 		return
 	case '\n':
@@ -206,7 +206,7 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 				return
 			}
 			if r != '\n' {
-				err = malformed{stage: "message"}
+				err = Malformed{stage: "message"}
 				return
 			}
 		case '\n':
@@ -225,7 +225,7 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 		return
 	}
 	if r != '\n' {
-		err = malformed{"eol"}
+		err = Malformed{"eol"}
 	}
 	return
 }
@@ -319,17 +319,17 @@ func scanSender(scan io.RuneScanner) (s Sender, err error) {
 			// nick, user, or server into finish
 			*cur = b.String()
 			if *cur == "" {
-				err = malformed{stage: "sender"}
+				err = Malformed{stage: "sender"}
 			}
 			return
 		case '\r', '\n', '\000':
-			err = malformed{stage: "sender"}
+			err = Malformed{stage: "sender"}
 			return
 		default:
 			b.WriteRune(r)
 		}
 	}
-	err = malformed{stage: "sender"}
+	err = Malformed{stage: "sender"}
 	return
 }
 
@@ -352,12 +352,12 @@ func scanField(scan io.RuneScanner, stage string, limit int) (field string, err 
 			scan.UnreadRune()
 			return b.String(), nil
 		case '\000':
-			return "", malformed{stage: stage}
+			return "", Malformed{stage: stage}
 		default:
 			b.WriteRune(r)
 		}
 	}
-	return "", malformed{stage: stage}
+	return "", Malformed{stage: stage}
 }
 
 // scanLine scans until the end of the line.
@@ -380,18 +380,19 @@ func scanLine(scan io.RuneScanner, stage string) (line string, err error) {
 		case '\r':
 			return b.String(), nil
 		case '\000':
-			return "", malformed{stage: stage}
+			return "", Malformed{stage: stage}
 		default:
 			b.WriteRune(r)
 		}
 	}
-	return "", malformed{stage: stage}
+	return "", Malformed{stage: stage}
 }
 
-type malformed struct {
+// Malformed indicates a malformed IRC message.
+type Malformed struct {
 	stage string
 }
 
-func (err malformed) Error() string {
+func (err Malformed) Error() string {
 	return "malformed " + err.stage
 }
