@@ -50,7 +50,8 @@ type connectConfig struct {
 // connect automatically handles reconnecting, whether due to net errors or
 // RECONNECT messages from the server. To disconnect and not reconnect, send a
 // QUIT message, or close the context; in the latter case, connect will
-// automatically send a QUIT to the server.
+// automatically send a QUIT to the server. Additionally, as a special case,
+// sending a RECONNECT message closes the connection and reconnects.
 func connect(ctx context.Context, config connectConfig, send <-chan irc.Message, recv chan<- irc.Message, lg *log.Logger) {
 	pctx, cancel := context.WithCancel(ctx)
 	sem := make(chan struct{}, 2)
@@ -138,6 +139,9 @@ func connSender(ctx context.Context, cancel context.CancelFunc, config connectCo
 			case "QUIT":
 				cancel()
 				write(msg.String()) // error doesn't matter
+				return
+			case "RECONNECT":
+				write("QUIT :goodbye") // error doesn't matter
 				return
 			case "PRIVMSG":
 				// Check that the message is ok to send.

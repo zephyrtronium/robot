@@ -186,9 +186,16 @@ func init() {
 		{
 			admin: false,
 			name:  "quit",
-			re:    regexp.MustCompile(`^quit$`),
+			re:    regexp.MustCompile(`^(?i)quit$`),
 			f:     quit,
 			help:  `["quit"] Quit.`,
+		},
+		{
+			admin: false,
+			name:  "reconnect",
+			re:    regexp.MustCompile(`^(?i)reconnect$`),
+			f:     reconnect,
+			help:  `["reconnect"] Reconnect.`,
 		},
 		{
 			admin: true,

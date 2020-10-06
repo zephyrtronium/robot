@@ -130,3 +130,7 @@ IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF
 ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 
 `
+
+func reconnect(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+	selsend(ctx, send, irc.Message{Command: "RECONNECT"})
+}
