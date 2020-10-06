@@ -134,3 +134,15 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 func reconnect(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	selsend(ctx, send, irc.Message{Command: "RECONNECT"})
 }
+
+func listOwner(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+	var r []string
+	for _, cmd := range all {
+		if cmd.enabled() {
+			r = append(r, cmd.name)
+		} else {
+			r = append(r, cmd.name+"*")
+		}
+	}
+	selsend(ctx, send, msg.Reply(strings.Join(r, " ")))
+}

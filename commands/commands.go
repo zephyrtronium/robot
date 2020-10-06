@@ -111,7 +111,7 @@ type command struct {
 // ok returns nil if the command should not be executed with this invocation or
 // the submatches of the regular expression if it should.
 func (c *command) ok(priv, invoc string) []string {
-	if atomic.LoadInt32(&c.disable) != 0 {
+	if !c.enabled() {
 		return nil
 	}
 	switch priv {
@@ -128,6 +128,10 @@ func (c *command) ok(priv, invoc string) []string {
 		return nil
 	}
 	return c.re.FindStringSubmatch(invoc)
+}
+
+func (c *command) enabled() bool {
+	return atomic.LoadInt32(&c.disable) == 0
 }
 
 var all []*command
@@ -196,6 +200,13 @@ func init() {
 			re:    regexp.MustCompile(`^(?i)reconnect$`),
 			f:     reconnect,
 			help:  `["reconnect"] Reconnect.`,
+		},
+		{
+			admin: false,
+			name:  "owner-list",
+			re:    regexp.MustCompile(`(?i)^(?:list\s+)?commands$`),
+			f:     listOwner,
+			help:  `["list commands"] List all commands, including owner-only ones.`,
 		},
 		{
 			admin: true,

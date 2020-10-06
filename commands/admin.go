@@ -50,7 +50,9 @@ func invocation(ctx context.Context, br *brain.Brain, send chan<- irc.Message, m
 func list(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	var r []string
 	for _, cmd := range all {
-		r = append(r, cmd.name)
+		if cmd.enabled() && (cmd.admin || cmd.regular) {
+			r = append(r, cmd.name)
+		}
 	}
 	selsend(ctx, send, msg.Reply(strings.Join(r, " ")))
 }
