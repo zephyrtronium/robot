@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2020  Branden J Brown
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 package commands
 
 import (
@@ -117,6 +134,13 @@ var all []*command
 
 func init() {
 	all = []*command{
+		{
+			admin: false,
+			name:  "warranty",
+			re:    regexp.MustCompile(`(?i)^warranty$`),
+			f:     warranty,
+			help:  `["warranty"] Show some information for bot owners on the terminal.`,
+		},
 		{
 			admin: false,
 			name:  "enable",
@@ -242,6 +266,13 @@ func init() {
 			re:   regexp.MustCompile(`(?i)^uwu$`),
 			f:    uwu,
 			help: `["uwu"] Speak! Messages genyewated this way awe uwu.`,
+		},
+		{
+			admin: true, regular: true,
+			name: "source",
+			re:   regexp.MustCompile(`(?i)^(?:where(?:'s|\s+is)\s+(?:you'?re?|ur)\s+)?source(?:\s*code)?\??$`),
+			f:    source,
+			help: `["where is your source code?"] Show where my source code lives.`,
 		},
 		// talk-catchall MUST be last
 		{

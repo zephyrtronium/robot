@@ -1,3 +1,20 @@
+/*
+Copyright (C) 2020  Branden J Brown
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 package main
 
 import (
@@ -10,7 +27,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -20,38 +36,30 @@ import (
 	"github.com/zephyrtronium/robot/irc"
 )
 
+const copying = `
+robot  Copyright (C) 2020  Branden J Brown
+This program comes with ABSOLUTELY NO WARRANTY; for details type 'license w'.
+This is free software, and you are welcome to redistribute it
+under certain conditions; see the GNU General Public License, Version 3,
+for details.
+`
+
 func main() {
-	var source, config, remote, token string
+	var source, remote, token string
 	var secure bool
 	flag.StringVar(&source, "source", "", "SQL database source (required)")
-	flag.StringVar(&config, "config", "", "initial configuration as nick:order, e.g. robot:3")
 	flag.StringVar(&remote, "remote", "irc.chat.twitch.tv:6697", "remote address, IRC protocol")
 	flag.StringVar(&token, "token", "", "OAuth token")
 	flag.BoolVar(&secure, "secure", true, "use TLS")
 	flag.Parse()
 
+	// Print GPLv3 information.
+	os.Stderr.WriteString(copying)
+
 	ctx, cancel := context.WithCancel(context.Background())
-	var br *brain.Brain
-	if config == "" {
-		var err error
-		br, err = brain.Open(ctx, source)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	} else {
-		c := strings.IndexByte(config, ':')
-		if c <= 0 || c >= len(config)-1 {
-			log.Fatalf("invalid config %q, must be nick:order, e.g. \"robot:3\"\n", config)
-		}
-		me := config[:c]
-		order, err := strconv.Atoi(config[c+1:])
-		if err != nil {
-			log.Fatalln("error parsing order from config:", err)
-		}
-		br, err = brain.Configure(ctx, source, me, order)
-		if err != nil {
-			log.Fatalln(err)
-		}
+	br, err := brain.Open(ctx, source)
+	if err != nil {
+		log.Fatalln(err)
 	}
 	cfg := connectConfig{
 		addr:    remote,
