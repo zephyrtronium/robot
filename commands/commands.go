@@ -254,6 +254,20 @@ func init() {
 			help:  `["set response probability to" prob] Set the random response rate to a particular value.`,
 		},
 		{
+			admin: true,
+			name:  "multigen",
+			re:    regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:\s+something)?\s+(?P<num>\d+)\s*(?:times|(?:raid\s+)?messages)?$`),
+			f:     multigen,
+			help:  `["say|speak|talk|generate" n "times"] Speak up to five times for the cost of one!`,
+		},
+		{
+			admin: true,
+			name:  "raid",
+			re:    regexp.MustCompile(`(?i)^(?:generate\s+)?raid(?:\s+messages?)?$`),
+			f:     raid,
+			help:  `["raid"] Think of five potential raid messages.`,
+		},
+		{
 			admin: true, regular: true,
 			name: "talk",
 			re:   regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:\s+something)?(?:\s+with|\s+meme|\s+raid\s+message)?(?:\s+(?P<chain>.+))?$`),

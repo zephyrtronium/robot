@@ -169,3 +169,28 @@ func setProb(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 	}
 	selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s response rate set to %g!`, msg.Nick, p)))
 }
+
+func multigen(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+	n, err := strconv.Atoi(matches[1])
+	if err != nil {
+		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err)))
+		return
+	}
+	if n <= 0 {
+		return
+	}
+	if n > 5 {
+		n = 5
+	}
+	for i := 0; i < n; i++ {
+		m := br.TalkIn(ctx, msg.To(), nil)
+		if i == 4 {
+			m = uwuRep.Replace(m)
+		}
+		selsend(ctx, send, msg.Reply(m))
+	}
+}
+
+func raid(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+	multigen(ctx, br, send, msg, []string{"", "5"})
+}
