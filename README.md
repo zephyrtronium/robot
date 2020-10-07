@@ -107,6 +107,16 @@ Robot has five privilege levels:
 
 Robot recognizes scans a user's chat badges to assign default privileges. Unless overridden per user, broadcasters and mods, Twitch staff have owner privileges, and everyone else (including VIPs and subscribers) has regular privileges.
 
+## Rate limits
+
+When Robot wants to generate a message, whether randomly or through a command, the bot requests a ticket from its rate limiter for the channel it would send to. If there is no ticket available, Robot does not generate the message.
+
+There are two knobs on Robot's rate limiters: the "rate" and the "burst size." I have done a poor job of explaining what these mean elsewhere, but essentially, the burst size is the maximum number of tickets Robot can take, and the rate is how many tickets regenerate per second.
+
+Say a channel has a rate of 0.1 and a burst size of 2. Robot hasn't said anything for a couple minutes. Someone asks the bot to generate a message at 10:53:00; Robot takes a ticket, leaving two remaining, and sends a message. At 10:53:02, another person talks and triggers a random message; Robot takes another ticket, and now there are 1.2 tickets. Another person demands an uwu at 10:53:07, leaving 0.7 tickets. Someone in the channel needs a meme at 10:53:10; the rate limiter has *just* regenerated a full ticket, which Robot takes, leaving 0.0. Then, at 10:53:19, another person asks for an uwu, because they're beautiful, but the rate limiter has only 0.9 tickets, so Robot cannot take one and so does not speak.
+
+In addition to the rate limiter described above, Robot has a global rate limiter that prevents her from trying to send more than 100 messages per thirty seconds on average, per Twitch's documentation. However, for that global limiter, she waits for a ticket to become available instead of giving up if there isn't one already.
+
 ## Running your own instance
 
 Robot is designed to be reasonable to install and use on your own. Doing so lets you control exactly when the bot runs and what information is in its database. If you can program in Go and SQL, you can even modify how Robot works to add new features or to remove existing ones, as long as you follow the [GPLv3 license](COPYING).
