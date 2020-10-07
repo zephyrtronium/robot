@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 package irc
 
 import (
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -47,9 +48,11 @@ func Whisper(to, message string) Message {
 	}
 }
 
-// Reply creates an appropriately-targeted response to a PRIVMSG or WHISPER. Panics
-// if the message type is neither PRIVMSG nor WHISPER.
-func (m Message) Reply(msg string) Message {
+// Reply creates an appropriately-targeted response to a PRIVMSG or WHISPER.
+// Panics if the message type is neither PRIVMSG nor WHISPER. The message is
+// formatted according to the rules of fmt.Sprintf.
+func (m Message) Reply(format string, args ...interface{}) Message {
+	msg := strings.TrimSpace(fmt.Sprintf(format, args...))
 	switch m.Command {
 	case "PRIVMSG":
 		return Privmsg(m.To(), msg)

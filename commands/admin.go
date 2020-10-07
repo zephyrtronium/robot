@@ -60,7 +60,7 @@ func list(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 func forget(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	n, err := br.ClearPattern(ctx, msg.To(), matches[1])
 	if err != nil {
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s an error occurred while trying to forget: %v`, msg.Nick, err)))
+		selsend(ctx, send, msg.Reply(`@%s an error occurred while trying to forget: %v`, msg.Nick, err))
 	}
 	selsend(ctx, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s deleted %d messages!`, msg.Nick, n)))
 }
@@ -86,7 +86,7 @@ func silence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		if m := silenceNHrs.FindStringSubmatch(matches[1]); m != nil {
 			n, err := strconv.Atoi(m[1])
 			if err != nil {
-				selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s sorry? (%v)`, msg.Nick, err)))
+				selsend(ctx, send, msg.Reply(`@%s sorry? (%v)`, msg.Nick, err))
 				return
 			}
 			until = msg.Time.Add(time.Duration(n) * time.Hour)
@@ -95,7 +95,7 @@ func silence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		if m := silenceNMin.FindStringSubmatch(matches[1]); m != nil {
 			n, err := strconv.Atoi(m[1])
 			if err != nil {
-				selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s sorry? (%v)`, msg.Nick, err)))
+				selsend(ctx, send, msg.Reply(`@%s sorry? (%v)`, msg.Nick, err))
 				return
 			}
 			until = msg.Time.Add(time.Duration(n) * time.Minute)
@@ -103,7 +103,7 @@ func silence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		}
 		dur, err := time.ParseDuration(matches[1])
 		if err != nil {
-			selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s sorry? (%v)`, msg.Nick, err)))
+			selsend(ctx, send, msg.Reply(`@%s sorry? (%v)`, msg.Nick, err))
 			return
 		}
 		until = msg.Time.Add(dur)
@@ -111,17 +111,17 @@ func silence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 	if until.After(msg.Time.Add(12*time.Hour + time.Second)) {
 		err := br.Silence(ctx, msg.To(), msg.Time.Add(12*time.Hour))
 		if err != nil {
-			selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s error setting silence: %v`, msg.Nick, err)))
+			selsend(ctx, send, msg.Reply(`@%s error setting silence: %v`, msg.Nick, err))
 			return
 		}
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s silent for 12h. If you really need longer, contact the bot owner.`, msg.Nick)))
+		selsend(ctx, send, msg.Reply(`@%s silent for 12h. If you really need longer, contact the bot owner.`, msg.Nick))
 		return
 	}
 	if err := br.Silence(ctx, msg.To(), until); err != nil {
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s error setting silence: %v`, msg.Nick, err)))
+		selsend(ctx, send, msg.Reply(`@%s error setting silence: %v`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s I won't randomly talk or learn for %v`, msg.Nick, until.Sub(msg.Time))))
+	selsend(ctx, send, msg.Reply(`@%s I won't randomly talk or learn for %v`, msg.Nick, until.Sub(msg.Time)))
 }
 
 var (
@@ -133,41 +133,41 @@ var (
 
 func unsilence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if err := br.Silence(ctx, msg.To(), time.Time{}); err != nil {
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s error removing silence: %v`, msg.Nick, err)))
+		selsend(ctx, send, msg.Reply(`@%s error removing silence: %v`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s thanks for letting me talk again!`, msg.Nick)))
+	selsend(ctx, send, msg.Reply(`@%s thanks for letting me talk again!`, msg.Nick))
 }
 
 func tooActive(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := br.Activity(ctx, msg.To(), func(x float64) float64 { return x / 2 })
 	if err != nil {
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s error setting activity: %v`, msg.Nick, err)))
+		selsend(ctx, send, msg.Reply(`@%s error setting activity: %v`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s response rate set to %g`, msg.Nick, p)))
+	selsend(ctx, send, msg.Reply(`@%s response rate set to %g`, msg.Nick, p))
 }
 
 func setProb(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := strconv.ParseFloat(matches[1], 64)
 	if err != nil {
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err)))
+		selsend(ctx, send, msg.Reply(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err))
 		return
 	}
 	if matches[2] == "%" {
 		p *= 0.01
 	}
 	if _, err := br.Activity(ctx, msg.To(), func(float64) float64 { return p }); err != nil {
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s error setting activity: %v`, msg.Nick, err)))
+		selsend(ctx, send, msg.Reply(`@%s error setting activity: %v`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s response rate set to %g!`, msg.Nick, p)))
+	selsend(ctx, send, msg.Reply(`@%s response rate set to %g!`, msg.Nick, p))
 }
 
 func multigen(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	n, err := strconv.Atoi(matches[1])
 	if err != nil {
-		selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err)))
+		selsend(ctx, send, msg.Reply(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err))
 		return
 	}
 	if n <= 0 {

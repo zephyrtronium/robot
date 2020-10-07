@@ -19,7 +19,6 @@ package commands
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/zephyrtronium/robot/brain"
@@ -70,8 +69,8 @@ var uwuRep = strings.NewReplacer(
 func source(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	// We could try to extract the package path from a function name or
 	// something, or we can just do this.
-	selsend(ctx, send, msg.Reply(fmt.Sprintf(`@%s My source code is at https://github.com/zephyrtronium/robot – `+
+	selsend(ctx, send, msg.Reply(`@%s My source code is at https://github.com/zephyrtronium/robot – `+
 		`I'm written in Go leveraging SQLite3, `+
 		`and I'm free, open-source software licensed `+
-		`under the GNU General Public License, Version 3.`, msg.Nick)))
+		`under the GNU General Public License, Version 3.`, msg.Nick))
 }
