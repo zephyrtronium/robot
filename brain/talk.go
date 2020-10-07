@@ -220,9 +220,6 @@ func (b *Brain) ShouldTalk(ctx context.Context, msg irc.Message, random bool) bo
 		// TODO: complain
 		return false
 	}
-	if cfg.block.MatchString(msg.Trailing) {
-		return false
-	}
 	if random {
 		if msg.Time.Before(cfg.silence) {
 			return false
