@@ -198,7 +198,7 @@ func connRecver(ctx context.Context, cancel context.CancelFunc, config connectCo
 			}
 			continue
 		default:
-			lg.Println("recv:", msg)
+			lg.Println("recv:", msg.Text())
 			select {
 			case <-ctx.Done():
 				lg.Println("recver: context closed")

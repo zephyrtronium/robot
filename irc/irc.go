@@ -63,7 +63,7 @@ func (m Message) Reply(format string, args ...interface{}) Message {
 	}
 }
 
-// String formats the message as an IRC message string, including EOL.
+// String formats the message as an IRC message string.
 func (m Message) String() string {
 	var b strings.Builder
 	if len(m.Tags) != 0 {
@@ -75,6 +75,27 @@ func (m Message) String() string {
 	if snd != "" {
 		b.WriteByte(':')
 		b.WriteString(snd)
+		b.WriteByte(' ')
+	}
+	b.WriteString(m.Command)
+	for _, p := range m.Params {
+		b.WriteByte(' ')
+		b.WriteString(p)
+	}
+	if m.Trailing != "" {
+		b.WriteByte(' ')
+		b.WriteByte(':')
+		b.WriteString(m.Trailing)
+	}
+	return b.String()
+}
+
+// Text formats the message as a short display string.
+func (m Message) Text() string {
+	var b strings.Builder
+	if m.Nick != "" {
+		b.WriteByte(':')
+		b.WriteString(m.Nick)
 		b.WriteByte(' ')
 	}
 	b.WriteString(m.Command)
