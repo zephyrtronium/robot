@@ -105,7 +105,7 @@ Robot has five privilege levels:
 - `ignore` removes access to any commands, including Markov chain features. Robot also does not learn from ignored users.
 - `bot` is a mix of admin and ignore privileges. Users with bot privileges can invoke admin commands, but Robot does not learn from their other messages.
 
-Robot recognizes scans a user's chat badges to assign default privileges. Unless overridden per user, broadcasters and mods, Twitch staff have owner privileges, and everyone else (including VIPs and subscribers) has regular privileges.
+Robot scans a user's chat badges to assign default privileges. Unless overridden per user, broadcasters and mods, Twitch staff have owner privileges, and everyone else (including VIPs and subscribers) has regular privileges.
 
 ## Rate limits
 
