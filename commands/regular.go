@@ -35,14 +35,14 @@ func talk(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 	if m == "" {
 		return
 	}
-	selsend(ctx, send, msg.Reply(m))
+	selsend(ctx, send, msg.Reply("%s", m))
 }
 
 func talkCatchall(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if !br.ShouldTalk(ctx, msg, false) {
 		return
 	}
-	selsend(ctx, send, msg.Reply(br.TalkIn(ctx, msg.To(), nil)))
+	selsend(ctx, send, msg.Reply("%s", br.TalkIn(ctx, msg.To(), nil)))
 }
 
 func uwu(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -53,7 +53,7 @@ func uwu(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.
 	if m == "" {
 		return
 	}
-	selsend(ctx, send, msg.Reply(uwuRep.Replace(m)))
+	selsend(ctx, send, msg.Reply("%s", uwuRep.Replace(m)))
 }
 
 var uwuRep = strings.NewReplacer(

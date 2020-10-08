@@ -147,7 +147,7 @@ func listOwner(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 			r = append(r, cmd.name+"*")
 		}
 	}
-	selsend(ctx, send, msg.Reply(strings.Join(r, " ")))
+	selsend(ctx, send, msg.Reply("%s", strings.Join(r, " ")))
 }
 
 func debugChan(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {

@@ -44,7 +44,7 @@ func invocation(ctx context.Context, br *brain.Brain, send chan<- irc.Message, m
 		selsend(ctx, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s couldn't find a command named %q`, msg.Nick, matches[1])))
 		return
 	}
-	selsend(ctx, send, msg.Reply(cmd.re.String()))
+	selsend(ctx, send, msg.Reply("%s", cmd.re.String()))
 }
 
 func list(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -54,7 +54,7 @@ func list(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 			r = append(r, cmd.name)
 		}
 	}
-	selsend(ctx, send, msg.Reply(strings.Join(r, " ")))
+	selsend(ctx, send, msg.Reply("%s", strings.Join(r, " ")))
 }
 
 func forget(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -179,7 +179,7 @@ func multigen(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg
 		if i == 4 {
 			m = uwuRep.Replace(m)
 		}
-		selsend(ctx, send, msg.Reply(m))
+		selsend(ctx, send, msg.Reply("%s", m))
 		time.Sleep(1*time.Second + 15*time.Millisecond)
 	}
 }
