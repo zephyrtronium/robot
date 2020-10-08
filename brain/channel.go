@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -383,4 +384,31 @@ func (b *Brain) Privilege(ctx context.Context, channel, nick, badges string) (st
 		}
 	}
 	return "", nil
+}
+
+// Debug returns strings describing the current status of a channel. If the
+// channel name is unknown, the results are the empty string.
+func (b *Brain) Debug(channel string) (status, block, privs string) {
+	cfg := b.config(channel)
+	if cfg == nil {
+		return
+	}
+	cfg.mu.Lock()
+	defer cfg.mu.Unlock()
+	learn := "<null>"
+	if cfg.learn.Valid {
+		learn = strconv.Quote(cfg.learn.String)
+	}
+	send := "<null>"
+	if cfg.send.Valid {
+		send = strconv.Quote(cfg.send.String)
+	}
+	silence := "<never>"
+	if !cfg.silence.IsZero() {
+		silence = cfg.silence.Format(time.Stamp)
+	}
+	status = fmt.Sprintf("name=%s learn=%s send=%s lim=%d prob=%g rate=%g burst=%d respond=%t silence=%s", channel, learn, send, cfg.lim, cfg.prob, cfg.rate.Limit(), cfg.rate.Burst(), cfg.respond, silence)
+	block = cfg.block.String()
+	privs = fmt.Sprint(cfg.privs)
+	return status, block, privs
 }

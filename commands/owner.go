@@ -149,3 +149,16 @@ func listOwner(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 	}
 	selsend(ctx, send, msg.Reply(strings.Join(r, " ")))
 }
+
+func debugChan(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+	status, block, privs := br.Debug(matches[1])
+	if status == "" {
+		selsend(ctx, send, msg.Reply(`@%s no such channel`, msg.Nick))
+		return
+	}
+	// Also print to stderr in case something is too long.
+	os.Stderr.WriteString(status + "\n" + block + "\n" + privs + "\n")
+	selsend(ctx, send, msg.Reply(`@%s status: %s`, msg.Nick, status))
+	selsend(ctx, send, msg.Reply(`@%s block: %s`, msg.Nick, block))
+	selsend(ctx, send, msg.Reply(`@%s privs: %s`, msg.Nick, privs))
+}
