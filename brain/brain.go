@@ -15,6 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Package brain implements the knowledge and configuration database for Robot.
+//
+// For simplicity and portability, the brain currently holds all Markov chain
+// knowledge as well as both global and channel-specific configuration in a
+// single SQLite3 database.
+//
 package brain
 
 import (
