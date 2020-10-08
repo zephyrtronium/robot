@@ -365,3 +365,152 @@ func TestParse(t *testing.T) {
 		})
 	}
 }
+
+func TestString(t *testing.T) {
+	// We're only really interested in correct formatting of messages we send,
+	// so we don't need to test tags or sender.
+	cases := []struct {
+		in  irc.Message
+		out string
+	}{
+		{irc.Message{Command: "PRIVMSG"}, "PRIVMSG"},
+		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka"}}, "PRIVMSG #madoka"},
+		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}}, "PRIVMSG #madoka #homura"},
+		{irc.Message{Command: "PRIVMSG", Trailing: "anime"}, "PRIVMSG :anime"},
+		{irc.Message{Command: "PRIVMSG", Trailing: "anime madoka homura"}, "PRIVMSG :anime madoka homura"},
+		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka"}, Trailing: "anime"}, "PRIVMSG #madoka :anime"},
+		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}, Trailing: "anime"}, "PRIVMSG #madoka #homura :anime"},
+		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka"}, Trailing: "anime madoka homura"}, "PRIVMSG #madoka :anime madoka homura"},
+		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}, Trailing: "anime madoka homura"}, "PRIVMSG #madoka #homura :anime madoka homura"},
+	}
+	for _, c := range cases {
+		t.Run(c.out, func(t *testing.T) {
+			s := c.in.String()
+			if s != c.out {
+				t.Errorf("wrong message: expected %q, got %q", c.out, s)
+			}
+		})
+	}
+}
+
+func TestTags(t *testing.T) {
+	type try struct {
+		tag string
+		val string
+		ok  bool
+	}
+	cases := []struct {
+		tags string
+		try  []try
+	}{
+		{`a`, []try{
+			{"a", "", true},
+			{"b", "", false},
+			{"", "", false},
+		}},
+		{`a=`, []try{
+			{"a", "", true},
+			{"b", "", false},
+			{"", "", false},
+		}},
+		{`a=b`, []try{
+			{"a", "b", true},
+			{"b", "", false},
+			{"", "", false},
+		}},
+		{`a=\:\s\\\r\n\t\x00`, []try{
+			{"a", "; \\\r\ntx00", true},
+			{"b", "", false},
+			{"t", "", false},
+			{"x", "", false},
+			{"0", "", false},
+			{"", "", false},
+		}},
+		{`a=\`, []try{
+			{"a", "", true},
+			{"b", "", false},
+			{"", "", false},
+		}},
+		{`a;c`, []try{
+			{"a", "", true},
+			{"c", "", true},
+			{"", "", false},
+		}},
+		{`a=;c`, []try{
+			{"a", "", true},
+			{"c", "", true},
+			{"", "", false},
+		}},
+		{`a;c=`, []try{
+			{"a", "", true},
+			{"c", "", true},
+			{"", "", false},
+		}},
+		{`a=;c=`, []try{
+			{"a", "", true},
+			{"c", "", true},
+			{"", "", false},
+		}},
+		{`a=b;c`, []try{
+			{"a", "b", true},
+			{"b", "", false},
+			{"c", "", true},
+			{"", "", false},
+		}},
+		{`a=b;c=`, []try{
+			{"a", "b", true},
+			{"b", "", false},
+			{"c", "", true},
+			{"", "", false},
+		}},
+		{`a;c=d`, []try{
+			{"a", "", true},
+			{"b", "", false},
+			{"c", "d", true},
+			{"", "", false},
+		}},
+		{`a=;c=d`, []try{
+			{"a", "", true},
+			{"b", "", false},
+			{"c", "d", true},
+			{"", "", false},
+		}},
+		{`a=b;c=d`, []try{
+			{"a", "b", true},
+			{"b", "", false},
+			{"c", "d", true},
+			{"", "", false},
+		}},
+		{`a=\:\s\\\r\n\t\x00;c=d`, []try{
+			{"a", "; \\\r\ntx00", true},
+			{"b", "", false},
+			{"t", "", false},
+			{"x", "", false},
+			{"0", "", false},
+			{"c", "d", true},
+			{"", "", false},
+		}},
+		{`a=\;c=d`, []try{
+			{"a", "", true},
+			{"b", "", false},
+			{"c", "d", true},
+			{"", "", false},
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.tags, func(t *testing.T) {
+			m := irc.Message{Tags: c.tags, Command: "PRIVMSG"}
+			for _, c := range c.try {
+				t.Run(c.tag, func(t *testing.T) {
+					r, ok := m.Tag(c.tag)
+					if ok != c.ok {
+						t.Errorf("tag parse success mismatch, expected %v, got %v", c.ok, ok)
+					}
+					if r != c.val {
+						t.Errorf("tag value mismatch, expected %q, got %q", c.val, r)
+					}
+				})
+			}
+		})
+	}
+}
