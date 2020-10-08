@@ -106,6 +106,10 @@ func exec(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 		selsend(ctx, send, msg.Reply(`@%s error from sql.Result.RowsAffected:`, err))
 		// Don't return. Worst case, there's an extra @ with "0 rows modified."
 	}
+	if err := br.UpdateAll(ctx); err != nil {
+		selsend(ctx, send, msg.Reply(`@%s your query modified %d rows, but couldn't resync: %v`, msg.Nick, n, err))
+		return
+	}
 	selsend(ctx, send, msg.Reply(`@%s your query modified %d rows`, msg.Nick, n))
 }
 
