@@ -180,6 +180,7 @@ func multigen(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg
 			m = uwuRep.Replace(m)
 		}
 		selsend(ctx, send, msg.Reply(m))
+		time.Sleep(1*time.Second + 15*time.Millisecond)
 	}
 }
 
