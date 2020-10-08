@@ -183,10 +183,13 @@ type Sender struct {
 // String formats the sender as "nick!user@host". Separators are omitted for
 // empty fields where valid.
 func (s Sender) String() string {
-	if s.Nick != "" {
-		return s.Nick + "!" + s.User + "@" + s.Host
+	if s.Host != "" {
+		if s.User != "" {
+			return s.Nick + "!" + s.User + "@" + s.Host
+		}
+		return s.Nick + "@" + s.Host
 	}
-	return s.Host
+	return s.Nick
 }
 
 // Parse parses a message.
