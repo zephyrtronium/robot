@@ -15,6 +15,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Package irc implements basic scanning and formatting of IRC messages.
+//
+// While package irc is designed for Twitch.TV IRC, it should be able to handle
+// any valid RFC 1459 messages plus IRCv3 tags. The focus is on simplicity,
+// universality, and performance, rather than convenience. Users should be
+// familiar with RFC 1459.
+//
+// This package does not handle IRC connections. It can parse messages from an
+// existing IRC connection via an io.RuneScanner wrapper, such as bufio.Reader.
+//
 package irc
 
 import (
@@ -26,11 +36,19 @@ import (
 
 // Message represents a single Twitch IRC Message.
 type Message struct {
+	// Time is the time at which the message was sent.
 	Time time.Time
+	// Tags is the full tags component of the received message. Use the Tag
+	// method to get the parsed, unquoted value of a single tag.
 	Tags string
+	// Sender is identifying information of the user or server that sent the
+	// message.
 	Sender
-	Command  string
-	Params   []string
+	// Command is the message command or numeric response code.
+	Command string
+	// Params is the "middle" parameters of the message.
+	Params []string
+	// Trailing is the "trailing" parameter of the message.
 	Trailing string
 }
 
@@ -63,7 +81,9 @@ func (m Message) Reply(format string, args ...interface{}) Message {
 	}
 }
 
-// String formats the message as an IRC message string.
+// String formats the message as an IRC message string appropriate for sending
+// to an IRC server, not including the ending CR LF sequence. This does not
+// perform any validation.
 func (m Message) String() string {
 	var b strings.Builder
 	if len(m.Tags) != 0 {
@@ -111,8 +131,9 @@ func (m Message) Text() string {
 	return b.String()
 }
 
-// Tag retrieves a tag by name.
-func (m Message) Tag(name string) (string, bool) {
+// Tag retrieves a tag by name. ok is false if and only if the tag is not
+// present.
+func (m Message) Tag(name string) (val string, ok bool) {
 	tags := m.Tags
 	for tags != "" {
 		k := strings.IndexByte(tags, ';')
@@ -139,17 +160,28 @@ func (m Message) Tag(name string) (string, bool) {
 }
 
 // To returns m.Params[0]. Panics if m.Params is empty.
+//
+// Notably, this identifies the channel or user a PRIVMSG message is sent to.
 func (m Message) To() string {
 	return m.Params[0]
 }
 
 // Sender is a message Sender. It may represent a user or server.
 type Sender struct {
+	// Nick is the nickname of the user who produced the message, or the
+	// hostname of the server for messages not produced by users.
 	Nick string
+	// User is the username of the user who produced the message, if any. For
+	// Twitch IRC, this is always the same as Nick if it is nonempty.
 	User string
+	// Host is the hostname of the user who produced the message, if any. For
+	// Twitch IRC, this is always "tmi.twitch.tv" or "<user>.tmi.twitch.tv",
+	// where <user> is the username of the authenticated client.
 	Host string
 }
 
+// String formats the sender as "nick!user@host". Separators are omitted for
+// empty fields where valid.
 func (s Sender) String() string {
 	if s.Nick != "" {
 		return s.Nick + "!" + s.User + "@" + s.Host
