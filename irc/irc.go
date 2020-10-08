@@ -132,7 +132,7 @@ func (m Message) Tag(name string) (string, bool) {
 			key = tag
 		}
 		if key == name {
-			return val, true
+			return unquoteTag(val), true
 		}
 	}
 	return "", false
