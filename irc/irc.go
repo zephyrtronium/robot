@@ -176,6 +176,9 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 			err = Malformed{stage: "message (only has tags)"}
 			return
 		}
+		if err = eatSpace(scan); err != nil {
+			return
+		}
 	} else {
 		scan.UnreadRune()
 	}
@@ -184,6 +187,9 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 	if r == ':' {
 		msg.Sender, err = scanSender(scan)
 		if err != nil {
+			return
+		}
+		if err = eatSpace(scan); err != nil {
 			return
 		}
 	} else {
@@ -200,7 +206,14 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 		panic("unreachable")
 	}
 	switch r {
-	case ' ': // do nothing
+	case ' ':
+		if err = eatSpace(scan); err != nil {
+			return
+		}
+		r, _, err = scan.ReadRune()
+		if err != nil {
+			return
+		}
 	case '\r':
 		r, _, err = scan.ReadRune()
 		if err != nil {
@@ -216,10 +229,6 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 		panic("unreachable")
 	}
 	// Parse middle args.
-	r, _, err = scan.ReadRune()
-	if err != nil {
-		return
-	}
 	for r != ':' {
 		scan.UnreadRune()
 		var arg string
@@ -237,6 +246,9 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 		}
 		switch r {
 		case ' ':
+			if err = eatSpace(scan); err != nil {
+				return
+			}
 			r, _, err = scan.ReadRune()
 			if err != nil {
 				return
@@ -427,6 +439,31 @@ func scanLine(scan io.RuneScanner, stage string) (line string, err error) {
 		}
 	}
 	return "", Malformed{stage: stage}
+}
+
+// eatSpace scans until the next character that is not U+0020 and unreads it.
+func eatSpace(scan io.RuneScanner) error {
+	var (
+		n, c int
+		r    rune
+		err  error
+	)
+	for c < ircLimit {
+		r, n, err = scan.ReadRune()
+		if err != nil {
+			return err
+		}
+		c += n
+		switch r {
+		case ' ':
+			continue
+		case '\000':
+			return Malformed{stage: "space"}
+		default:
+			return scan.UnreadRune()
+		}
+	}
+	return Malformed{stage: "space"}
 }
 
 // Malformed indicates a malformed IRC message.
