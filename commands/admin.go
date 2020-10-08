@@ -145,7 +145,7 @@ func tooActive(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 		selsend(ctx, send, msg.Reply(`@%s error setting activity: %v`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s response rate set to %g`, msg.Nick, p))
+	selsend(ctx, send, msg.Reply(`@%s response rate set to %g%%`, msg.Nick, p*100))
 }
 
 func setProb(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -154,14 +154,12 @@ func setProb(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		selsend(ctx, send, msg.Reply(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err))
 		return
 	}
-	if matches[2] == "%" {
-		p *= 0.01
-	}
+	p *= 0.01 // always use percentages
 	if _, err := br.Activity(ctx, msg.To(), func(float64) float64 { return p }); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s error setting activity: %v`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s response rate set to %g!`, msg.Nick, p))
+	selsend(ctx, send, msg.Reply(`@%s response rate set to %g%%!`, msg.Nick, p*100))
 }
 
 func multigen(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {

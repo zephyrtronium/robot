@@ -261,7 +261,7 @@ func init() {
 		{
 			admin: true,
 			name:  "set-prob",
-			re:    regexp.MustCompile(`(?i)^(?:set\s+)?(?:(?:rand(?:om)\s+)?response\s+)?(?:prob(?:ability)?|rate)\s+(?:to\s+)?(?P<prob>[0-9.]+)(?P<percent>%)?$`),
+			re:    regexp.MustCompile(`(?i)^(?:set\s+)?(?:(?:rand(?:om)\s+)?response\s+)?(?:prob(?:ability)?|rate)\s+(?:to\s+)?(?P<prob>[0-9.]+)%?$`),
 			f:     setProb,
 			help:  `["set response probability to" prob] Set the random response rate to a particular value.`,
 		},
