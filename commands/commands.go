@@ -289,7 +289,7 @@ func init() {
 		{
 			admin: true, regular: true,
 			name: "talk",
-			re:   regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:\s+something)?(?:\s+with|\s+meme|\s+raid\s+message)?(?:\s+(?P<chain>.+))?$`),
+			re:   regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:(?:\s+something)?(?:\s+starting)?\s+with|\s+meme|\s+raid\s+message)?(?:\s+(?P<chain>.+))?$`),
 			f:    talk,
 			help: `["say|speak|talk|generate with" starting chain)] Speak! Messages generated this way start with the given starting chain.`,
 		},
