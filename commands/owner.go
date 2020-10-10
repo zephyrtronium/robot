@@ -151,7 +151,11 @@ func listOwner(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 }
 
 func debugChan(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
-	status, block, privs := br.Debug(matches[1])
+	channel := matches[1]
+	if channel == "" {
+		channel = msg.To()
+	}
+	status, block, privs := br.Debug(channel)
 	if status == "" {
 		selsend(ctx, send, msg.Reply(`@%s no such channel`, msg.Nick))
 		return

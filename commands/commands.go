@@ -212,7 +212,7 @@ func init() {
 		{
 			admin: false,
 			name:  "debug-chan",
-			re:    regexp.MustCompile(`(?i)^debug\s+(?P<channel>\S+)$`),
+			re:    regexp.MustCompile(`(?i)^debug(?:\s+(?P<channel>\S+))?$`),
 			f:     debugChan,
 			help:  `["debug" channel] Show status of a channel. Also prints to terminal.`,
 		},
