@@ -192,3 +192,4 @@ Robot's database tables are:
 - `quit` disconnects from the IRC server and closes the bot.
 - `reconnect` disconnects from and then reconnects to the IRC server.
 - `list commands` (overriding the admin version) lists all commands, including owner-only and disabled ones. The latter are marked by a `*`.
+- `debug [<channel>]` lists (and prints to terminal) the in-memory configuration of the given channel, or the current one if omitted.
