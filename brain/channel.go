@@ -87,8 +87,8 @@ func (b *Brain) Join(ctx context.Context, channel, learn, send string) error {
 
 // SetPriv sets a new privilege level for a user.
 func (b *Brain) SetPriv(ctx context.Context, user, channel, priv string) error {
-	if b.config(channel) == nil {
-		return fmt.Errorf("SetPriv: no such channel: %s", channel)
+	if channel != "" && b.config(channel) == nil {
+		return fmt.Errorf("no such channel: %s", channel)
 	}
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -102,7 +102,7 @@ func (b *Brain) SetPriv(ctx context.Context, user, channel, priv string) error {
 		_, err = tx.ExecContext(ctx, `INSERT OR REPLACE INTO privs(user, chan, priv) VALUES (?, ?, ?)`, user, ch, priv)
 	default:
 		tx.Rollback()
-		return fmt.Errorf("SetPriv: bad privilege level %q", priv)
+		return fmt.Errorf("bad privilege level %q", priv)
 	}
 	if err != nil {
 		tx.Rollback()
