@@ -121,7 +121,7 @@ func (c *command) ok(priv, invoc string) []string {
 		if !c.admin {
 			return nil
 		}
-	case "":
+	case "", "privacy":
 		if !c.regular {
 			return nil
 		}
@@ -184,9 +184,9 @@ func init() {
 		{
 			admin: false,
 			name:  "privs",
-			re:    regexp.MustCompile(`(?i)^give\s+@?(?P<user>\S+)\s+(?P<priv>owner|admin|bot|regular|ignore)\s*(?:priv(?:ilege)?s?\s*)?(?:in\s+)?(?P<where>everywhere|#\w+)?`),
+			re:    regexp.MustCompile(`(?i)^give\s+@?(?P<user>\S+)\s+(?P<priv>owner|admin|bot|regular|privacy|ignore)\s*(?:priv(?:ilege)?s?\s*)?(?:in\s+)?(?P<where>everywhere|#\w+)?`),
 			f:     privs,
-			help:  `["give" user owner|admin|bot|regular|ignore ("in" everywhere|#somewhere)] Modify a user's privileges.`,
+			help:  `["give" user owner|admin|bot|regular|privacy|ignore ("in" everywhere|#somewhere)] Modify a user's privileges.`,
 		},
 		{
 			admin: false,

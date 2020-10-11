@@ -56,6 +56,6 @@ Both fields are required.
 The `privs` field of the top level and of each channel object is a list (i.e. JSON array) of these objects:
 
 - `user`: Username to which the privilege level applies.
-- `priv`: Privilege level, one of "owner", "admin", "bot", "ignore". (To set a privileged user back to regular, include the `privs` field at the appropriate scope, but leave them out of the list. All existing privileges of the same scope are overwritten when any list is provided.)
+- `priv`: Privilege level, one of "owner", "admin", "bot", "privacy", "ignore". (To set a privileged user back to regular, include the `privs` field at the appropriate scope, but leave them out of the list. All existing privileges of the same scope are overwritten when any list is provided.)
 
 Both fields are required.

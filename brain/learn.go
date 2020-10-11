@@ -109,7 +109,7 @@ func (b *Brain) ignoremsg(ctx context.Context, cfg *chancfg, msg irc.Message) bo
 		return true
 	}
 	switch cfg.privs[strings.ToLower(msg.Nick)] {
-	case "ignore", "bot":
+	case "ignore", "bot", "privacy":
 		return true
 	case "", "admin", "owner": // do nothing
 	default: // TODO: complain

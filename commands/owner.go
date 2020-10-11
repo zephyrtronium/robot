@@ -87,7 +87,7 @@ func privs(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg ir
 		return
 	}
 	selsend(ctx, send, msg.Reply(`@%s set privs for %s!`, msg.Nick, matches[1]))
-	if priv != "ignore" || where == "" {
+	if (priv != "ignore" && priv != "privacy") || where == "" {
 		return
 	}
 	if err := br.ClearChat(ctx, where, who); err != nil {

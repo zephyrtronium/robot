@@ -98,7 +98,7 @@ func (b *Brain) SetPriv(ctx context.Context, user, channel, priv string) error {
 	switch priv {
 	case "":
 		_, err = tx.ExecContext(ctx, `DELETE FROM privs WHERE user=? AND chan IS ?`, user, ch)
-	case "owner", "admin", "bot", "ignore":
+	case "owner", "admin", "bot", "privacy", "ignore":
 		_, err = tx.ExecContext(ctx, `INSERT OR REPLACE INTO privs(user, chan, priv) VALUES (?, ?, ?)`, user, ch, priv)
 	default:
 		tx.Rollback()

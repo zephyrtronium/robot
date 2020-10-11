@@ -244,7 +244,7 @@ CREATE TABLE IF NOT EXISTS chans (
 CREATE TABLE IF NOT EXISTS privs (
 	user	TEXT NOT NULL, -- username to which this priv applies
 	chan	TEXT, -- null means this priv applies everywhere
-	priv	TEXT NOT NULL, -- "owner", "admin", "bot", or "ignore"
+	priv	TEXT NOT NULL, -- "owner", "admin", "bot", "privacy", or "ignore"
 	UNIQUE(user, chan)
 );
 CREATE TABLE IF NOT EXISTS history (

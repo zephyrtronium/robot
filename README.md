@@ -20,11 +20,11 @@ For the exact syntax to use these commands, see [the relevant section](#commands
 
 Robot stores three types of information:
 
-- Configuration details. This includes things like channels to connect to, how frequently to send messages, and who has certain [privileges](#privileges). For the most part, this information is relevant only to bot owners, broadcasters, and mods.
-- Fifteen-minute history. Robot records all chat messages received in the last fifteen minutes, storing the username of the sender, the channel it was sent to, the time it was received, and the full message text. Robot uses this information to delete messages it's learned under [certain circumstances](#tools-for-broadcasters-and-mods). Whenever Robot receives a new message, all records older than fifteen minutes are removed. Robot also records the messages it's sent in the last fifteen minutes.
+- Configuration details. This includes things like channels to connect to, how frequently to send messages, and who has certain [privileges](#privileges) (including "privacy" privileges). For the most part, this information is relevant only to bot owners, broadcasters, and mods.
+- Fifteen-minute history. Robot records all chat messages received in the last fifteen minutes, storing the username of the sender, the channel it was sent to, the time it was received, and the full message text. Robot uses this information to delete messages it's learned under [certain circumstances](#tools-for-broadcasters-and-mods). Whenever Robot receives a new message, all records older than fifteen minutes are removed. Robot also records the messages it's generated in the last fifteen minutes.
 - Markov chain tuples. This is the majority of Robot's data, a simple list of prefix and suffix words tagged with the location that prefix and suffix may be used. This data is anonymous; Robot does not know who sent the messages that were used to obtain this information.
 
-If you want Robot not to record information from you for any reason, contact the bot owner asking to be ignored. Ask the broadcaster how to reach the bot owner if you aren't sure. You may lose the ability to use Robot's commands, including generating messages.
+If you want Robot not to record information from you for any reason, contact the bot owner asking to be given privacy privileges. Ask the broadcaster how to reach the bot owner if you aren't sure. Once you're set up to be private, none of your messages will enter her history or Markov chain data.
 
 ## How Robot works
 
@@ -97,13 +97,14 @@ If a command invocation doesn't match any command, it instead prompts Robot to s
 
 ## Privileges
 
-Robot has five privilege levels:
+Robot has six privilege levels:
 
 - `owner` is a special privilege level for the [bot owner](#running-your-own-instance).
 - `admin` gives access to extra commands for moderating robot's activity levels and knowledge.
 - `regular` is the default privilege level, for basic fun with the Markov chain features.
 - `ignore` removes access to any commands, including Markov chain features. Robot also does not learn from ignored users.
 - `bot` is a mix of admin and ignore privileges. Users with bot privileges can invoke admin commands, but Robot does not learn from their other messages.
+- `privacy` is a mix of regular and ignore privileges. Users with privacy privileges can invoke regular-level commands, but Robot does not learn from their messages.
 
 Robot scans a user's chat badges to assign default privileges. Unless overridden per user, broadcasters and mods, Twitch staff have owner privileges, and everyone else (including VIPs and subscribers) has regular privileges.
 
@@ -172,7 +173,7 @@ Robot's database tables are:
 - `privs` - global and per-channel user priviliges
 	+ `user` - username receiving this privilege
 	+ `chan` - channel where applicable, or NULL if a global default
-	+ `priv` - privilege type, one of "owner", "admin", "bot", or "ignore". (Regular privs are implied by not being in the table, or can be forced by setting this to the empty string.)
+	+ `priv` - privilege type, one of "owner", "admin", "bot", "privacy", or "ignore". (Regular privs are implied by not being in the table, or can be forced by setting this to the empty string.)
 - `quotes` - unused
 - `tuplesn`, where `n` is a number - Markov chain data n prefix words
 	+ `tag` - tag with which this chain was learned

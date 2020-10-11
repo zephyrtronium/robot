@@ -215,7 +215,7 @@ func (b *Brain) ShouldTalk(ctx context.Context, msg irc.Message, random bool) bo
 	switch cfg.privs[strings.ToLower(msg.Nick)] {
 	case "ignore":
 		return false
-	case "", "owner", "admin", "bot": // do nothing
+	case "", "owner", "admin", "bot", "privacy": // do nothing
 	default:
 		// TODO: complain
 		return false
