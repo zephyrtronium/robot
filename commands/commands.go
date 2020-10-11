@@ -296,7 +296,7 @@ func init() {
 		{
 			admin: true,
 			name:  "remove-privacy-admin",
-			re:    regexp.MustCompile(`(?i)^learn\s+from\s+me(?:\s+again)?|invade\s+my\s+privacy`),
+			re:    regexp.MustCompile(`(?i)^(?:you\s+(?:can|may)\s+)?learn\s+from\s+me(?:\s+again)?|invade\s+my\s+privacy`),
 			f:     removePrivacyAdmin,
 			help:  `["learn from me again"] Re-enable recording your messages.`,
 		},
@@ -331,7 +331,7 @@ func init() {
 		{
 			admin: false, regular: true,
 			name: "remove-privacy",
-			re:   regexp.MustCompile(`(?i)^learn\s+from\s+me(?:\s+again)?$|^invade\s+my\s+privacy$`),
+			re:   regexp.MustCompile(`(?i)^(?:you\s+(?:can|may)\s+)?learn\s+from\s+me(?:\s+again)?|invade\s+my\s+privacy`),
 			f:    removePrivacy,
 			help: `["learn from me again"] Re-enable recording your messages.`,
 		},
