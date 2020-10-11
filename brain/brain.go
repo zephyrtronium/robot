@@ -310,7 +310,7 @@ func makeForget(order int) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "DELETE FROM tuples%[1]d WHERE id IN (SELECT id FROM tuples%[1]d WHERE tag=?", order)
 	writeTupleMatch(&b, order, 0)
-	b.WriteString(" AND suffix=? LIMIT 1);")
+	b.WriteString(" AND suffix IS ? LIMIT 1);")
 	return b.String()
 }
 
