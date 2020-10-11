@@ -287,6 +287,20 @@ func init() {
 			help:  `["raid"] Think of five potential raid messages.`,
 		},
 		{
+			admin: true,
+			name:  "give-privacy-admin",
+			re:    regexp.MustCompile(`(?i)^give\s+(?:me\s+)?privacy(?:,\s+please)?$`),
+			f:     givePrivacyAdmin,
+			help:  `["give me privacy"] Disable recording anything from your own messages.`,
+		},
+		{
+			admin: true,
+			name:  "remove-privacy-admin",
+			re:    regexp.MustCompile(`(?i)^learn\s+from\s+me(?:\s+again)?|invade\s+my\s+privacy`),
+			f:     removePrivacyAdmin,
+			help:  `["learn from me again"] Re-enable recording your messages.`,
+		},
+		{
 			admin: true, regular: true,
 			name: "talk",
 			re:   regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:(?:\s+something)?(?:\s+starting)?\s+with|\s+meme|\s+raid\s+message)?(?:\s+(?P<chain>.+))?$`),
@@ -306,6 +320,20 @@ func init() {
 			re:   regexp.MustCompile(`(?i)^(?:where(?:'s|\s+is)\s+(?:you'?re?|ur)\s+)?source(?:\s*code)?\??$`),
 			f:    source,
 			help: `["where is your source code?"] Show where my source code lives.`,
+		},
+		{
+			admin: false, regular: true,
+			name: "give-privacy",
+			re:   regexp.MustCompile(`(?i)^give\s+(?:me\s+)?privacy(?:,\s+please)?$`),
+			f:    givePrivacy,
+			help: `["give me privacy"] Disable recording anything from your own messages.`,
+		},
+		{
+			admin: false, regular: true,
+			name: "remove-privacy",
+			re:   regexp.MustCompile(`(?i)^learn\s+from\s+me(?:\s+again)?$|^invade\s+my\s+privacy$`),
+			f:    removePrivacy,
+			help: `["learn from me again"] Re-enable recording your messages.`,
 		},
 		// talk-catchall MUST be last
 		{

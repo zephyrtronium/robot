@@ -74,3 +74,21 @@ func source(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg i
 		`and I'm free, open-source software licensed `+
 		`under the GNU General Public License, Version 3.`, msg.Nick))
 }
+
+func givePrivacy(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+	who := strings.ToLower(msg.Nick)
+	if err := br.SetPriv(ctx, who, "", "privacy"); err != nil {
+		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		return
+	}
+	selsend(ctx, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.Nick))
+}
+
+func removePrivacy(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+	who := strings.ToLower(msg.Nick)
+	if err := br.SetPriv(ctx, who, "", ""); err != nil {
+		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		return
+	}
+	selsend(ctx, send, msg.Reply(`@%s got it, I'll learn from your messages again.`, msg.Nick))
+}
