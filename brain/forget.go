@@ -61,7 +61,8 @@ func (b *Brain) ClearChat(ctx context.Context, channel, user string) error {
 	}
 	expunge := tx.StmtContext(ctx, b.stmts.expunge)
 	forget := tx.StmtContext(ctx, b.stmts.forget)
-	rows, err := tx.StmtContext(ctx, b.stmts.historyName).QueryContext(ctx, channel, user)
+	h := UserHash(channel, user)
+	rows, err := tx.StmtContext(ctx, b.stmts.historyHash).QueryContext(ctx, channel, h[:])
 	if err != nil {
 		tx.Rollback()
 		return err

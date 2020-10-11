@@ -21,7 +21,7 @@ For the exact syntax to use these commands, see [the relevant section](#commands
 Robot stores three types of information:
 
 - Configuration details. This includes things like channels to connect to, how frequently to send messages, and who has certain [privileges](#privileges) (including "privacy" privileges). For the most part, this information is relevant only to bot owners, broadcasters, and mods.
-- Fifteen-minute history. Robot records all chat messages received in the last fifteen minutes, storing the username of the sender, the channel it was sent to, the time it was received, and the full message text. Robot uses this information to delete messages it's learned under [certain circumstances](#tools-for-broadcasters-and-mods). Whenever Robot receives a new message, all records older than fifteen minutes are removed. Robot also records the messages it's generated in the last fifteen minutes.
+- Fifteen-minute history. Robot records all chat messages received in the last fifteen minutes, storing a hash identifying the sender, the channel it was sent to, the time it was received, and the full message text. Robot uses this information to delete messages it's learned under [certain circumstances](#tools-for-broadcasters-and-mods). Whenever Robot receives a new message, all records older than fifteen minutes are removed. Robot also records the messages it's generated in the last fifteen minutes.
 - Markov chain tuples. This is the majority of Robot's data, a simple list of prefix and suffix words tagged with the location that prefix and suffix may be used. This data is anonymous; Robot does not know who sent the messages that were used to obtain this information.
 
 If you want Robot not to record information from you for any reason, contact the bot owner asking to be given privacy privileges. Ask the broadcaster how to reach the bot owner if you aren't sure. Once you're set up to be private, none of your messages will enter her history or Markov chain data.
@@ -168,7 +168,7 @@ Robot's database tables are:
 - `history` - messages learned from in the last fifteen minutes
 	+ `tid` - Twitch IRC message ID
 	+ `time` - timestamp of message receipt
-	+ `sender` - username of the message sender
+	+ `senderh` - hash corresponding to the message sender
 	+ `chan` - channel received in
 	+ `tag` - tag used to learn the message
 	+ `msg` - message text

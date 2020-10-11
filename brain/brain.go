@@ -25,6 +25,7 @@ package brain
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -69,8 +70,8 @@ type brainStmts struct {
 	// should be used with Exec in a Tx with record.
 	learn *sql.Stmt
 	// record is the statement to add a message to the history. Parameters are,
-	// in order, id, time, sender, channel, tag, message. This statement should
-	// be used with Exec in a Tx with learn.
+	// in order, id, time, sender's user hash, channel, tag, message. This
+	// statement should be used with Exec in a Tx with learn.
 	record *sql.Stmt
 	// think is the statements to match a tuple and retrieve suffixes. First
 	// parameter is the tag, then up to (order) more for the tuple. This
@@ -91,11 +92,12 @@ type brainStmts struct {
 	// with QueryRow. The result is the rowid, tag, and message. Generally this
 	// statement would be paired with forgets and an expunge in a Tx.
 	historyID *sql.Stmt
-	// historyName is the statement to select all messages from history by
-	// sender name. The parameters are channel and name. This statement should
-	// be used with Query. The results are rowid, tag, and message. Generally
-	// this statement would be paired with forgets and expunges in a Tx.
-	historyName *sql.Stmt
+	// historyHash is the statement to select all messages from history by
+	// sender user hash. The parameters are channel and name. This statement
+	// should be used with Query. The results are rowid, tag, and message.
+	// Generally this statement would be paired with forgets and expunges in a
+	// Tx.
+	historyHash *sql.Stmt
 	// historyPattern is the statement to select all messages from history by
 	// partial message text. The parameters are the channel and message
 	// pattern. This statement should be used with Query. The results are
@@ -251,7 +253,7 @@ CREATE TABLE IF NOT EXISTS history (
 	id		INTEGER PRIMARY KEY ASC,
 	tid		TEXT, -- message id from Twitch tags
 	time	DATETIME NOT NULL, -- message timestamp
-	sender	TEXT NOT NULL, -- name of sender converted to lowercase
+	senderh	BLOB(32) NOT NULL, -- hashed name of sender
 	chan	TEXT NOT NULL,
 	tag		TEXT NOT NULL, -- tag used to learn this message
 	msg		TEXT NOT NULL
@@ -274,7 +276,7 @@ CREATE TABLE IF NOT EXISTS emotes (
 	weight	INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS history_id_index ON history(tid);
-CREATE INDEX IF NOT EXISTS history_sender_index ON history(chan, sender);
+CREATE INDEX IF NOT EXISTS history_senderh_index ON history(chan, senderh);
 CREATE TRIGGER IF NOT EXISTS history_limit AFTER INSERT ON history BEGIN
 	DELETE FROM history WHERE strftime('%s', time) < strftime('%s', 'now', '-15 minutes');
 END;
@@ -334,7 +336,7 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) brainStmts {
 	if err != nil {
 		panic(err)
 	}
-	stmts.record, err = db.PrepareContext(ctx, `INSERT INTO history (tid, time, sender, chan, tag, msg) VALUES (?, ?, ?, ?, ?, ?);`)
+	stmts.record, err = db.PrepareContext(ctx, `INSERT INTO history (tid, time, senderh, chan, tag, msg) VALUES (?, ?, ?, ?, ?, ?);`)
 	if err != nil {
 		panic(err)
 	}
@@ -362,7 +364,7 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) brainStmts {
 	if err != nil {
 		panic(err)
 	}
-	stmts.historyName, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND sender=?`)
+	stmts.historyHash, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND senderh=?`)
 	if err != nil {
 		panic(err)
 	}
@@ -400,4 +402,13 @@ func (b *Brain) Query(ctx context.Context, query string, args ...interface{}) (*
 // most one resulting row.
 func (b *Brain) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
 	return b.db.QueryRowContext(ctx, query, args...)
+}
+
+// UserHash obfuscates a username for inclusion in history.
+func UserHash(channel, name string) [32]byte {
+	var b [64]byte
+	name = strings.ToLower(name)
+	copy(b[:32], name)
+	copy(b[32:], channel)
+	return sha256.Sum256(b[:])
 }

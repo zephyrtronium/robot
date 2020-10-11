@@ -74,8 +74,9 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 		return fmt.Errorf("Learn: error learning end-of-message %+v: %w", args, err)
 	}
 	// Add the message to history.
+	h := UserHash(channel, msg.Nick)
 	id, _ := msg.Tag("id")
-	if _, err := tx.StmtContext(ctx, b.stmts.record).ExecContext(ctx, id, msg.Time, msg.Nick, channel, tag, msg.Trailing); err != nil {
+	if _, err := tx.StmtContext(ctx, b.stmts.record).ExecContext(ctx, id, msg.Time, h[:], channel, tag, msg.Trailing); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("Learn: error recording message: %w", err)
 	}
