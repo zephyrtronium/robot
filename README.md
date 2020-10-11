@@ -76,6 +76,8 @@ The command invocation is checked against the list of commands for which the use
 ### Commands for everyone
 
 - `where is your source code?` provides a link to this page, along with a short summary of prominent technologies leveraged.
+- `give me privacy` makes the bot never record any information from your messages.
+- `learn from me again` undoes `give me privacy`.
 - `generate something with starting chain` generates a message that starts with `starting chain`. (Nothing happens if the bot doesn't know anything to say from there.)
 - `uwu` genyewates an especiawwy uwu message.
 
