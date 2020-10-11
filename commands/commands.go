@@ -289,7 +289,7 @@ func init() {
 		{
 			admin: true,
 			name:  "give-privacy-admin",
-			re:    regexp.MustCompile(`(?i)^give\s+(?:me\s+)?privacy(?:,\s+please)?$`),
+			re:    regexp.MustCompile(`(?i)^give\s+(?:me\s+)?privacy,?(?:\s+please)?$`),
 			f:     givePrivacyAdmin,
 			help:  `["give me privacy"] Disable recording anything from your own messages.`,
 		},
@@ -324,7 +324,7 @@ func init() {
 		{
 			admin: false, regular: true,
 			name: "give-privacy",
-			re:   regexp.MustCompile(`(?i)^give\s+(?:me\s+)?privacy(?:,\s+please)?$`),
+			re:   regexp.MustCompile(`(?i)^give\s+(?:me\s+)?privacy,?(?:\s+please)?$`),
 			f:    givePrivacy,
 			help: `["give me privacy"] Disable recording anything from your own messages.`,
 		},
