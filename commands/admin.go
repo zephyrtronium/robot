@@ -191,18 +191,26 @@ func raid(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 
 func givePrivacyAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
-	if err := br.SetPriv(ctx, who, "", "bot"); err != nil {
+	if !strings.HasPrefix(msg.To(), "#") {
+		selsend(ctx, send, msg.Reply(`@%s sorry, I can't modify your privileges in whispers. Contact the bot owner for help.`, msg.Nick))
+		return
+	}
+	if err := br.SetPriv(ctx, who, msg.To(), "bot"); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.Nick))
+	selsend(ctx, send, msg.Reply(`@%s got it, I won't record any of your messages in %s.`, msg.Nick, msg.To()))
 }
 
 func removePrivacyAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
-	if err := br.SetPriv(ctx, who, "", "admin"); err != nil {
+	if !strings.HasPrefix(msg.To(), "#") {
+		selsend(ctx, send, msg.Reply(`@%s sorry, I can't modify your privileges in whispers. Contact the bot owner for help.`, msg.Nick))
+		return
+	}
+	if err := br.SetPriv(ctx, who, msg.To(), "admin"); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s got it, I'll learn from your messages again.`, msg.Nick))
+	selsend(ctx, send, msg.Reply(`@%s got it, I'll learn from your messages in %s again.`, msg.Nick, msg.To()))
 }
