@@ -26,7 +26,7 @@ import (
 )
 
 func talk(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
-	if !br.ShouldTalk(ctx, msg, false) {
+	if br.ShouldTalk(ctx, msg, false) != nil {
 		return
 	}
 	with := strings.TrimSpace(matches[1])
@@ -39,14 +39,14 @@ func talk(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 }
 
 func talkCatchall(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
-	if !br.ShouldTalk(ctx, msg, false) {
+	if br.ShouldTalk(ctx, msg, false) != nil {
 		return
 	}
 	selsend(ctx, send, msg.Reply("%s", br.TalkIn(ctx, msg.To(), nil)))
 }
 
 func uwu(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
-	if !br.ShouldTalk(ctx, msg, false) {
+	if br.ShouldTalk(ctx, msg, false) != nil {
 		return
 	}
 	m := br.TalkIn(ctx, msg.To(), nil)

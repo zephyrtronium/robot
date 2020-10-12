@@ -159,7 +159,7 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			return nil
 		}
 	}
-	if br.ShouldTalk(ctx, msg, true) {
+	if br.ShouldTalk(ctx, msg, true) == nil {
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {
 			send <- irc.Privmsg(msg.To(), m)

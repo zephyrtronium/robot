@@ -20,6 +20,7 @@ package brain
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 
 	"github.com/zephyrtronium/robot/irc"
@@ -196,43 +197,46 @@ func (b *Brain) Privmsg(ctx context.Context, to, msg string) irc.Message {
 	}
 }
 
-// ShouldTalk determines whether the given message should trigger talking. If
+// ShouldTalk determines whether the given message should trigger talking. A
+// non-nil returned error indicates the reason the message was denied. If
 // random is true, then this incorporates the prob channel config setting;
 // otherwise, this incorporates the respond setting.
-func (b *Brain) ShouldTalk(ctx context.Context, msg irc.Message, random bool) bool {
+func (b *Brain) ShouldTalk(ctx context.Context, msg irc.Message, random bool) error {
 	if msg.Command != "PRIVMSG" || len(msg.Params) == 0 {
-		return false
+		return fmt.Errorf("not a PRIVMSG sent to a channel")
 	}
 	cfg := b.config(msg.To())
 	if cfg == nil {
-		return false
+		return fmt.Errorf("unrecognized channel")
 	}
 	cfg.mu.Lock()
 	defer cfg.mu.Unlock()
 	if !cfg.send.Valid {
-		return false
+		return fmt.Errorf("channel has no send tag")
 	}
-	switch cfg.privs[strings.ToLower(msg.Nick)] {
+	switch priv := cfg.privs[strings.ToLower(msg.Nick)]; priv {
 	case "ignore":
-		return false
+		return fmt.Errorf("user is ignored")
 	case "", "owner", "admin", "bot", "privacy": // do nothing
 	default:
-		// TODO: complain
-		return false
+		return fmt.Errorf("unrecognized privilege level %q", priv)
 	}
 	if random {
 		if msg.Time.Before(cfg.silence) {
-			return false
+			return fmt.Errorf("channel is silenced until %v", cfg.silence)
 		}
 		if b.unifm() > cfg.prob {
-			return false
+			return fmt.Errorf("rng")
 		}
 	} else {
 		if !cfg.respond {
-			return false
+			return fmt.Errorf("channel has respond disabled")
 		}
 	}
 	// Note that the rate limiter must be the last check, because it
 	// consumes a resource if the check passes.
-	return cfg.rate.AllowN(msg.Time, 1)
+	if !cfg.rate.AllowN(msg.Time, 1) {
+		return fmt.Errorf("rate limited")
+	}
+	return nil
 }
