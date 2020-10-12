@@ -19,13 +19,14 @@ package commands
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/irc"
 )
 
-func talk(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func talk(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if br.ShouldTalk(ctx, msg, false) != nil {
 		return
 	}
@@ -38,14 +39,14 @@ func talk(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 	selsend(ctx, send, msg.Reply("%s", m))
 }
 
-func talkCatchall(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func talkCatchall(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if br.ShouldTalk(ctx, msg, false) != nil {
 		return
 	}
 	selsend(ctx, send, msg.Reply("%s", br.TalkIn(ctx, msg.To(), nil)))
 }
 
-func uwu(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func uwu(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if br.ShouldTalk(ctx, msg, false) != nil {
 		return
 	}
@@ -66,7 +67,7 @@ var uwuRep = strings.NewReplacer(
 	"no", "nyo", "No", "Nyo", "NO", "NYO",
 )
 
-func source(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func source(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	// We could try to extract the package path from a function name or
 	// something, or we can just do this.
 	selsend(ctx, send, msg.Reply(`@%s My source code is at https://github.com/zephyrtronium/robot – `+
@@ -75,7 +76,7 @@ func source(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg i
 		`under the GNU General Public License, Version 3.`, msg.Nick))
 }
 
-func givePrivacy(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func givePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", "privacy"); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
@@ -84,7 +85,7 @@ func givePrivacy(ctx context.Context, br *brain.Brain, send chan<- irc.Message, 
 	selsend(ctx, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.Nick))
 }
 
-func removePrivacy(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func removePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", ""); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))

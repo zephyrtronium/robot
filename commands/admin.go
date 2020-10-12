@@ -20,6 +20,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ import (
 	"github.com/zephyrtronium/robot/irc"
 )
 
-func help(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func help(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	cmd := findcmd(matches[1])
 	if cmd == nil {
 		selsend(ctx, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s couldn't find a command named %q`, msg.Nick, matches[1])))
@@ -38,7 +39,7 @@ func help(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 	selsend(ctx, send, br.Privmsg(ctx, msg.To(), cmd.help))
 }
 
-func invocation(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func invocation(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	cmd := findcmd(matches[1])
 	if cmd == nil {
 		selsend(ctx, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s couldn't find a command named %q`, msg.Nick, matches[1])))
@@ -47,7 +48,7 @@ func invocation(ctx context.Context, br *brain.Brain, send chan<- irc.Message, m
 	selsend(ctx, send, msg.Reply("%s", cmd.re.String()))
 }
 
-func list(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func list(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	var r []string
 	for _, cmd := range all {
 		if cmd.enabled() && (cmd.admin || cmd.regular) {
@@ -57,7 +58,7 @@ func list(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 	selsend(ctx, send, msg.Reply("%s", strings.Join(r, " ")))
 }
 
-func forget(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func forget(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	n, err := br.ClearPattern(ctx, msg.To(), matches[1])
 	if err != nil {
 		selsend(ctx, send, msg.Reply(`@%s an error occurred while trying to forget: %v`, msg.Nick, err))
@@ -65,7 +66,7 @@ func forget(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg i
 	selsend(ctx, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s deleted %d messages!`, msg.Nick, n)))
 }
 
-func silence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func silence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	var until time.Time
 	switch {
 	case matches[1] == "" && matches[2] == "":
@@ -131,7 +132,7 @@ var (
 	silenceNMin = regexp.MustCompile(`(?i)^(\d+)\s+min`)
 )
 
-func unsilence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func unsilence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if err := br.Silence(ctx, msg.To(), time.Time{}); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s error removing silence: %v`, msg.Nick, err))
 		return
@@ -139,7 +140,7 @@ func unsilence(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 	selsend(ctx, send, msg.Reply(`@%s thanks for letting me talk again!`, msg.Nick))
 }
 
-func tooActive(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func tooActive(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := br.Activity(ctx, msg.To(), func(x float64) float64 { return x / 2 })
 	if err != nil {
 		selsend(ctx, send, msg.Reply(`@%s error setting activity: %v`, msg.Nick, err))
@@ -148,7 +149,7 @@ func tooActive(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 	selsend(ctx, send, msg.Reply(`@%s response rate set to %g%%`, msg.Nick, p*100))
 }
 
-func setProb(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func setProb(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := strconv.ParseFloat(matches[1], 64)
 	if err != nil {
 		selsend(ctx, send, msg.Reply(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err))
@@ -162,7 +163,7 @@ func setProb(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 	selsend(ctx, send, msg.Reply(`@%s response rate set to %g%%!`, msg.Nick, p*100))
 }
 
-func multigen(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func multigen(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	n, err := strconv.Atoi(matches[1])
 	if err != nil {
 		selsend(ctx, send, msg.Reply(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err))
@@ -184,11 +185,11 @@ func multigen(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg
 	}
 }
 
-func raid(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
-	multigen(ctx, br, send, msg, []string{"", "5"})
+func raid(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	multigen(ctx, br, lg, send, msg, []string{"", "5"})
 }
 
-func givePrivacyAdmin(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func givePrivacyAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", "bot"); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
@@ -197,7 +198,7 @@ func givePrivacyAdmin(ctx context.Context, br *brain.Brain, send chan<- irc.Mess
 	selsend(ctx, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.Nick))
 }
 
-func removePrivacyAdmin(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func removePrivacyAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", "admin"); err != nil {
 		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))

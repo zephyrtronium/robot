@@ -153,7 +153,7 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		return nil
 	}
 	if cmd, ok := commands.Parse(br.Name(), msg.Trailing); ok {
-		nm := commands.Do(ctx, br, send, msg, priv, cmd)
+		nm := commands.Do(ctx, br, lg, send, msg, priv, cmd)
 		if nm != "" {
 			lg.Println("executed command", nm)
 			return nil
@@ -215,7 +215,7 @@ func stdin(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup, b
 				Sender:   irc.Sender{Nick: "(terminal)"},
 				Trailing: cmd,
 			}
-			nm := commands.Do(ctx, br, send, msg, "owner", cmd)
+			nm := commands.Do(ctx, br, lg, send, msg, "owner", cmd)
 			if nm != "" {
 				lg.Println("executed command", nm)
 			}

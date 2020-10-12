@@ -19,6 +19,7 @@ package commands
 
 import (
 	"context"
+	"log"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -27,7 +28,7 @@ import (
 	"github.com/zephyrtronium/robot/irc"
 )
 
-func enable(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func enable(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	cmd := findcmd(matches[2])
 	if cmd == nil {
 		selsend(ctx, send, msg.Reply("@%s didn't find a command named %q", msg.Nick, matches[2]))
@@ -42,7 +43,7 @@ func enable(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg i
 	}
 }
 
-func resync(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func resync(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	err := br.UpdateAll(ctx)
 	if err != nil {
 		selsend(ctx, send, msg.Reply("@%s error from UpdateAll: %v", msg.Nick, err))
@@ -51,7 +52,7 @@ func resync(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg i
 	selsend(ctx, send, msg.Reply("@%s updated!", msg.Nick))
 }
 
-func raw(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func raw(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	m := irc.Message{
 		Command:  matches[1],
 		Params:   strings.Fields(matches[2]),
@@ -60,7 +61,7 @@ func raw(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.
 	selsend(ctx, send, m)
 }
 
-func join(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func join(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if err := br.Join(ctx, matches[1], matches[2], matches[3]); err != nil {
 		selsend(ctx, send, msg.Reply("@%s error from Join: %v", msg.Nick, err))
 		return
@@ -68,7 +69,7 @@ func join(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 	selsend(ctx, send, irc.Message{Command: "JOIN", Params: []string{matches[1]}})
 }
 
-func privs(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func privs(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(matches[1])
 	priv := matches[2]
 	if priv == "regular" {
@@ -95,7 +96,7 @@ func privs(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg ir
 	}
 }
 
-func exec(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func exec(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	res, err := br.Exec(ctx, matches[1])
 	if err != nil {
 		selsend(ctx, send, msg.Reply(`@%s error from Exec: %v`, msg.Nick, err))
@@ -113,11 +114,11 @@ func exec(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc
 	selsend(ctx, send, msg.Reply(`@%s your query modified %d rows`, msg.Nick, n))
 }
 
-func quit(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func quit(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	selsend(ctx, send, irc.Message{Command: "QUIT", Trailing: "goodbye"})
 }
 
-func warranty(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func warranty(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	os.Stderr.WriteString(warrantyText)
 }
 
@@ -134,11 +135,11 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 
 `
 
-func reconnect(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func reconnect(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	selsend(ctx, send, irc.Message{Command: "RECONNECT"})
 }
 
-func listOwner(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func listOwner(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	var r []string
 	for _, cmd := range all {
 		if cmd.enabled() {
@@ -150,7 +151,7 @@ func listOwner(ctx context.Context, br *brain.Brain, send chan<- irc.Message, ms
 	selsend(ctx, send, msg.Reply("%s", strings.Join(r, " ")))
 }
 
-func debugChan(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string) {
+func debugChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	channel := matches[1]
 	if channel == "" {
 		channel = msg.To()

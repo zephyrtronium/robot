@@ -20,6 +20,7 @@ package commands
 
 import (
 	"context"
+	"log"
 	"regexp"
 	"strings"
 	"sync/atomic"
@@ -34,10 +35,10 @@ import (
 // name of the performed command, or the empty string if none. priv is the
 // privilege level for the user and cmd is the command invocation as parsed by
 // Parse.
-func Do(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, priv, cmd string) string {
+func Do(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, priv, cmd string) string {
 	for _, c := range all {
 		if m := c.ok(priv, cmd); m != nil {
-			c.f(ctx, br, send, msg, m)
+			c.f(ctx, br, lg, send, msg, m)
 			return c.name
 		}
 	}
@@ -104,7 +105,7 @@ type command struct {
 	// entire line.
 	re *regexp.Regexp
 	// f is the function to invoke.
-	f func(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, matches []string)
+	f func(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string)
 	// help is a short usage for the command.
 	help string
 }
