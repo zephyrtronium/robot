@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/commands"
 	"github.com/zephyrtronium/robot/irc"
@@ -48,10 +50,12 @@ for details.
 func main() {
 	var source, remote, token string
 	var secure bool
+	var checkp time.Duration
 	flag.StringVar(&source, "source", "", "SQL database source (required)")
 	flag.StringVar(&remote, "remote", "irc.chat.twitch.tv:6697", "remote address, IRC protocol")
 	flag.StringVar(&token, "token", "", "OAuth token")
 	flag.BoolVar(&secure, "secure", true, "use TLS")
+	flag.DurationVar(&checkp, "period", time.Minute, "period between checking broadcaster online statuses")
 	flag.Parse()
 
 	// Print GPLv3 information.
@@ -81,6 +85,7 @@ func main() {
 		cancel()
 		signal.Stop(sig)
 	}()
+	go onlineLoop(ctx, br, token, checkp, log.New(os.Stderr, "(online)", log.Ltime))
 	send := make(chan irc.Message)
 	recv := make(chan irc.Message, 1)
 	lg := log.New(os.Stderr, "(irc)", log.Ltime)
@@ -215,5 +220,36 @@ func stdin(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup, b
 				lg.Println("executed command", nm)
 			}
 		}
+	}
+}
+
+func onlineLoop(ctx context.Context, br *brain.Brain, token string, period time.Duration, lg *log.Logger) {
+	clientID, err := fetchClientID(ctx, token)
+	if err != nil {
+		lg.Fatal("An error occurred while fetching client ID:", err)
+	}
+	lim := rate.NewLimiter(rate.Every(period), 1)
+	var b strings.Builder
+	for {
+		if err := lim.Wait(ctx); err != nil {
+			return
+		}
+		channels := br.Channels()
+		on, err := online(ctx, token, clientID, channels)
+		if err != nil {
+			lg.Println(err)
+			continue
+		}
+		b.Reset()
+		for _, channel := range channels {
+			b.WriteString(channel)
+			if on[channel] {
+				b.WriteString(" ONLINE  ")
+			} else {
+				b.WriteString(" offline  ")
+			}
+			br.SetOnline(channel, on[channel])
+		}
+		lg.Println(b.String())
 	}
 }
