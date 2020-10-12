@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -52,6 +53,7 @@ func (b *Brain) Channels() []string {
 	for c := range b.cfgs {
 		r = append(r, c)
 	}
+	sort.Strings(r)
 	return r
 }
 
