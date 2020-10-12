@@ -106,6 +106,9 @@ func (b *Brain) ignoremsg(ctx context.Context, cfg *chancfg, msg irc.Message) bo
 	if !cfg.learn.Valid {
 		return true
 	}
+	if !cfg.online {
+		return true
+	}
 	if msg.Time.Before(cfg.silence) {
 		return true
 	}

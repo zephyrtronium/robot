@@ -40,6 +40,7 @@ type chancfg struct {
 	block   *regexp.Regexp
 	respond bool
 	silence time.Time
+	online  bool
 	privs   map[string]string
 }
 
@@ -155,6 +156,19 @@ func (b *Brain) Activity(ctx context.Context, channel string, f func(float64) fl
 	}
 	cfg.prob = p
 	return p, nil
+}
+
+// SetOnline marks a channel as online to enable learning or offline to disable
+// it. All channels are offline until this method is used to set them to
+// online. If the channel is not found, this has no effect.
+func (b *Brain) SetOnline(channel string, online bool) {
+	cfg := b.config(channel)
+	if cfg == nil {
+		return
+	}
+	cfg.mu.Lock()
+	defer cfg.mu.Unlock()
+	cfg.online = online
 }
 
 func (b *Brain) config(channel string) *chancfg {
@@ -407,7 +421,7 @@ func (b *Brain) Debug(channel string) (status, block, privs string) {
 	if !cfg.silence.IsZero() {
 		silence = cfg.silence.Format(time.Stamp)
 	}
-	status = fmt.Sprintf("name=%s learn=%s send=%s lim=%d prob=%g rate=%g burst=%d respond=%t silence=%s", channel, learn, send, cfg.lim, cfg.prob, cfg.rate.Limit(), cfg.rate.Burst(), cfg.respond, silence)
+	status = fmt.Sprintf("name=%s learn=%s send=%s lim=%d prob=%g rate=%g burst=%d respond=%t silence=%s online=%t", channel, learn, send, cfg.lim, cfg.prob, cfg.rate.Limit(), cfg.rate.Burst(), cfg.respond, silence, cfg.online)
 	block = cfg.block.String()
 	privs = fmt.Sprint(cfg.privs)
 	return status, block, privs
