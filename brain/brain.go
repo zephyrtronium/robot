@@ -178,7 +178,8 @@ func Configure(ctx context.Context, source, me string, order int) (*Brain, error
 	if _, err := db.ExecContext(ctx, makeTables(order)); err != nil {
 		return nil, err
 	}
-	if _, err := db.ExecContext(ctx, `INSERT OR REPLACE INTO config(id, me, pfix) VALUES (1, ?, ?)`, me, order); err != nil {
+	const cfg = `INSERT INTO config(id, me, pfix) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET me=excluded.me, pfix=excluded.pfix`
+	if _, err := db.ExecContext(ctx, cfg, me, order); err != nil {
 		return nil, err
 	}
 	br := &Brain{
