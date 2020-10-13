@@ -130,3 +130,20 @@ func (b *Brain) ignoremsg(ctx context.Context, cfg *chancfg, msg irc.Message) bo
 	}
 	return false
 }
+
+// Said marks an arbitrary message as having been recently generated, so that
+// the bot will not re-learn it.
+func (b *Brain) Said(ctx context.Context, channel, msg string) error {
+	cfg := b.config(channel)
+	if cfg == nil {
+		return nil
+	}
+	cfg.mu.Lock()
+	tag := cfg.learn
+	cfg.mu.Unlock()
+	if !tag.Valid {
+		return nil
+	}
+	_, err := b.stmts.thought.ExecContext(ctx, tag.String, msg)
+	return err
+}
