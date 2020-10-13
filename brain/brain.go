@@ -60,11 +60,11 @@ type Brain struct {
 	rmu sync.Mutex
 	rng *crazy.MT64
 
-	stmts brainStmts
+	stmts statements
 	opts  sync.Pool
 }
 
-type brainStmts struct {
+type statements struct {
 	// learn is the statement to add a single tuple to the DB. First parameter
 	// is the tag, then (order+1) more for the tuple and suffix. This statement
 	// should be used with Exec in a Tx with record.
@@ -330,8 +330,8 @@ func writeCols(b *strings.Builder, order int, suf string) {
 	}
 }
 
-func prepStmts(ctx context.Context, db *sql.DB, order int) brainStmts {
-	stmts := brainStmts{}
+func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
+	stmts := statements{}
 	var err error
 	stmts.learn, err = db.PrepareContext(ctx, makeLearn(order))
 	if err != nil {
