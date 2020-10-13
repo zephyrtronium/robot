@@ -57,7 +57,11 @@ func uwu(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.M
 	if m == "" {
 		return
 	}
-	selsend(ctx, send, msg.Reply("%s", uwuRep.Replace(m)))
+	m = uwuRep.Replace(m)
+	if err := br.Said(ctx, msg.To(), m); err != nil {
+		lg.Println("error marking message as said:", err)
+	}
+	selsend(ctx, send, msg.Reply("%s", m))
 }
 
 var uwuRep = strings.NewReplacer(
