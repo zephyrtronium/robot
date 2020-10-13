@@ -20,7 +20,6 @@ package brain
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -126,8 +125,8 @@ func (b *Brain) ignoremsg(ctx context.Context, cfg *chancfg, msg irc.Message) bo
 	}
 	row := b.stmts.familiar.QueryRowContext(ctx, cfg.send, msg.Trailing)
 	var x int
-	if err := row.Scan(&x); err != nil {
-		return !errors.Is(err, sql.ErrNoRows)
+	if err := row.Scan(&x); err != nil || x > 0 {
+		return true
 	}
 	return false
 }
