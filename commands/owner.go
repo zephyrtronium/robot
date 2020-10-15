@@ -167,3 +167,19 @@ func debugChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<-
 	selsend(ctx, send, msg.Reply(`@%s block: %s`, msg.Nick, block))
 	selsend(ctx, send, msg.Reply(`@%s privs: %s`, msg.Nick, privs))
 }
+
+func testChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	channel := matches[1]
+	switch {
+	case strings.EqualFold(matches[2], "online"):
+		br.SetOnline(channel, true)
+		status, _, _ := br.Debug(channel)
+		selsend(ctx, send, msg.Reply(`@%s set %s online, status: %s`, msg.Nick, channel, status))
+	case strings.EqualFold(matches[2], "offline"):
+		br.SetOnline(channel, false)
+		status, _, _ := br.Debug(channel)
+		selsend(ctx, send, msg.Reply(`@%s set %s offline, status: %s`, msg.Nick, channel, status))
+	default:
+		selsend(ctx, send, msg.Reply(`@%s unrecognized op`, msg.Nick))
+	}
+}

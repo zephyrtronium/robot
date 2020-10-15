@@ -218,6 +218,13 @@ func init() {
 			help:  `["debug" channel] Show status of a channel. Also prints to terminal.`,
 		},
 		{
+			admin: false,
+			name:  "test-chan",
+			re:    regexp.MustCompile(`(?i)^test\s+(?P<channel>\S+)\s+(?P<op>online|offline)$`),
+			f:     testChan,
+			help:  `["test" channel "online"] Test a modified channel status. Currently just online status.`,
+		},
+		{
 			admin: true,
 			name:  "forget",
 			re:    regexp.MustCompile(`(?i)^forget\s+(?P<match>.*)$`),
