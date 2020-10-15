@@ -104,6 +104,13 @@ type statements struct {
 	// rowid, tag, and the full matched message text. Generally this statement
 	// would be paired with forgets and expunges in a TX.
 	historyPattern *sql.Stmt
+	// historySince is the statement to select all messages from history by
+	// time. The parameters are the channel and time as a time.Time. This
+	// statement should be used with Query. The results are rowid, tag, and the
+	// message text. Generally this statement would be paired with forgets and
+	// expunges in a Tx. Also, recall that a trigger deletes all messages older
+	// than fifteen minutes upon insertion into history.
+	historySince *sql.Stmt
 	// forget is the statement to delete tuples from the DB. First parameter is
 	// is the tag, then (order+1) more for the tuple and suffix. This statement
 	// should be used with Exec in a Tx with expunge.
@@ -370,6 +377,10 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 		panic(err)
 	}
 	stmts.historyPattern, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND msg LIKE '%' || ? || '%'`)
+	if err != nil {
+		panic(err)
+	}
+	stmts.historySince, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND strftime('%s', time) >= strftime('%s', ?)`)
 	if err != nil {
 		panic(err)
 	}

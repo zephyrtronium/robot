@@ -247,6 +247,9 @@ func onlineLoop(ctx context.Context, br *brain.Brain, token string, period time.
 				b.WriteString(" ONLINE  ")
 			} else {
 				b.WriteString(" offline  ")
+				if err := br.ClearSince(ctx, channel, time.Now().Add(-period)); err != nil {
+					lg.Printf("couldn't clear offline messages from %s: %v", channel, err)
+				}
 			}
 			br.SetOnline(channel, on[channel])
 		}

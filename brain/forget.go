@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // ClearMsg unlearns a single message from history by Twitch message ID.
@@ -125,6 +126,44 @@ func (b *Brain) ClearPattern(ctx context.Context, channel, pattern string) (int6
 		return 0, rows.Err()
 	}
 	return n, tx.Commit()
+}
+
+// ClearSince unlearns all messages in a channel more recent than a given time.
+// Note that a trigger deletes messages older than fifteen minutes on insertion
+// into the bot's history.
+func (b *Brain) ClearSince(ctx context.Context, channel string, since time.Time) error {
+	tx, err := b.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("couldn't open transaction: %w", err)
+	}
+	expunge := tx.StmtContext(ctx, b.stmts.expunge)
+	forget := tx.StmtContext(ctx, b.stmts.forget)
+	rows, err := tx.StmtContext(ctx, b.stmts.historySince).QueryContext(ctx, channel, since)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("couldn't get matching messages: %w", err)
+	}
+	for rows.Next() {
+		var id int64
+		var tag, msg string
+		if err := rows.Scan(&id, &tag, &msg); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("couldn't scan results: %w", err)
+		}
+		if _, err := expunge.ExecContext(ctx, id); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("couldn't remove from history: %w", err)
+		}
+		if err := b.forget(ctx, forget, tag, msg); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("couldn't remove chains: %w", err)
+		}
+	}
+	if rows.Err() != nil {
+		tx.Rollback()
+		return fmt.Errorf("error scanning rows: %w", rows.Err())
+	}
+	return tx.Commit()
 }
 
 func (b *Brain) forget(ctx context.Context, s *sql.Stmt, tag, msg string) error {
