@@ -30,8 +30,10 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/zephyrtronium/crazy"
+	"golang.org/x/time/rate"
 
 	_ "github.com/mattn/go-sqlite3" // for driver
 )
@@ -47,6 +49,12 @@ type Brain struct {
 	me string
 	// lme is the bot's Twitch username converted to lower case.
 	lme string
+
+	// wait is the global default rate limiters for the brain, used for sending
+	// messages to channels (or whispers to users) that have no specific rate
+	// limit. On each such wait, the bot makes a reservation from each and
+	// waits for the longer of the two.
+	wait [2]*rate.Limiter
 
 	// cfgs is the in-memory store of per-channel configurations.
 	cmu  sync.Mutex
@@ -154,6 +162,10 @@ func Open(ctx context.Context, source string) (*Brain, error) {
 		order: order,
 		me:    me,
 		lme:   strings.ToLower(me),
+		wait: [2]*rate.Limiter{
+			rate.NewLimiter(3, 1),
+			rate.NewLimiter(rate.Every(time.Minute), 100),
+		},
 		stmts: prepStmts(ctx, db, order),
 		opts:  sync.Pool{New: func() interface{} { return []optfreq{} }},
 	}
@@ -193,6 +205,10 @@ func Configure(ctx context.Context, source, me string, order int) (*Brain, error
 		order: order,
 		me:    me,
 		lme:   strings.ToLower(me),
+		wait: [2]*rate.Limiter{
+			rate.NewLimiter(3, 1),
+			rate.NewLimiter(rate.Every(time.Minute), 100),
+		},
 		stmts: prepStmts(ctx, db, order),
 		opts:  sync.Pool{New: func() interface{} { return []optfreq{} }},
 	}
@@ -208,6 +224,18 @@ func Configure(ctx context.Context, source, me string, order int) (*Brain, error
 // Name returns the username associated with the brain.
 func (b *Brain) Name() string {
 	return b.me
+}
+
+// SetFallbackWait sets the hard rate limits for messages for which there is
+// no channel config. This primarily applies to whispers. The default hard rate
+// limits correspond to one message per third of a second and 100 messages per
+// minute.
+//
+// It is a race condition to call SetFallbackWait when any goroutine might call
+// Wait.
+func (b *Brain) SetFallbackWait(minor, major *rate.Limiter) {
+	b.wait[0] = minor
+	b.wait[1] = major
 }
 
 func (b *Brain) intn(s int64) int64 {

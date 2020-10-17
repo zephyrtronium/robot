@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -43,6 +44,8 @@ type chancfg struct {
 	silence time.Time
 	online  bool
 	privs   map[string]string
+
+	wait atomic.Value // *rate.Limiter, not guarded by mu
 }
 
 // Channels returns a list of all channels configured in the database.
@@ -173,6 +176,56 @@ func (b *Brain) SetOnline(channel string, online bool) {
 	cfg.online = online
 }
 
+// SetWait sets the hard rate limiter for a channel. If the new rate equals the
+// old one, or if the channel is not found, this has no effect. If SetWait
+// would set a new rate limit, it first waits for the old one.
+func (b *Brain) SetWait(ctx context.Context, channel string, limit rate.Limit) {
+	cfg := b.config(channel)
+	if cfg == nil {
+		return
+	}
+	w := cfg.wait.Load().(*rate.Limiter)
+	w.SetLimit(limit)
+}
+
+// Wait waits for the channel-specific rate limit, or for the global one if
+// there is no channel-specific one.
+func (b *Brain) Wait(ctx context.Context, channel string) {
+	cfg := b.config(channel)
+	if cfg != nil {
+		r := cfg.wait.Load().(*rate.Limiter)
+		r.Wait(ctx)
+		return
+	}
+	now := time.Now()
+	r0 := b.wait[0].ReserveN(now, 1)
+	r1 := b.wait[1].ReserveN(now, 1)
+	var d time.Duration
+	switch {
+	case r0.OK() && r1.OK():
+		d0, d1 := r0.DelayFrom(now), r1.DelayFrom(now)
+		if d0 <= d1 {
+			d = d0
+		} else {
+			d = d1
+		}
+	case r0.OK():
+		d = r0.DelayFrom(now)
+	case r1.OK():
+		d = r1.DelayFrom(now)
+	default:
+		return
+	}
+	if d == 0 {
+		// Skip creating garbage if we don't need to wait.
+		return
+	}
+	select {
+	case <-ctx.Done(): // do nothing
+	case <-time.After(d): // do nothing
+	}
+}
+
 func (b *Brain) config(channel string) *chancfg {
 	b.cmu.Lock()
 	defer b.cmu.Unlock()
@@ -225,6 +278,14 @@ func (b *Brain) UpdateAll(ctx context.Context) error {
 		}
 		if silence.Valid {
 			cfg.silence = silence.Time
+		}
+		if old := b.config(name); old != nil {
+			// Copy the old rate limiter.
+			cfg.wait.Store(old.wait.Load())
+		} else {
+			// Default rate limit averages to 20 messages per 30 seconds, per
+			// Twitch documentation: https://dev.twitch.tv/docs/irc/guide
+			cfg.wait.Store(rate.NewLimiter(20/30.0, 1))
 		}
 		cfgs[name] = &cfg
 	}
@@ -319,6 +380,11 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 	if silence.Valid {
 		cfg.silence = silence.Time
 	}
+	if old := b.config(channel); old != nil {
+		cfg.wait.Store(old.wait.Load())
+	} else {
+		cfg.wait.Store(rate.NewLimiter(20/30.0, 1))
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT user, priv FROM privs WHERE chan=? OR chan IS NULL ORDER BY chan NULLS FIRST`, channel)
 	if err != nil {
 		return fmt.Errorf("error getting privileges: %w", err)
@@ -410,7 +476,8 @@ func (b *Brain) Debug(channel string) (status, block, privs string) {
 	if !cfg.silence.IsZero() {
 		silence = cfg.silence.Format(time.Stamp)
 	}
-	status = fmt.Sprintf("name=%s learn=%s send=%s lim=%d prob=%g rate=%g burst=%d respond=%t silence=%s online=%t", channel, learn, send, cfg.lim, cfg.prob, cfg.rate.Limit(), cfg.rate.Burst(), cfg.respond, silence, cfg.online)
+	w := cfg.wait.Load().(*rate.Limiter)
+	status = fmt.Sprintf("name=%s learn=%s send=%s lim=%d prob=%g rate=%g burst=%d respond=%t silence=%s online=%t hard-rate=%g", channel, learn, send, cfg.lim, cfg.prob, cfg.rate.Limit(), cfg.rate.Burst(), cfg.respond, silence, cfg.online, w.Limit())
 	block = cfg.block.String()
 	privs = fmt.Sprint(cfg.privs)
 	return status, block, privs
