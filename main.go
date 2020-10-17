@@ -144,7 +144,8 @@ func loop(ctx context.Context, wg *sync.WaitGroup, br *brain.Brain, send, recv c
 }
 
 func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message, lg *log.Logger) error {
-	badges, _ := msg.Tag("badges")
+	var bb [4]string
+	badges := msg.Badges(bb[:0])
 	priv, err := br.Privilege(ctx, msg.To(), msg.Nick, badges)
 	if err != nil {
 		return err

@@ -363,7 +363,7 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 
 // Privilege returns the privilege level associated with a user in a channel.
 // If the channel is unrecognized, the privilege level is always "ignore".
-func (b *Brain) Privilege(ctx context.Context, channel, nick, badges string) (string, error) {
+func (b *Brain) Privilege(ctx context.Context, channel, nick string, badges []string) (string, error) {
 	cfg := b.config(channel)
 	if cfg == nil {
 		return "ignore", nil
@@ -378,22 +378,8 @@ func (b *Brain) Privilege(ctx context.Context, channel, nick, badges string) (st
 	// Check badges. Broadcasters and moderators default to admin privileges;
 	// Twitch staff, admins, and global moderators default to owner
 	// privileges; and all others default to none.
-	for badges != "" {
-		// Index rather than use Split because we don't want to allocate the
-		// slices. This method is called potentially thousands of times per
-		// second, so it would generate a lot of garbage.
-		k := strings.IndexByte(badges, ',')
-		badge := badges
-		if k > 0 {
-			badge = badges[:k]
-			badges = badges[k+1:]
-		} else {
-			break
-		}
-		k = strings.IndexByte(badge, '/')
-		// Assume k > 0, otherwise there's been a significant change to the
-		// Twitch API that we should loudly know about.
-		switch badge[:k] {
+	for _, badge := range badges {
+		switch badge {
 		case "broadcaster", "moderator":
 			return "admin", nil
 		case "staff", "admin", "global_mod":
