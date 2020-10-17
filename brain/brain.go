@@ -138,16 +138,16 @@ type emopt struct {
 func Open(ctx context.Context, source string) (*Brain, error) {
 	db, err := sql.Open("sqlite3", source)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error opening source %q: %w", source, err)
 	}
 	if err := db.PingContext(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error connecting to database: %w", err)
 	}
 	row := db.QueryRowContext(ctx, `SELECT me, pfix FROM config WHERE id=1`)
 	var me string
 	var order int
 	if err := row.Scan(&me, &order); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error reading config: %w", err)
 	}
 	br := &Brain{
 		db:    db,
@@ -158,7 +158,7 @@ func Open(ctx context.Context, source string) (*Brain, error) {
 		opts:  sync.Pool{New: func() interface{} { return []optfreq{} }},
 	}
 	if err := br.UpdateAll(ctx); err != nil {
-		return nil, err
+		return nil, err // already wrapped
 	}
 	rng := crazy.NewMT64()
 	crazy.CryptoSeeded(rng, 8)
@@ -171,23 +171,22 @@ func Open(ctx context.Context, source string) (*Brain, error) {
 // path of an SQLite database.
 func Configure(ctx context.Context, source, me string, order int) (*Brain, error) {
 	db, err := sql.Open("sqlite3", source)
-	// TODO: wrap errors
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error opening source %q: %w", source, err)
 	}
 	if err := db.PingContext(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error connecting to database: %w", err)
 	}
 	if _, err := db.ExecContext(ctx, `PRAGMA journal_mode=wal`); err != nil {
 		// This is not a failure condition, esp. if we eventually stop using sqlite.
 		// TODO: still complain tho
 	}
 	if _, err := db.ExecContext(ctx, makeTables(order)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initializing tables: %w", err)
 	}
 	const cfg = `INSERT INTO config(id, me, pfix) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET me=excluded.me, pfix=excluded.pfix`
 	if _, err := db.ExecContext(ctx, cfg, me, order); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error updating config: %w", err)
 	}
 	br := &Brain{
 		db:    db,
@@ -198,7 +197,7 @@ func Configure(ctx context.Context, source, me string, order int) (*Brain, error
 		opts:  sync.Pool{New: func() interface{} { return []optfreq{} }},
 	}
 	if err := br.UpdateAll(ctx); err != nil {
-		return nil, err
+		return nil, err // already wrapped
 	}
 	rng := crazy.NewMT64()
 	crazy.CryptoSeeded(rng, 8)

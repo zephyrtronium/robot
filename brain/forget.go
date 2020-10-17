@@ -30,7 +30,7 @@ import (
 func (b *Brain) ClearMsg(ctx context.Context, msgid string) error {
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening transaction: %w", err)
 	}
 	row := tx.StmtContext(ctx, b.stmts.historyID).QueryRowContext(ctx, msgid)
 	var id int64
@@ -41,24 +41,27 @@ func (b *Brain) ClearMsg(ctx context.Context, msgid string) error {
 			return nil
 		}
 		tx.Rollback()
-		return err
+		return fmt.Errorf("error opening transaction: %w", err)
 	}
 	if _, err := tx.StmtContext(ctx, b.stmts.expunge).ExecContext(ctx, id); err != nil {
 		tx.Rollback()
-		return err
+		return fmt.Errorf("error removing message from history: %w", err)
 	}
 	if err := b.forget(ctx, tx.StmtContext(ctx, b.stmts.forget), tag, msg); err != nil {
 		tx.Rollback()
-		return err
+		return err // already wrapped
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("error committing transaction: %w", err)
+	}
+	return nil
 }
 
 // ClearChat unlearns all recent messages from a given user in a channel.
 func (b *Brain) ClearChat(ctx context.Context, channel, user string) error {
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening transaction: %w", err)
 	}
 	expunge := tx.StmtContext(ctx, b.stmts.expunge)
 	forget := tx.StmtContext(ctx, b.stmts.forget)
@@ -66,25 +69,32 @@ func (b *Brain) ClearChat(ctx context.Context, channel, user string) error {
 	rows, err := tx.StmtContext(ctx, b.stmts.historyHash).QueryContext(ctx, channel, h[:])
 	if err != nil {
 		tx.Rollback()
-		return err
+		return fmt.Errorf("error getting messages from %s/%s: %w", channel, user, err)
 	}
 	for rows.Next() {
 		var id int64
 		var tag, msg string
 		if err := rows.Scan(&id, &tag, &msg); err != nil {
 			tx.Rollback()
-			return err
+			return fmt.Errorf("error reading messages from %s/%s: %w", channel, user, err)
 		}
 		if _, err := expunge.ExecContext(ctx, id); err != nil {
 			tx.Rollback()
-			return err
+			return fmt.Errorf("error expunging message with id %d: %w", id, err)
 		}
 		if err := b.forget(ctx, forget, tag, msg); err != nil {
 			tx.Rollback()
-			return err
+			return err // already wrapped
 		}
 	}
-	return tx.Commit()
+	if rows.Err() != nil {
+		tx.Rollback()
+		return fmt.Errorf("error getting messages from %s/%s: %w", channel, user, rows.Err())
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("error committing transaction: %w", err)
+	}
+	return nil
 }
 
 // ClearPattern unlearns all messages in a channel matching a given pattern and
@@ -123,9 +133,16 @@ func (b *Brain) ClearPattern(ctx context.Context, channel, pattern string) (int6
 	}
 	if rows.Err() != nil {
 		tx.Rollback()
+		return 0, err
+	}
+	if rows.Err() != nil {
+		tx.Rollback()
 		return 0, rows.Err()
 	}
-	return n, tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("couldn't commit transaction: %w", err)
+	}
+	return n, nil
 }
 
 // ClearSince unlearns all messages in a channel more recent than a given time.
@@ -163,7 +180,10 @@ func (b *Brain) ClearSince(ctx context.Context, channel string, since time.Time)
 		tx.Rollback()
 		return fmt.Errorf("error scanning rows: %w", rows.Err())
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("error committing transaction: %w", err)
+	}
+	return nil
 }
 
 func (b *Brain) forget(ctx context.Context, s *sql.Stmt, tag, msg string) error {
@@ -175,14 +195,14 @@ func (b *Brain) forget(ctx context.Context, s *sql.Stmt, tag, msg string) error 
 		copy(args[1:], args[2:])
 		args[len(args)-1] = tok
 		if _, err := s.ExecContext(ctx, args...); err != nil {
-			return err
+			return fmt.Errorf("error forgetting %v from tag %s: %w", args[1:], tag, err)
 		}
 		args[len(args)-1] = strings.ToLower(tok)
 	}
 	copy(args[1:], args[2:])
 	args[len(args)-1] = nil
 	if _, err := s.ExecContext(ctx, args...); err != nil {
-		return err
+		return fmt.Errorf("error forgetting %v from tag %s: %w", args[1:], tag, err)
 	}
 	return nil
 }

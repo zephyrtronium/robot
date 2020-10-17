@@ -64,26 +64,26 @@ func (b *Brain) Join(ctx context.Context, channel, learn, send string) error {
 	channel = strings.ToLower(channel)
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening join transaction: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO chans(name) VALUES (?)`, channel); err != nil {
 		tx.Rollback()
-		return err
+		return fmt.Errorf("error inserting new channel: %w", err)
 	}
 	if learn != "" {
 		if _, err := tx.ExecContext(ctx, `UPDATE chans SET learn = ? WHERE name = ?`, learn, channel); err != nil {
 			tx.Rollback()
-			return err
+			return fmt.Errorf("error setting learn tag: %w", err)
 		}
 	}
 	if send != "" {
 		if _, err := tx.ExecContext(ctx, `UPDATE chans SET send = ? WHERE name = ?`, send, channel); err != nil {
 			tx.Rollback()
-			return err
+			return fmt.Errorf("error setting send tag: %w", err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return err
+		return fmt.Errorf("error committing join changes: %w", err)
 	}
 	return b.Update(ctx, channel)
 }
@@ -95,7 +95,7 @@ func (b *Brain) SetPriv(ctx context.Context, user, channel, priv string) error {
 	}
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening privileges transaction: %w", err)
 	}
 	ch := sql.NullString{String: channel, Valid: channel != ""}
 	switch priv {
@@ -109,10 +109,10 @@ func (b *Brain) SetPriv(ctx context.Context, user, channel, priv string) error {
 	}
 	if err != nil {
 		tx.Rollback()
-		return err
+		return fmt.Errorf("error setting privileges: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return err
+		return fmt.Errorf("error committing privileges changes: %w", err)
 	}
 	b.cmu.Lock()
 	defer b.cmu.Unlock()
@@ -124,14 +124,14 @@ func (b *Brain) SetPriv(ctx context.Context, user, channel, priv string) error {
 func (b *Brain) Silence(ctx context.Context, channel string, until time.Time) error {
 	cfg := b.config(channel)
 	if cfg == nil {
-		return fmt.Errorf("Silence: no such channel: %q", channel)
+		return fmt.Errorf("no such channel: %q", channel)
 	}
 	cfg.mu.Lock()
 	defer cfg.mu.Unlock()
 	u := sql.NullTime{Time: until, Valid: !until.IsZero()}
 	_, err := b.db.ExecContext(ctx, `UPDATE chans SET silence=? WHERE name=?`, u, channel)
 	if err != nil {
-		return err
+		return fmt.Errorf("error updating silence: %w", err)
 	}
 	cfg.silence = until
 	return nil
@@ -143,18 +143,18 @@ func (b *Brain) Silence(ctx context.Context, channel string, until time.Time) er
 func (b *Brain) Activity(ctx context.Context, channel string, f func(float64) float64) (float64, error) {
 	cfg := b.config(channel)
 	if cfg == nil {
-		return 0, fmt.Errorf("Activity: no such channel: %q", channel)
+		return 0, fmt.Errorf("no such channel: %q", channel)
 	}
 	cfg.mu.Lock()
 	defer cfg.mu.Unlock()
 	p := f(cfg.prob)
 	// The condition is written weirdly here so that we also reject NaN.
 	if !(0 <= p && p <= 1) {
-		return 0, fmt.Errorf("Activity: bad probability: %g", p)
+		return 0, fmt.Errorf("bad probability: %g", p)
 	}
 	_, err := b.db.ExecContext(ctx, `UPDATE chans SET prob=? WHERE name=?`, p, channel)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("error updating probability to %g: %w", p, err)
 	}
 	cfg.prob = p
 	return p, nil
@@ -185,24 +185,24 @@ func (b *Brain) config(channel string) *chancfg {
 func (b *Brain) UpdateAll(ctx context.Context) error {
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening update transaction: %w", err)
 	}
 	defer tx.Commit()
 	row := tx.QueryRowContext(ctx, `SELECT block FROM config WHERE id=1`)
 	var g sql.NullString
 	if err := row.Scan(&g); err != nil {
-		return err
+		return fmt.Errorf("error reading global block: %w", err)
 	}
 	if !g.Valid {
 		g.String = "$^"
 	}
 	gblk, err := regexp.Compile(g.String)
 	if err != nil {
-		return err
+		return fmt.Errorf("error compiling global regexp %q: %w", g.String, err)
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT * FROM chans`)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting channel info: %w", err)
 	}
 	cfgs := make(map[string]*chancfg)
 	for rows.Next() {
@@ -215,9 +215,10 @@ func (b *Brain) UpdateAll(ctx context.Context) error {
 		rows.Scan(&name, &cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence)
 		cfg.rate = rate.NewLimiter(r, burst)
 		if block.Valid {
-			cfg.block, err = regexp.Compile(g.String + "|" + block.String)
+			re := g.String + "|" + block.String
+			cfg.block, err = regexp.Compile(re)
 			if err != nil {
-				return err
+				return fmt.Errorf("error compiling regexp (%s) for %s: %w", re, name, err)
 			}
 		} else {
 			cfg.block = gblk
@@ -228,7 +229,7 @@ func (b *Brain) UpdateAll(ctx context.Context) error {
 		cfgs[name] = &cfg
 	}
 	if rows.Err() != nil {
-		return rows.Err()
+		return fmt.Errorf("error getting channel info: %w", rows.Err())
 	}
 	b.cmu.Lock()
 	defer b.cmu.Unlock()
@@ -243,38 +244,38 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 	for name, cfg := range b.cfgs {
 		rows, err := b.db.QueryContext(ctx, `SELECT user, priv FROM privs WHERE chan=? OR chan IS NULL ORDER BY chan NULLS FIRST`, name)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting privileges for %s: %w", name, err)
 		}
 		privs := make(map[string]string)
 		for rows.Next() {
 			var user, priv string
 			if err := rows.Scan(&user, &priv); err != nil {
-				return err
+				return fmt.Errorf("error reading privileges for %s: %w", name, err)
 			}
 			privs[user] = priv
 		}
 		if rows.Err() != nil {
-			return rows.Err()
+			return fmt.Errorf("error getting privileges for %s: %w", name, err)
 		}
 		cfg.mu.Lock()
 		tag := cfg.send
 		cfg.mu.Unlock()
 		rows, err = b.db.QueryContext(ctx, `SELECT emote, weight FROM emotes WHERE tag=? OR tag IS NULL`, tag)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting emotes for %s: %w", name, err)
 		}
 		var sum int64
 		var opts []optfreq
 		for rows.Next() {
 			var opt optfreq
 			if err := rows.Scan(&opt.w, &opt.n); err != nil {
-				return err
+				return fmt.Errorf("error reading emotes for %s: %w", name, err)
 			}
 			opt.n, sum = opt.n+sum, opt.n+sum
 			opts = append(opts, opt)
 		}
 		if rows.Err() != nil {
-			return rows.Err()
+			return fmt.Errorf("error getting emotes for %s: %w", name, rows.Err())
 		}
 		cfg.mu.Lock()
 		cfg.privs = privs
@@ -294,7 +295,7 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 func (b *Brain) Update(ctx context.Context, channel string) error {
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening transaction: %w", err)
 	}
 	defer tx.Commit()
 	row := tx.QueryRowContext(ctx, `SELECT learn, send, lim, prob, rate, burst, block, respond, silence FROM chans WHERE name=?`, channel)
@@ -304,13 +305,13 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 	var block sql.NullString
 	var silence sql.NullTime
 	if err := row.Scan(&cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence); err != nil {
-		return err
+		return fmt.Errorf("error reading config for %s: %w", channel, err)
 	}
 	cfg.rate = rate.NewLimiter(r, burst)
 	if block.Valid {
 		cfg.block, err = regexp.Compile(block.String)
 		if err != nil {
-			return err
+			return fmt.Errorf("error compiling regular expression (%s): %w", block.String, err)
 		}
 	} else {
 		cfg.block = regexp.MustCompile("$^")
@@ -320,34 +321,34 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT user, priv FROM privs WHERE chan=? OR chan IS NULL ORDER BY chan NULLS FIRST`, channel)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting privileges: %w", err)
 	}
 	cfg.privs = make(map[string]string)
 	for rows.Next() {
 		var user, priv string
 		if err := rows.Scan(&user, &priv); err != nil {
-			return err
+			return fmt.Errorf("error reading privileges: %w", err)
 		}
 		cfg.privs[user] = priv
 	}
 	if rows.Err() != nil {
-		return rows.Err()
+		return fmt.Errorf("error getting privileges: %w", rows.Err())
 	}
 	rows, err = tx.QueryContext(ctx, `SELECT emote, weight FROM emotes WHERE tag=? OR tag IS NULL`, cfg.send)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting emotes: %w", err)
 	}
 	var em emopt
 	for rows.Next() {
 		var opt optfreq
 		if err := rows.Scan(&opt.w, &opt.n); err != nil {
-			return err
+			return fmt.Errorf("error reading emotes: %w", err)
 		}
 		opt.n, em.s = opt.n+em.s, opt.n+em.s
 		em.e = append(em.e, opt)
 	}
 	if rows.Err() != nil {
-		return rows.Err()
+		return fmt.Errorf("error getting emotes: %w", rows.Err())
 	}
 	b.cmu.Lock()
 	b.cfgs[channel] = &cfg

@@ -34,7 +34,7 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 	cfg := b.config(channel)
 	if cfg == nil {
 		// unrecognized channel
-		return fmt.Errorf("Learn: no such channel: %s", channel)
+		return fmt.Errorf("no such channel: %s", channel)
 	}
 	if b.ignoremsg(ctx, cfg, msg) {
 		return nil
@@ -50,7 +50,7 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 	args[0] = tag
 	tx, err := b.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Learn: error opening tx: %w", err)
+		return fmt.Errorf("error opening transaction: %w", err)
 	}
 	s := tx.StmtContext(ctx, b.stmts.learn)
 	for _, tok := range toks {
@@ -58,7 +58,7 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 		args[len(args)-1] = tok
 		if _, err := s.ExecContext(ctx, args...); err != nil {
 			tx.Rollback()
-			return fmt.Errorf("Learn: error learning %+v: %w", args, err)
+			return fmt.Errorf("error learning %+v: %w", args, err)
 		}
 		// While we still have the token easily available, make it lowercase.
 		// On the next iteration, or after this loop if this is the last one,
@@ -70,14 +70,14 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 	args[len(args)-1] = nil
 	if _, err := s.ExecContext(ctx, args...); err != nil {
 		tx.Rollback()
-		return fmt.Errorf("Learn: error learning end-of-message %+v: %w", args, err)
+		return fmt.Errorf("error learning end-of-message %+v: %w", args, err)
 	}
 	// Add the message to history.
 	h := UserHash(channel, msg.Nick)
 	id, _ := msg.Tag("id")
 	if _, err := tx.StmtContext(ctx, b.stmts.record).ExecContext(ctx, id, msg.Time, h[:], channel, tag, msg.Trailing); err != nil {
 		tx.Rollback()
-		return fmt.Errorf("Learn: error recording message: %w", err)
+		return fmt.Errorf("error recording message: %w", err)
 	}
 	return tx.Commit()
 }
@@ -145,5 +145,8 @@ func (b *Brain) Said(ctx context.Context, channel, msg string) error {
 		return nil
 	}
 	_, err := b.stmts.thought.ExecContext(ctx, tag.String, msg)
-	return err
+	if err != nil {
+		return fmt.Errorf("error recording thought: %w", err)
+	}
+	return nil
 }
