@@ -51,11 +51,13 @@ func main() {
 	var source, remote, token string
 	var secure bool
 	var checkp time.Duration
+	var botlvl string
 	flag.StringVar(&source, "source", "", "SQL database source (required)")
 	flag.StringVar(&remote, "remote", "irc.chat.twitch.tv:6697", "remote address, IRC protocol")
 	flag.StringVar(&token, "token", "", "OAuth token")
 	flag.BoolVar(&secure, "secure", true, "use TLS")
 	flag.DurationVar(&checkp, "period", time.Minute, "period between checking broadcaster online statuses")
+	flag.StringVar(&botlvl, "level", "", `bot level, "" or "known" or "verified"`)
 	flag.Parse()
 
 	// Print GPLv3 information.
@@ -65,6 +67,15 @@ func main() {
 	br, err := brain.Open(ctx, source)
 	if err != nil {
 		log.Fatalln(err)
+	}
+	switch botlvl {
+	case "": // do nothing
+	case "known":
+		br.SetFallbackWait(rate.NewLimiter(10, 1), rate.NewLimiter(rate.Every(time.Minute), 200))
+	case "verified":
+		br.SetFallbackWait(rate.NewLimiter(20, 1), rate.NewLimiter(rate.Every(time.Minute), 1200))
+	default:
+		log.Fatalf(`unknown bot level %q, must be "" or "known" or "verified"`, botlvl)
 	}
 	cfg := connectConfig{
 		addr:    remote,
