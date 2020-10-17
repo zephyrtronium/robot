@@ -159,6 +159,31 @@ func (m Message) Tag(name string) (val string, ok bool) {
 	return "", false
 }
 
+// Badges appends the list of Twitch badges, parsed from the badges tag and
+// without versions, to v and returns v.
+func (m Message) Badges(v []string) []string {
+	bb, _ := m.Tag("badges")
+	for bb != "" {
+		// Index rather than use Split to avoid unnecessary allocations.
+		k := strings.IndexByte(bb, ',')
+		b := bb
+		if k >= 0 {
+			b = b[:k]
+			bb = bb[k+1:]
+		} else {
+			bb = ""
+		}
+		k = strings.IndexByte(b, '/')
+		// We should always enter this branch, but it isn't worth panicking
+		// if we don't.
+		if k >= 0 {
+			b = b[:k]
+		}
+		v = append(v, b)
+	}
+	return v
+}
+
 // To returns m.Params[0]. Panics if m.Params is empty.
 //
 // Notably, this identifies the channel or user a PRIVMSG message is sent to.

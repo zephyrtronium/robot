@@ -514,3 +514,23 @@ func TestTags(t *testing.T) {
 		})
 	}
 }
+
+func TestBadges(t *testing.T) {
+	cases := []struct {
+		b string
+		r []string
+	}{
+		{"", nil},
+		{"a/0", []string{"a"}},
+		{"a/0,b/0", []string{"a", "b"}},
+	}
+	for _, c := range cases {
+		t.Run(c.b, func(t *testing.T) {
+			m := irc.Message{Tags: "badges=" + c.b, Command: "PRIVMSG"}
+			r := m.Badges(nil)
+			if diff := cmp.Diff(c.r, r); diff != "" {
+				t.Errorf("wrong badges (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
