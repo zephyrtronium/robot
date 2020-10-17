@@ -37,7 +37,7 @@ func talk(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 	if m == "" {
 		return
 	}
-	selsend(ctx, send, msg.Reply("%s", m))
+	selsend(ctx, br, send, msg.Reply("%s", m))
 }
 
 func talkCatchall(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -45,7 +45,7 @@ func talkCatchall(ctx context.Context, br *brain.Brain, lg *log.Logger, send cha
 		lg.Println("won't talk:", err)
 		return
 	}
-	selsend(ctx, send, msg.Reply("%s", br.TalkIn(ctx, msg.To(), nil)))
+	selsend(ctx, br, send, msg.Reply("%s", br.TalkIn(ctx, msg.To(), nil)))
 }
 
 func uwu(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -61,7 +61,7 @@ func uwu(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.M
 	if err := br.Said(ctx, msg.To(), m); err != nil {
 		lg.Println("error marking message as said:", err)
 	}
-	selsend(ctx, send, msg.Reply("%s", m))
+	selsend(ctx, br, send, msg.Reply("%s", m))
 }
 
 var uwuRep = strings.NewReplacer(
@@ -77,7 +77,7 @@ var uwuRep = strings.NewReplacer(
 func source(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	// We could try to extract the package path from a function name or
 	// something, or we can just do this.
-	selsend(ctx, send, msg.Reply(`@%s My source code is at https://github.com/zephyrtronium/robot – `+
+	selsend(ctx, br, send, msg.Reply(`@%s My source code is at https://github.com/zephyrtronium/robot – `+
 		`I'm written in Go leveraging SQLite3, `+
 		`and I'm free, open-source software licensed `+
 		`under the GNU General Public License, Version 3.`, msg.Nick))
@@ -86,17 +86,17 @@ func source(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- ir
 func givePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", "privacy"); err != nil {
-		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.Nick))
+	selsend(ctx, br, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.Nick))
 }
 
 func removePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", ""); err != nil {
-		selsend(ctx, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s got it, I'll learn from your messages again.`, msg.Nick))
+	selsend(ctx, br, send, msg.Reply(`@%s got it, I'll learn from your messages again.`, msg.Nick))
 }

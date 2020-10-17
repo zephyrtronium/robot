@@ -363,8 +363,11 @@ func findcmd(name string) *command {
 	return nil
 }
 
-// selsend sends a message with context cancellation.
-func selsend(ctx context.Context, send chan<- irc.Message, msg irc.Message) {
+// selsend sends a message with context cancellation and rate limiting.
+func selsend(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg irc.Message) {
+	if msg.Command == "PRIVMSG" {
+		br.Wait(ctx, msg.To())
+	}
 	select {
 	case <-ctx.Done(): // do nothing
 	case send <- msg: // do nothing

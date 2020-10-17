@@ -31,25 +31,25 @@ import (
 func enable(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	cmd := findcmd(matches[2])
 	if cmd == nil {
-		selsend(ctx, send, msg.Reply("@%s didn't find a command named %q", msg.Nick, matches[2]))
+		selsend(ctx, br, send, msg.Reply("@%s didn't find a command named %q", msg.Nick, matches[2]))
 		return
 	}
 	if strings.EqualFold(matches[1], "disable") {
 		atomic.StoreInt32(&cmd.disable, 1)
-		selsend(ctx, send, msg.Reply("@%s disabled!", msg.Nick))
+		selsend(ctx, br, send, msg.Reply("@%s disabled!", msg.Nick))
 	} else {
 		atomic.StoreInt32(&cmd.disable, 0)
-		selsend(ctx, send, msg.Reply("@%s enabled!", msg.Nick))
+		selsend(ctx, br, send, msg.Reply("@%s enabled!", msg.Nick))
 	}
 }
 
 func resync(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	err := br.UpdateAll(ctx)
 	if err != nil {
-		selsend(ctx, send, msg.Reply("@%s error from UpdateAll: %v", msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply("@%s error from UpdateAll: %v", msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply("@%s updated!", msg.Nick))
+	selsend(ctx, br, send, msg.Reply("@%s updated!", msg.Nick))
 }
 
 func raw(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -58,15 +58,15 @@ func raw(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.M
 		Params:   strings.Fields(matches[2]),
 		Trailing: matches[3],
 	}
-	selsend(ctx, send, m)
+	selsend(ctx, br, send, m)
 }
 
 func join(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if err := br.Join(ctx, matches[1], matches[2], matches[3]); err != nil {
-		selsend(ctx, send, msg.Reply("@%s error from Join: %v", msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply("@%s error from Join: %v", msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, irc.Message{Command: "JOIN", Params: []string{matches[1]}})
+	selsend(ctx, br, send, irc.Message{Command: "JOIN", Params: []string{matches[1]}})
 }
 
 func privs(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -84,38 +84,38 @@ func privs(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc
 		where = matches[3]
 	}
 	if err := br.SetPriv(ctx, who, where, priv); err != nil {
-		selsend(ctx, send, msg.Reply(`@%s error from SetPriv: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s error from SetPriv: %v`, msg.Nick, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s set privs for %s!`, msg.Nick, matches[1]))
+	selsend(ctx, br, send, msg.Reply(`@%s set privs for %s!`, msg.Nick, matches[1]))
 	if (priv != "ignore" && priv != "privacy") || where == "" {
 		return
 	}
 	if err := br.ClearChat(ctx, where, who); err != nil {
-		selsend(ctx, send, msg.Reply(`@%s couldn't delete their messages: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s couldn't delete their messages: %v`, msg.Nick, err))
 	}
 }
 
 func exec(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	res, err := br.Exec(ctx, matches[1])
 	if err != nil {
-		selsend(ctx, send, msg.Reply(`@%s error from Exec: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s error from Exec: %v`, msg.Nick, err))
 		return
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		selsend(ctx, send, msg.Reply(`@%s error from sql.Result.RowsAffected:`, err))
+		selsend(ctx, br, send, msg.Reply(`@%s error from sql.Result.RowsAffected:`, err))
 		// Don't return. Worst case, there's an extra @ with "0 rows modified."
 	}
 	if err := br.UpdateAll(ctx); err != nil {
-		selsend(ctx, send, msg.Reply(`@%s your query modified %d rows, but couldn't resync: %v`, msg.Nick, n, err))
+		selsend(ctx, br, send, msg.Reply(`@%s your query modified %d rows, but couldn't resync: %v`, msg.Nick, n, err))
 		return
 	}
-	selsend(ctx, send, msg.Reply(`@%s your query modified %d rows`, msg.Nick, n))
+	selsend(ctx, br, send, msg.Reply(`@%s your query modified %d rows`, msg.Nick, n))
 }
 
 func quit(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
-	selsend(ctx, send, irc.Message{Command: "QUIT", Trailing: "goodbye"})
+	selsend(ctx, br, send, irc.Message{Command: "QUIT", Trailing: "goodbye"})
 }
 
 func warranty(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -136,7 +136,7 @@ ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 `
 
 func reconnect(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
-	selsend(ctx, send, irc.Message{Command: "RECONNECT"})
+	selsend(ctx, br, send, irc.Message{Command: "RECONNECT"})
 }
 
 func listOwner(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -148,7 +148,7 @@ func listOwner(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<-
 			r = append(r, cmd.name+"*")
 		}
 	}
-	selsend(ctx, send, msg.Reply("%s", strings.Join(r, " ")))
+	selsend(ctx, br, send, msg.Reply("%s", strings.Join(r, " ")))
 }
 
 func debugChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -158,14 +158,14 @@ func debugChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<-
 	}
 	status, block, privs := br.Debug(channel)
 	if status == "" {
-		selsend(ctx, send, msg.Reply(`@%s no such channel`, msg.Nick))
+		selsend(ctx, br, send, msg.Reply(`@%s no such channel`, msg.Nick))
 		return
 	}
 	// Also print to stderr in case something is too long.
 	os.Stderr.WriteString(status + "\n" + block + "\n" + privs + "\n")
-	selsend(ctx, send, msg.Reply(`@%s status: %s`, msg.Nick, status))
-	selsend(ctx, send, msg.Reply(`@%s block: %s`, msg.Nick, block))
-	selsend(ctx, send, msg.Reply(`@%s privs: %s`, msg.Nick, privs))
+	selsend(ctx, br, send, msg.Reply(`@%s status: %s`, msg.Nick, status))
+	selsend(ctx, br, send, msg.Reply(`@%s block: %s`, msg.Nick, block))
+	selsend(ctx, br, send, msg.Reply(`@%s privs: %s`, msg.Nick, privs))
 }
 
 func testChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -174,12 +174,12 @@ func testChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- 
 	case strings.EqualFold(matches[2], "online"):
 		br.SetOnline(channel, true)
 		status, _, _ := br.Debug(channel)
-		selsend(ctx, send, msg.Reply(`@%s set %s online, status: %s`, msg.Nick, channel, status))
+		selsend(ctx, br, send, msg.Reply(`@%s set %s online, status: %s`, msg.Nick, channel, status))
 	case strings.EqualFold(matches[2], "offline"):
 		br.SetOnline(channel, false)
 		status, _, _ := br.Debug(channel)
-		selsend(ctx, send, msg.Reply(`@%s set %s offline, status: %s`, msg.Nick, channel, status))
+		selsend(ctx, br, send, msg.Reply(`@%s set %s offline, status: %s`, msg.Nick, channel, status))
 	default:
-		selsend(ctx, send, msg.Reply(`@%s unrecognized op`, msg.Nick))
+		selsend(ctx, br, send, msg.Reply(`@%s unrecognized op`, msg.Nick))
 	}
 }

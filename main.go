@@ -135,6 +135,10 @@ func loop(ctx context.Context, wg *sync.WaitGroup, br *brain.Brain, send, recv c
 				}
 			case "HOSTTARGET":
 				// nothing yet
+			case "USERSTATE":
+				// Check our own badges and update the hard rate limit for this
+				// channel.
+				setWait(ctx, br, msg)
 			case "376": // End MOTD
 				ch := br.Channels()
 				send <- irc.Message{Command: "JOIN", Params: []string{strings.Join(ch, ",")}}
@@ -163,6 +167,7 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 	if br.ShouldTalk(ctx, msg, true) == nil {
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {
+			br.Wait(ctx, msg.To())
 			send <- irc.Privmsg(msg.To(), m)
 		}
 	}
@@ -256,4 +261,17 @@ func onlineLoop(ctx context.Context, br *brain.Brain, token string, period time.
 		}
 		lg.Println(b.String())
 	}
+}
+
+func setWait(ctx context.Context, br *brain.Brain, msg irc.Message) {
+	var bb [4]string
+	badges := msg.Badges(bb[:0])
+	for _, badge := range badges {
+		switch badge {
+		case "broadcaster", "moderator", "vip":
+			br.SetWait(ctx, msg.To(), 100/30.0)
+			return
+		}
+	}
+	br.SetWait(ctx, msg.To(), 20/30.0)
 }
