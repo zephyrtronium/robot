@@ -343,6 +343,13 @@ func init() {
 			f:    removePrivacy,
 			help: `["learn from me again"] Re-enable recording your messages.`,
 		},
+		{
+			admin: true, regular: true,
+			name: "describe-privacy",
+			re:   regexp.MustCompile(`(?i)^what\s+(?:info(?:rmation)?\s+)do\s+you\s+(?:collect|store)(?:\s+on\s+me)?\??$`),
+			f:    describePrivacy,
+			help: `["what info do you collect?"] Link information about user privacy.`,
+		},
 		// talk-catchall MUST be last
 		{
 			admin: true, regular: true,

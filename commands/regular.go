@@ -100,3 +100,7 @@ func removePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send ch
 	}
 	selsend(ctx, br, send, msg.Reply(`@%s got it, I'll learn from your messages again.`, msg.Nick))
 }
+
+func describePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	selsend(ctx, br, send, msg.Reply(`@%s see here for info about what information I collect, and how to opt out of all collection: https://github.com/zephyrtronium/robot#what-information-does-robot-store`, msg.Nick))
+}
