@@ -359,23 +359,26 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 		return fmt.Errorf("error opening transaction: %w", err)
 	}
 	defer tx.Commit()
-	row := tx.QueryRowContext(ctx, `SELECT learn, send, lim, prob, rate, burst, block, respond, silence FROM chans WHERE name=?`, channel)
+	row := tx.QueryRowContext(ctx, `SELECT learn, send, lim, prob, rate, burst, chans.block, respond, silence, config.block FROM chans, config WHERE chans.name=? AND config.id=1`, channel)
 	var cfg chancfg
 	var r rate.Limit
 	var burst int
-	var block sql.NullString
+	var block, gblock sql.NullString
 	var silence sql.NullTime
-	if err := row.Scan(&cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence); err != nil {
+	if err := row.Scan(&cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence, &gblock); err != nil {
 		return fmt.Errorf("error reading config for %s: %w", channel, err)
 	}
 	cfg.rate = rate.NewLimiter(r, burst)
+	re := gblock.String
+	if !gblock.Valid {
+		re = "$^"
+	}
 	if block.Valid {
-		cfg.block, err = regexp.Compile(block.String)
-		if err != nil {
-			return fmt.Errorf("error compiling regular expression (%s): %w", block.String, err)
-		}
-	} else {
-		cfg.block = regexp.MustCompile("$^")
+		re += "|" + block.String
+	}
+	cfg.block, err = regexp.Compile(re)
+	if err != nil {
+		return fmt.Errorf("error compiling regular expression (%s): %w", re, err)
 	}
 	if silence.Valid {
 		cfg.silence = silence.Time
