@@ -343,10 +343,10 @@ func Parse(scan io.RuneScanner) (msg Message, err error) {
 	return
 }
 
-// tagLimit is the maximum length of a tag in bytes.
+// tagLimit is the maximum length of a tag in runes.
 const tagLimit = 8192
 
-// ircLimit is the maximum length of an IRC message, excluding tag, in bytes.
+// ircLimit is the maximum length of an IRC message, excluding tag, in runes.
 const ircLimit = 512
 
 func unquoteTag(value string) string {
@@ -406,17 +406,15 @@ func unescapeTag(raw, quoted string) string {
 
 func scanSender(scan io.RuneScanner) (s Sender, err error) {
 	var (
-		b    strings.Builder
-		n, c int
-		r    rune
+		b strings.Builder
+		r rune
 	)
 	cur := &s.Nick
-	for c < ircLimit {
-		r, n, err = scan.ReadRune()
+	for i := 0; i < ircLimit; i++ {
+		r, _, err = scan.ReadRune()
 		if err != nil {
 			return
 		}
-		c += n
 		switch r {
 		case '!':
 			// nick into user
@@ -450,16 +448,14 @@ func scanSender(scan io.RuneScanner) (s Sender, err error) {
 // Check scan for ' ', '\r', '\n' after.
 func scanField(scan io.RuneScanner, stage string, limit int) (field string, err error) {
 	var (
-		b    strings.Builder
-		n, c int
-		r    rune
+		b strings.Builder
+		r rune
 	)
-	for c < limit {
-		r, n, err = scan.ReadRune()
+	for i := 0; i < ircLimit; i++ {
+		r, _, err = scan.ReadRune()
 		if err != nil {
 			return b.String(), err
 		}
-		c += n
 		switch r {
 		case ' ', '\r', '\n':
 			scan.UnreadRune()
@@ -476,16 +472,14 @@ func scanField(scan io.RuneScanner, stage string, limit int) (field string, err 
 // scanLine scans until the end of the line.
 func scanLine(scan io.RuneScanner, stage string) (line string, err error) {
 	var (
-		b    strings.Builder
-		n, c int
-		r    rune
+		b strings.Builder
+		r rune
 	)
-	for c < ircLimit {
-		r, n, err = scan.ReadRune()
+	for i := 0; i < ircLimit; i++ {
+		r, _, err = scan.ReadRune()
 		if err != nil {
 			return b.String(), err
 		}
-		c += n
 		switch r {
 		case '\n':
 			scan.UnreadRune()
@@ -504,16 +498,14 @@ func scanLine(scan io.RuneScanner, stage string) (line string, err error) {
 // eatSpace scans until the next character that is not U+0020 and unreads it.
 func eatSpace(scan io.RuneScanner) error {
 	var (
-		n, c int
-		r    rune
-		err  error
+		r   rune
+		err error
 	)
-	for c < ircLimit {
-		r, n, err = scan.ReadRune()
+	for i := 0; i < ircLimit; i++ {
+		r, _, err = scan.ReadRune()
 		if err != nil {
 			return err
 		}
-		c += n
 		switch r {
 		case ' ':
 			continue
