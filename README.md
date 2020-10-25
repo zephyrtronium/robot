@@ -154,6 +154,7 @@ Robot's database tables are:
 	+ `block` - regular expression matching messages to block, in addition to the block expression in `config`
 	+ `respond` - whether commands can generate messages, separate from the random speaking chance
 	+ `silence` - datetime before which the bot will not learn or speak
+	+ `echo` - whether to report an echo directory for this channel (part of a personal experiment)
 - `config` - global configuration, only row 1 is used
 	+ `me` - bot's username, used as nick
 	+ `pfix` - Markov chain order, as described [above](#how-robot-works)
