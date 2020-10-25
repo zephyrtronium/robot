@@ -51,13 +51,14 @@ func main() {
 	var source, remote, token string
 	var secure bool
 	var checkp time.Duration
-	var botlvl string
+	var botlvl, echo string
 	flag.StringVar(&source, "source", "", "SQL database source (required)")
 	flag.StringVar(&remote, "remote", "irc.chat.twitch.tv:6697", "remote address, IRC protocol")
 	flag.StringVar(&token, "token", "", "OAuth token")
 	flag.BoolVar(&secure, "secure", true, "use TLS")
 	flag.DurationVar(&checkp, "period", time.Minute, "period between checking broadcaster online statuses")
 	flag.StringVar(&botlvl, "level", "", `bot level, "" or "known" or "verified"`)
+	flag.StringVar(&echo, "echo", "", "directory to echo generated messages (no echoing if not given)")
 	flag.Parse()
 
 	// Print GPLv3 information.
@@ -68,6 +69,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	br.SetEchoDir(echo)
 	switch botlvl {
 	case "": // do nothing
 	case "known":
