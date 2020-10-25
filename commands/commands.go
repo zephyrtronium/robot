@@ -39,6 +39,11 @@ func Do(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Me
 	for _, c := range all {
 		if m := c.ok(priv, cmd); m != nil {
 			c.f(ctx, br, lg, send, msg, m)
+			if !c.harmless && !c.regular {
+				if err := br.Audit(ctx, msg, c.name); err != nil {
+					lg.Println("error auditing command:", err)
+				}
+			}
 			return c.name
 		}
 	}
@@ -93,6 +98,9 @@ type command struct {
 	// admin and regular indicate whether admins and unprivileged users,
 	// respectively, may use this command.
 	admin, regular bool
+	// harmless indicates an owner- or admini-level command that need not be
+	// recorded in the audit log.
+	harmless bool
 	// name is the name of this command. Names should be unique and should
 	// not contain space characters so that they can be enabled and disabled.
 	name string
@@ -141,11 +149,12 @@ var all []*command
 func init() {
 	all = []*command{
 		{
-			admin: false,
-			name:  "warranty",
-			re:    regexp.MustCompile(`(?i)^warranty$`),
-			f:     warranty,
-			help:  `["warranty"] Show some information for bot owners on the terminal.`,
+			admin:    false,
+			harmless: true,
+			name:     "warranty",
+			re:       regexp.MustCompile(`(?i)^warranty$`),
+			f:        warranty,
+			help:     `["warranty"] Show some information for bot owners on the terminal.`,
 		},
 		{
 			admin: false,
@@ -204,11 +213,12 @@ func init() {
 			help:  `["reconnect"] Reconnect.`,
 		},
 		{
-			admin: false,
-			name:  "owner-list",
-			re:    regexp.MustCompile(`(?i)^(?:list\s+)?commands$`),
-			f:     listOwner,
-			help:  `["list commands"] List all commands, including owner-only ones.`,
+			admin:    false,
+			harmless: true,
+			name:     "owner-list",
+			re:       regexp.MustCompile(`(?i)^(?:list\s+)?commands$`),
+			f:        listOwner,
+			help:     `["list commands"] List all commands, including owner-only ones.`,
 		},
 		{
 			admin: false,
@@ -232,25 +242,28 @@ func init() {
 			help:  `["forget" pattern to forget] Unlearn messages within the last fifteen minutes containing the pattern to forget.`,
 		},
 		{
-			admin: true,
-			name:  "help",
-			re:    regexp.MustCompile(`(?i)^(?:show\s+)?help(?:\s+on|\s+for)?\s+(?P<cmd>\S+)$`),
-			f:     help,
-			help:  `["help" command-name] Show help on a command. (I think you figured it out.)`,
+			admin:    true,
+			harmless: true,
+			name:     "help",
+			re:       regexp.MustCompile(`(?i)^(?:show\s+)?help(?:\s+on|\s+for)?\s+(?P<cmd>\S+)$`),
+			f:        help,
+			help:     `["help" command-name] Show help on a command. (I think you figured it out.)`,
 		},
 		{
-			admin: true,
-			name:  "invocation",
-			re:    regexp.MustCompile(`(?i)^(?:show\s+)?invocation\s+(?:of\s+)?(?P<cmd>\S+)$`),
-			f:     invocation,
-			help:  `["invocation" command-name] Show the exact invocation regex for a command.`,
+			admin:    true,
+			harmless: true,
+			name:     "invocation",
+			re:       regexp.MustCompile(`(?i)^(?:show\s+)?invocation\s+(?:of\s+)?(?P<cmd>\S+)$`),
+			f:        invocation,
+			help:     `["invocation" command-name] Show the exact invocation regex for a command.`,
 		},
 		{
-			admin: true,
-			name:  "list",
-			re:    regexp.MustCompile(`(?i)^(?:list\s+)?commands$`),
-			f:     list,
-			help:  `["list commands"] List all commands.`,
+			admin:    true,
+			harmless: true,
+			name:     "list",
+			re:       regexp.MustCompile(`(?i)^(?:list\s+)?commands$`),
+			f:        list,
+			help:     `["list commands"] List all commands.`,
 		},
 		{
 			admin: true,
@@ -281,18 +294,20 @@ func init() {
 			help:  `["set response probability to" prob] Set the random response rate to a particular value.`,
 		},
 		{
-			admin: true,
-			name:  "multigen",
-			re:    regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:\s+something)?\s+(?P<num>\d+)\s*(?:times|(?:raid\s+)?messages)?$`),
-			f:     multigen,
-			help:  `["say|speak|talk|generate" n "times"] Speak up to five times for the cost of one!`,
+			admin:    true,
+			harmless: true,
+			name:     "multigen",
+			re:       regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:\s+something)?\s+(?P<num>\d+)\s*(?:times|(?:raid\s+)?messages)?$`),
+			f:        multigen,
+			help:     `["say|speak|talk|generate" n "times"] Speak up to five times for the cost of one!`,
 		},
 		{
-			admin: true,
-			name:  "raid",
-			re:    regexp.MustCompile(`(?i)^(?:generate\s+)?raid(?:\s+messages?)?$`),
-			f:     raid,
-			help:  `["raid"] Think of five potential raid messages.`,
+			admin:    true,
+			harmless: true,
+			name:     "raid",
+			re:       regexp.MustCompile(`(?i)^(?:generate\s+)?raid(?:\s+messages?)?$`),
+			f:        raid,
+			help:     `["raid"] Think of five potential raid messages.`,
 		},
 		{
 			admin: true,

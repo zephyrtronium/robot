@@ -34,6 +34,7 @@ import (
 	"time"
 
 	"github.com/zephyrtronium/crazy"
+	"github.com/zephyrtronium/robot/irc"
 	"golang.org/x/time/rate"
 
 	_ "github.com/mattn/go-sqlite3" // for driver
@@ -131,6 +132,10 @@ type statements struct {
 	// the history. The only parameter is the ID. This statement should be used
 	// with Exec.
 	expunge *sql.Stmt
+	// audit is the statement to record a privileged command activation for
+	// audit. The parameters are message time, channel, sender, command name,
+	// and msg.
+	audit *sql.Stmt
 }
 
 type optfreq struct {
@@ -317,6 +322,13 @@ CREATE TABLE IF NOT EXISTS emotes (
 	emote	TEXT,
 	weight	INTEGER NOT NULL DEFAULT 1
 );
+CREATE TABLE IF NOT EXISTS audit (
+	time	DATETIME NOT NULL,
+	chan	TEXT NOT NULL, -- where the command was executed
+	sender	TEXT NOT NULL, -- who sent the command
+	cmd		TEXT NOT NULL, -- command name that was executed
+	msg		TEXT NOT NULL -- full message text
+);
 CREATE INDEX IF NOT EXISTS history_id_index ON history(tid);
 CREATE INDEX IF NOT EXISTS history_senderh_index ON history(chan, senderh);
 CREATE TRIGGER IF NOT EXISTS history_limit AFTER INSERT ON history BEGIN
@@ -324,6 +336,9 @@ CREATE TRIGGER IF NOT EXISTS history_limit AFTER INSERT ON history BEGIN
 END;
 CREATE TRIGGER IF NOT EXISTS generated_limit AFTER INSERT ON generated BEGIN
 	DELETE FROM generated WHERE time < strftime('%s', 'now', '-15 minutes');
+END;
+CREATE TRIGGER IF NOT EXISTS audit_limit AFTER INSERT ON audit BEGIN
+	DELETE FROM audit WHERE strftime('%s', time) < strftime('%s', 'now', '-7 days');
 END;
 `
 
@@ -426,6 +441,10 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 	if err != nil {
 		panic(err)
 	}
+	stmts.audit, err = db.PrepareContext(ctx, `INSERT INTO audit(time, chan, sender, cmd, msg) VALUES (?, ?, ?, ?, ?)`)
+	if err != nil {
+		panic(err)
+	}
 	return stmts
 }
 
@@ -448,6 +467,12 @@ func (b *Brain) Query(ctx context.Context, query string, args ...interface{}) (*
 // most one resulting row.
 func (b *Brain) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
 	return b.db.QueryRowContext(ctx, query, args...)
+}
+
+// Audit records a priviliged command activation for audit.
+func (b *Brain) Audit(ctx context.Context, msg irc.Message, cmd string) error {
+	_, err := b.stmts.audit.ExecContext(ctx, msg.Time, msg.To(), msg.Nick, cmd, msg.Trailing)
+	return err
 }
 
 // UserHash obfuscates a username for inclusion in history.

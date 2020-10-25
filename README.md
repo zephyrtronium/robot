@@ -18,10 +18,11 @@ For the exact syntax to use these commands, see [the relevant section](#commands
 
 ## What information does Robot store?
 
-Robot stores three types of information:
+Robot stores four types of information:
 
 - Configuration details. This includes things like channels to connect to, how frequently to send messages, and who has certain [privileges](#privileges) (including "privacy" privileges). For the most part, this information is relevant only to bot owners, broadcasters, and mods.
 - Fifteen-minute history. Robot records all chat messages received in the last fifteen minutes, storing a hash specific to the sender, the channel it was sent to, the time it was received, and the full message text. Robot uses this information to delete messages it's learned under [certain circumstances](#tools-for-broadcasters-and-mods). Whenever Robot receives a new message, all records older than fifteen minutes are removed. Robot also records the messages it's generated in the last fifteen minutes.
+- One-week privileged command audit. Robot records uses of most admin- and owner-level commands for seven days, including the user, the command that was used with the full message text, the channel in which it was used, and the time the message was received. For security reasons, there is no way to opt out of this data collection.
 - Markov chain tuples. This is the majority of Robot's data, a simple list of prefix and suffix words tagged with the location that prefix and suffix may be used. This data is anonymous; Robot does not know who sent the messages that were used to obtain this information.
 
 If you want Robot not to record information from you for any reason, simply use the `give me privacy` [command](#commands). Once you're set up to be private, none of your messages will enter her history or Markov chain data. You'll still be able to ask Robot for messages. If you'd like the bot to learn from you again after going private, use the `learn from me again` command.
@@ -143,6 +144,12 @@ Finally, run Robot using `robot -source robot.sqlite3 -token y0UrOAuth70Ken`.
 
 Robot's database tables are:
 
+- `audit` - log of uses of most admin- and owner-level commands
+	+ `time` - time the command was received
+	+ `chan` - channel in which the command was received
+	+ `sender` - username of the sender
+	+ `cmd` - command name that was executed
+	+ `msg` - full message text, including the command activation
 - `chans` - configuration for channels known to the bot.
 	+ `name` - primary key, name of the channel; must begin with '#' and be all lower case, otherwise Twitch will silently ignore the bot trying to join.
 	+ `learn` - tag to use for learned messages
