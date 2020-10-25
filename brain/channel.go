@@ -42,6 +42,7 @@ type chancfg struct {
 	block   *regexp.Regexp
 	respond bool
 	silence time.Time
+	echo    bool
 	online  bool
 	privs   map[string]string
 
@@ -265,7 +266,7 @@ func (b *Brain) UpdateAll(ctx context.Context) error {
 		var burst int
 		var block sql.NullString
 		var silence sql.NullTime
-		rows.Scan(&name, &cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence)
+		rows.Scan(&name, &cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence, &cfg.echo)
 		cfg.rate = rate.NewLimiter(r, burst)
 		if block.Valid {
 			re := g.String + "|" + block.String
@@ -359,13 +360,13 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 		return fmt.Errorf("error opening transaction: %w", err)
 	}
 	defer tx.Commit()
-	row := tx.QueryRowContext(ctx, `SELECT learn, send, lim, prob, rate, burst, chans.block, respond, silence, config.block FROM chans, config WHERE chans.name=? AND config.id=1`, channel)
+	row := tx.QueryRowContext(ctx, `SELECT learn, send, lim, prob, rate, burst, chans.block, respond, silence, echo, config.block FROM chans, config WHERE chans.name=? AND config.id=1`, channel)
 	var cfg chancfg
 	var r rate.Limit
 	var burst int
 	var block, gblock sql.NullString
 	var silence sql.NullTime
-	if err := row.Scan(&cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence, &gblock); err != nil {
+	if err := row.Scan(&cfg.learn, &cfg.send, &cfg.lim, &cfg.prob, &r, &burst, &block, &cfg.respond, &silence, &cfg.echo, &gblock); err != nil {
 		return fmt.Errorf("error reading config for %s: %w", channel, err)
 	}
 	cfg.rate = rate.NewLimiter(r, burst)

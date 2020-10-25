@@ -21,6 +21,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"strings"
 
 	"github.com/zephyrtronium/robot/irc"
@@ -239,4 +240,37 @@ func (b *Brain) ShouldTalk(ctx context.Context, msg irc.Message, random bool) er
 		return fmt.Errorf("rate limited")
 	}
 	return nil
+}
+
+// SetEchoDir sets the directory for echoing.
+func (b *Brain) SetEchoDir(dir string) {
+	b.echoto.Store(dir)
+}
+
+// EchoTo returns the directory for echoing messages generated for the given
+// channel. If no such directory is set, then this returns the empty string.
+func (b *Brain) EchoTo(channel string) string {
+	cfg := b.config(channel)
+	cfg.mu.Lock()
+	echo := cfg.echo
+	cfg.mu.Unlock()
+	if !echo {
+		return ""
+	}
+	return b.echoto.Load().(string)
+}
+
+// doEcho echoes a message to the given directory using tag as part of the
+// filename. If dir or msg is the empty string, or if an error occurs, this
+// silently does nothing.
+func (b *Brain) doEcho(tag, dir, msg string) {
+	if dir == "" || msg == "" {
+		return
+	}
+	f, err := ioutil.TempFile(dir, tag)
+	if err != nil {
+		return
+	}
+	f.WriteString(msg)
+	f.Close()
 }

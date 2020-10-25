@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/zephyrtronium/crazy"
@@ -49,6 +50,9 @@ type Brain struct {
 	me string
 	// lme is the bot's Twitch username converted to lower case.
 	lme string
+
+	// echoto is the directory to which to echo generated messages.
+	echoto atomic.Value // string
 
 	// wait is the global default rate limiters for the brain, used for sending
 	// messages to channels (or whispers to users) that have no specific rate
@@ -172,6 +176,7 @@ func Open(ctx context.Context, source string) (*Brain, error) {
 	if err := br.UpdateAll(ctx); err != nil {
 		return nil, err // already wrapped
 	}
+	br.echoto.Store("")
 	rng := crazy.NewMT64()
 	crazy.CryptoSeeded(rng, 8)
 	br.rng = rng
@@ -215,6 +220,7 @@ func Configure(ctx context.Context, source, me string, order int) (*Brain, error
 	if err := br.UpdateAll(ctx); err != nil {
 		return nil, err // already wrapped
 	}
+	br.echoto.Store("")
 	rng := crazy.NewMT64()
 	crazy.CryptoSeeded(rng, 8)
 	br.rng = rng
@@ -276,7 +282,8 @@ CREATE TABLE IF NOT EXISTS chans (
 	burst	INTEGER NOT NULL DEFAULT 1, -- message burst size
 	block	TEXT, -- regex for messages to ignore, if non-null
 	respond	BOOLEAN NOT NULL DEFAULT FALSE, -- whether to always respond when addressed
-	silence	DATETIME -- never try to talk before this time if non-null
+	silence	DATETIME, -- never try to talk before this time if non-null
+	echo	BOOLEAN NOT NULL DEFAULT FALSE -- whether to allow echoing messages
 );
 CREATE TABLE IF NOT EXISTS privs (
 	user	TEXT NOT NULL, -- username to which this priv applies
