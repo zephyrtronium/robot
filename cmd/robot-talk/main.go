@@ -22,10 +22,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"sync"
 
 	"github.com/zephyrtronium/robot/brain"
 )
@@ -33,10 +35,12 @@ import (
 func main() {
 	var source string
 	var tag string
+	var echo string
 	var n int
 	var cpu, mem string
 	flag.StringVar(&source, "source", "", "database to think from")
 	flag.StringVar(&tag, "tag", "", "tag to think from")
+	flag.StringVar(&echo, "echo", "", "directory to echo messages to (no echoing if not given)")
 	flag.IntVar(&n, "n", 1, "number of times to think")
 	flag.StringVar(&cpu, "cpu", "", "CPU profile output file")
 	flag.StringVar(&mem, "mem", "", "memory profile output file")
@@ -63,9 +67,14 @@ func main() {
 		log.Println("unable to perform WAL checkpoint:", err)
 	}
 	chain := append([]string{}, flag.Args()...)
+	var wg sync.WaitGroup
+	wg.Add(n)
 	for i := 0; i < n; i++ {
-		fmt.Println(br.Talk(ctx, tag, chain, 1024))
+		msg := br.Talk(ctx, tag, chain, 1024)
+		fmt.Println(msg)
+		go doEcho(&wg, msg, tag, echo)
 	}
+	wg.Wait()
 	if mem != "" {
 		f, err := os.Create(mem)
 		if err != nil {
@@ -76,5 +85,25 @@ func main() {
 		if err := pprof.WriteHeapProfile(f); err != nil {
 			log.Println("error writing heap profile:", err)
 		}
+	}
+}
+
+func doEcho(wg *sync.WaitGroup, msg, tag, echo string) {
+	defer wg.Done()
+	if echo == "" {
+		return
+	}
+	f, err := ioutil.TempFile(echo, tag)
+	if err != nil {
+		log.Println("error opening echo file:", err)
+		return
+	}
+	if _, err := f.WriteString(msg); err != nil {
+		log.Println("error writing file:", err)
+		return
+	}
+	if err := f.Close(); err != nil {
+		log.Println("error closing file:", err)
+		return
 	}
 }
