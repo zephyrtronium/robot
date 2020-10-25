@@ -19,6 +19,7 @@ package commands
 
 import (
 	"context"
+	"io/ioutil"
 	"log"
 	"strings"
 
@@ -37,6 +38,9 @@ func talk(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 	if m == "" {
 		return
 	}
+	if echo := br.EchoTo(msg.To()); echo != "" {
+		go doEcho(ctx, lg, m, echo, msg.To())
+	}
 	selsend(ctx, br, send, msg.Reply("%s", m))
 }
 
@@ -45,7 +49,11 @@ func talkCatchall(ctx context.Context, br *brain.Brain, lg *log.Logger, send cha
 		lg.Println("won't talk:", err)
 		return
 	}
-	selsend(ctx, br, send, msg.Reply("%s", br.TalkIn(ctx, msg.To(), nil)))
+	m := br.TalkIn(ctx, msg.To(), nil)
+	if echo := br.EchoTo(msg.To()); echo != "" {
+		go doEcho(ctx, lg, m, echo, msg.To())
+	}
+	selsend(ctx, br, send, msg.Reply("%s", m))
 }
 
 func uwu(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -61,6 +69,9 @@ func uwu(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.M
 	if err := br.Said(ctx, msg.To(), m); err != nil {
 		lg.Println("error marking message as said:", err)
 	}
+	if echo := br.EchoTo(msg.To()); echo != "" {
+		go doEcho(ctx, lg, m, echo, msg.To())
+	}
 	selsend(ctx, br, send, msg.Reply("%s", m))
 }
 
@@ -73,6 +84,23 @@ var uwuRep = strings.NewReplacer(
 	"ne", "nye", "Ne", "Nye", "NE", "NYE",
 	"no", "nyo", "No", "Nyo", "NO", "NYO",
 )
+
+// doEcho writes a message as a file to echo.
+func doEcho(ctx context.Context, lg *log.Logger, msg, echo, channel string) {
+	f, err := ioutil.TempFile(echo, channel)
+	if err != nil {
+		lg.Println("couldn't open echo file:", err)
+		return
+	}
+	if _, err := f.WriteString(msg); err != nil {
+		lg.Println("couldn't write message to echo file:", err)
+		return
+	}
+	if err := f.Close(); err != nil {
+		lg.Println("error closing echo file:", err)
+		return
+	}
+}
 
 func source(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	// We could try to extract the package path from a function name or
