@@ -23,6 +23,7 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -181,6 +182,9 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {
 			br.Wait(ctx, msg.To())
+			if echo := br.EchoTo(msg.To()); echo != "" {
+				go doEcho(ctx, lg, m, echo, msg.To())
+			}
 			send <- irc.Privmsg(msg.To(), m)
 		}
 	}
@@ -287,4 +291,21 @@ func setWait(ctx context.Context, br *brain.Brain, msg irc.Message) {
 		}
 	}
 	br.SetWait(ctx, msg.To(), 20/30.0)
+}
+
+// doEcho writes a message as a file to echo.
+func doEcho(ctx context.Context, lg *log.Logger, msg, echo, channel string) {
+	f, err := ioutil.TempFile(echo, channel)
+	if err != nil {
+		lg.Println("couldn't open echo file:", err)
+		return
+	}
+	if _, err := f.WriteString(msg); err != nil {
+		lg.Println("couldn't write message to echo file:", err)
+		return
+	}
+	if err := f.Close(); err != nil {
+		lg.Println("error closing echo file:", err)
+		return
+	}
 }
