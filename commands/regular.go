@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
+	"unicode"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/irc"
@@ -84,6 +85,31 @@ var uwuRep = strings.NewReplacer(
 	"ne", "nye", "Ne", "Nye", "NE", "NYE",
 	"no", "nyo", "No", "Nyo", "NO", "NYO",
 )
+
+// AAAAA AAAAAAAAA A AAAAAAA AAA AAAAAAAA AAA AAA AAAAAAA AAAA AA.
+func AAAAA(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	if err := br.ShouldTalk(ctx, msg, false); err != nil {
+		lg.Println("won't talk:", err)
+		return
+	}
+	m := br.TalkIn(ctx, msg.To(), nil)
+	if m == "" {
+		return
+	}
+	m = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return 'A'
+		}
+		return r
+	}, m)
+	if err := br.Said(ctx, msg.To(), m); err != nil {
+		lg.Println("error marking message as said:", err)
+	}
+	if echo := br.EchoTo(msg.To()); echo != "" {
+		go doEcho(ctx, lg, m, echo, msg.To())
+	}
+	selsend(ctx, br, send, msg.Reply("%s", m))
+}
 
 // doEcho writes a message as a file to echo.
 func doEcho(ctx context.Context, lg *log.Logger, msg, echo, channel string) {

@@ -339,6 +339,13 @@ func init() {
 		},
 		{
 			admin: true, regular: true,
+			name: "AAAAA",
+			re:   regexp.MustCompile(`^A(\s*A*)*$|^(?:(?i)how\s+are\s+you(?:\s+feeling|\s+doing)?(?:\s+today)?\??)$`),
+			f:    AAAAA,
+			help: `["AAAAA"] AAAAA! AAAAA AAAAAAAAA A AAAAAAA AAA AAAAAAAA AAA AAA AAAAAAA AAAA AA.`,
+		},
+		{
+			admin: true, regular: true,
 			name: "source",
 			re:   regexp.MustCompile(`(?i)^(?:where(?:'s|\s+is)\s+(?:you'?re?|ur)\s+)?source(?:\s*code)?\??$`),
 			f:    source,
