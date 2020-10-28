@@ -100,6 +100,14 @@ If a command invocation doesn't match any command, it instead prompts Robot to s
 - `speak <n> times` generates up to n messages at once, bypassing the bot's rate limit. The maximum for n is 5.
 - `raid` generates five messages at once.
 
+## Effects
+
+Robot can apply effects to randomly generated messages, modifying the actual output text. Effects can be configured per channel. The possible effects are:
+
+- `uwu`: Transform using the uwu command.
+- `AAAAA`: Transform using the AAAAA command.
+- `me`: Use `/me` (CTCP ACTION) for the message.
+
 ## Privileges
 
 Robot has six privilege levels:
@@ -167,6 +175,10 @@ Robot's database tables are:
 	+ `me` - bot's username, used as nick
 	+ `pfix` - Markov chain order, as described [above](#how-robot-works)
 	+ `block` - regular expression matching messages to block
+- `effects` - global and per-channel effects to apply to messages
+	+ `tag` - send tag where used, or everywhere if null
+	+ `effect` - effect name, see [above](#effects)
+	+ `weight` - integer weight; higher values mean more likely to select
 - `emotes` - global and per-channel emotes to append to messages
 	+ `tag` - send tag where used, or everywhere if null
 	+ `emote` - emote text

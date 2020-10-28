@@ -181,6 +181,11 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 	if br.ShouldTalk(ctx, msg, true) == nil {
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {
+			eff := br.EffectIn(ctx, msg.To())
+			if eff != "" {
+				lg.Println("applying", eff, "to", m)
+				m = commands.Effect(eff, m)
+			}
 			br.Wait(ctx, msg.To())
 			if echo := br.EchoTo(msg.To()); echo != "" {
 				go doEcho(ctx, lg, m, echo, msg.To())

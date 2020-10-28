@@ -299,10 +299,11 @@ func (b *Brain) UpdateAll(ctx context.Context) error {
 	return b.hupPrivs(ctx)
 }
 
-// hupPrivs updates per-channel user privileges and emotes. The config mutex
-// must be held when calling this method.
+// hupPrivs updates per-channel user privileges, emotes, and effects. The
+// config mutex must be held when calling this method.
 func (b *Brain) hupPrivs(ctx context.Context) error {
 	emotes := make(map[string]emopt)
+	effects := make(map[string]emopt)
 	for name, cfg := range b.cfgs {
 		rows, err := b.db.QueryContext(ctx, `SELECT user, priv FROM privs WHERE chan=? OR chan IS NULL ORDER BY chan NULLS FIRST`, name)
 		if err != nil {
@@ -320,35 +321,57 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 			return fmt.Errorf("error getting privileges for %s: %w", name, err)
 		}
 		cfg.mu.Lock()
+		cfg.privs = privs
 		tag := cfg.send
 		cfg.mu.Unlock()
-		rows, err = b.db.QueryContext(ctx, `SELECT emote, weight FROM emotes WHERE tag=? OR tag IS NULL`, tag)
-		if err != nil {
-			return fmt.Errorf("error getting emotes for %s: %w", name, err)
-		}
-		var sum int64
-		var opts []optfreq
-		for rows.Next() {
-			var opt optfreq
-			if err := rows.Scan(&opt.w, &opt.n); err != nil {
-				return fmt.Errorf("error reading emotes for %s: %w", name, err)
+		if _, ok := emotes[tag.String]; !ok {
+			rows, err = b.db.QueryContext(ctx, `SELECT emote, weight FROM emotes WHERE tag=? OR tag IS NULL`, tag)
+			if err != nil {
+				return fmt.Errorf("error getting emotes for %s: %w", name, err)
 			}
-			opt.n, sum = opt.n+sum, opt.n+sum
-			opts = append(opts, opt)
-		}
-		if rows.Err() != nil {
-			return fmt.Errorf("error getting emotes for %s: %w", name, rows.Err())
-		}
-		cfg.mu.Lock()
-		cfg.privs = privs
-		cfg.mu.Unlock()
-		if tag.Valid {
-			emotes[tag.String] = emopt{s: sum, e: opts}
+			var sum int64
+			var opts []optfreq
+			for rows.Next() {
+				var opt optfreq
+				if err := rows.Scan(&opt.w, &opt.n); err != nil {
+					return fmt.Errorf("error reading emotes for %s: %w", name, err)
+				}
+				opt.n, sum = opt.n+sum, opt.n+sum
+				opts = append(opts, opt)
+			}
+			if rows.Err() != nil {
+				return fmt.Errorf("error getting emotes for %s: %w", name, rows.Err())
+			}
+			if tag.Valid {
+				emotes[tag.String] = emopt{s: sum, e: opts}
+			}
+			rows, err = b.db.QueryContext(ctx, `SELECT effect, weight FROM effects WHERE tag=? OR tag IS NULL`, tag)
+			if err != nil {
+				return fmt.Errorf("error getting effects for %s: %w", name, err)
+			}
+			sum, opts = 0, nil
+			for rows.Next() {
+				var opt optfreq
+				if err := rows.Scan(&opt.w, &opt.n); err != nil {
+					return fmt.Errorf("error reading effects for %s: %w", name, err)
+				}
+				opt.n, sum = opt.n+sum, opt.n+sum
+				opts = append(opts, opt)
+			}
+			if rows.Err() != nil {
+				return fmt.Errorf("error getting effects for %s: %w", name, rows.Err())
+			}
+			if tag.Valid {
+				effects[tag.String] = emopt{s: sum, e: opts}
+			}
 		}
 	}
 	b.emu.Lock()
 	b.emotes = emotes
 	b.emu.Unlock()
+	b.fmu.Lock()
+	b.effects = effects
+	b.fmu.Unlock()
 	return nil
 }
 
@@ -420,6 +443,22 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 	if rows.Err() != nil {
 		return fmt.Errorf("error getting emotes: %w", rows.Err())
 	}
+	rows, err = tx.QueryContext(ctx, `SELECT effect, weight FROM effects WHERE tag=? OR tag IS NULL`, cfg.send)
+	if err != nil {
+		return fmt.Errorf("error getting effects: %w", err)
+	}
+	var ef emopt
+	for rows.Next() {
+		var opt optfreq
+		if err := rows.Scan(&opt.w, &opt.n); err != nil {
+			return fmt.Errorf("error reading effects: %w", err)
+		}
+		opt.n, ef.s = opt.n+ef.s, opt.n+ef.s
+		ef.e = append(ef.e, opt)
+	}
+	if rows.Err() != nil {
+		return fmt.Errorf("error getting effects: %w", rows.Err())
+	}
 	b.cmu.Lock()
 	b.cfgs[channel] = &cfg
 	b.cmu.Unlock()
@@ -427,6 +466,9 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 		b.emu.Lock()
 		b.emotes[cfg.send.String] = em
 		b.emu.Unlock()
+		b.fmu.Lock()
+		b.effects[cfg.send.String] = ef
+		b.fmu.Unlock()
 	}
 	return nil
 }

@@ -69,6 +69,10 @@ type Brain struct {
 	emu    sync.Mutex
 	emotes map[string]emopt
 
+	// effects is the in-memory store of per-tag effects.
+	fmu     sync.Mutex
+	effects map[string]emopt
+
 	// rng is the randomness source for the brain.
 	rmu sync.Mutex
 	rng *crazy.MT64
@@ -320,6 +324,11 @@ CREATE TABLE IF NOT EXISTS emotes (
 	id		INTEGER PRIMARY KEY ASC,
 	tag		TEXT, -- send tag where used, or everywhere if null
 	emote	TEXT,
+	weight	INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS effects (
+	tag		TEXT, -- send tag where used, or everywhere if null
+	effect	TEXT, -- effect name, see ../commands/effects.go
 	weight	INTEGER NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS audit (

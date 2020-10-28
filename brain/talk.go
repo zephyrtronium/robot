@@ -189,6 +189,43 @@ func (b *Brain) EmoteIn(ctx context.Context, channel string) string {
 	return b.Emote(ctx, tag.String)
 }
 
+// Effect selects a random effect from the given tag. The result is the empty
+// string if the tag is unused by any channel or if the selected effect
+// corresponds to a null SQL text.
+func (b *Brain) Effect(ctx context.Context, tag string) string {
+	b.fmu.Lock()
+	ef := b.effects[tag]
+	b.fmu.Unlock()
+	if ef.s <= 0 {
+		return ""
+	}
+	x := b.intn(ef.s)
+	for _, v := range ef.e {
+		if x < v.n {
+			if !v.w.Valid {
+				return ""
+			}
+			return v.w.String
+		}
+	}
+	return ""
+}
+
+// EffectIn calls Effect with the given channel's send tag.
+func (b *Brain) EffectIn(ctx context.Context, channel string) string {
+	cfg := b.config(channel)
+	if cfg == nil {
+		return ""
+	}
+	cfg.mu.Lock()
+	tag := cfg.send
+	cfg.mu.Unlock()
+	if !tag.Valid {
+		return ""
+	}
+	return b.Effect(ctx, tag.String)
+}
+
 // Privmsg creates an IRC PRIVMSG with a random emote appended to the message.
 func (b *Brain) Privmsg(ctx context.Context, to, msg string) irc.Message {
 	return irc.Message{
