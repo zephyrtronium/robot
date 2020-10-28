@@ -325,7 +325,7 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 		tag := cfg.send
 		cfg.mu.Unlock()
 		if _, ok := emotes[tag.String]; !ok {
-			rows, err = b.db.QueryContext(ctx, `SELECT emote, weight FROM emotes WHERE tag=? OR tag IS NULL`, tag)
+			rows, err = b.db.QueryContext(ctx, `SELECT emote, SUM(weight) FROM emotes WHERE tag=? OR tag IS NULL GROUP BY emote`, tag)
 			if err != nil {
 				return fmt.Errorf("error getting emotes for %s: %w", name, err)
 			}
@@ -336,6 +336,9 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 				if err := rows.Scan(&opt.w, &opt.n); err != nil {
 					return fmt.Errorf("error reading emotes for %s: %w", name, err)
 				}
+				if opt.n <= 0 {
+					continue
+				}
 				opt.n, sum = opt.n+sum, opt.n+sum
 				opts = append(opts, opt)
 			}
@@ -345,7 +348,7 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 			if tag.Valid {
 				emotes[tag.String] = emopt{s: sum, e: opts}
 			}
-			rows, err = b.db.QueryContext(ctx, `SELECT effect, weight FROM effects WHERE tag=? OR tag IS NULL`, tag)
+			rows, err = b.db.QueryContext(ctx, `SELECT effect, SUM(weight) FROM effects WHERE tag=? OR tag IS NULL ORDER BY effect`, tag)
 			if err != nil {
 				return fmt.Errorf("error getting effects for %s: %w", name, err)
 			}
@@ -354,6 +357,9 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 				var opt optfreq
 				if err := rows.Scan(&opt.w, &opt.n); err != nil {
 					return fmt.Errorf("error reading effects for %s: %w", name, err)
+				}
+				if opt.n <= 0 {
+					continue
 				}
 				opt.n, sum = opt.n+sum, opt.n+sum
 				opts = append(opts, opt)
