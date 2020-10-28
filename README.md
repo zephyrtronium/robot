@@ -82,6 +82,7 @@ The command invocation is checked against the list of commands for which the use
 - `learn from me again` undoes `give me privacy`.
 - `generate something with starting chain` generates a message that starts with `starting chain`. (Nothing happens if the bot doesn't know anything to say from there.)
 - `uwu` genyewates an especiawwy uwu message.
+- `how are you?` AAAAAAAAA A AAAAAAA AAA AAAA AAAAAAAA AA AA AAAAA.
 
 If a command invocation doesn't match any command, it instead prompts Robot to speak.
 
