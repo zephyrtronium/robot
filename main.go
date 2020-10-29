@@ -185,6 +185,9 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			if eff != "" {
 				lg.Println("applying", eff, "to", m)
 				m = commands.Effect(eff, m)
+				if err := br.Said(ctx, msg.To(), m); err != nil {
+					lg.Println("error marking message as said:", err)
+				}
 			}
 			br.Wait(ctx, msg.To())
 			if echo := br.EchoTo(msg.To()); echo != "" {
