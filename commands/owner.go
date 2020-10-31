@@ -152,20 +152,85 @@ func listOwner(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<-
 }
 
 func debugChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
-	channel := matches[1]
-	if channel == "" {
-		channel = msg.To()
+	where := matches[2]
+	if where == "" {
+		where = msg.To()
 	}
-	status, block, privs := br.Debug(channel)
-	if status == "" {
-		selsend(ctx, br, send, msg.Reply(`@%s no such channel`, msg.Nick))
+	var status, block, privs string
+	var emotes, effects []string
+	var ss, sb, sp, se, sf bool
+	switch strings.ToLower(matches[1]) {
+	case "", "channel":
+		status, block, privs = br.Debug(where)
+		if status == "" {
+			selsend(ctx, br, send, msg.Reply("@%s no such channel %s", msg.Nick, where))
+			return
+		}
+		ss = true
+		sb = true
+		sp = true
+	case "tag":
+		emotes, effects = br.DebugTag(where)
+		if len(emotes) == 0 && len(effects) == 0 {
+			selsend(ctx, br, send, msg.Reply("@%s no such tag %s (or no emotes or effects)", msg.Nick, where))
+			return
+		}
+		se = true
+		sf = true
+	case "status":
+		status, _, _ = br.Debug(where)
+		if status == "" {
+			selsend(ctx, br, send, msg.Reply("@%s no such channel %s", msg.Nick, where))
+			return
+		}
+		ss = true
+	case "block":
+		_, block, _ = br.Debug(where)
+		if block == "" {
+			selsend(ctx, br, send, msg.Reply("@%s no such channel %s (or block is empty string)", msg.Nick, where))
+			return
+		}
+		sb = true
+	case "priv", "privs", "privilege", "privileges":
+		_, _, privs = br.Debug(where)
+		if privs == "" {
+			selsend(ctx, br, send, msg.Reply("@%s no such channel %s (or no privs if on terminal)", msg.Nick, where))
+			return
+		}
+		sp = true
+	case "emotes":
+		emotes, _ = br.DebugTag(where)
+		if len(emotes) == 0 {
+			selsend(ctx, br, send, msg.Reply("@%s no such tag %s (or no emotes)", msg.Nick, where))
+			return
+		}
+		se = true
+	case "effects":
+		_, effects = br.DebugTag(where)
+		if len(effects) == 0 {
+			selsend(ctx, br, send, msg.Reply("@%s no such tag %s (or no effects)", msg.Nick, where))
+			return
+		}
+		sf = true
+	default:
+		selsend(ctx, br, send, msg.Reply("@%s unhandled op %q??? unreachable", msg.Nick, matches[1]))
 		return
 	}
-	// Also print to stderr in case something is too long.
-	os.Stderr.WriteString(status + "\n" + block + "\n" + privs + "\n")
-	selsend(ctx, br, send, msg.Reply(`@%s status: %s`, msg.Nick, status))
-	selsend(ctx, br, send, msg.Reply(`@%s block: %s`, msg.Nick, block))
-	selsend(ctx, br, send, msg.Reply(`@%s privs: %s`, msg.Nick, privs))
+	if ss {
+		selsend(ctx, br, send, msg.Reply("@%s status: %s", msg.Nick, status))
+	}
+	if sb {
+		selsend(ctx, br, send, msg.Reply("@%s block: %s", msg.Nick, block))
+	}
+	if sp {
+		selsend(ctx, br, send, msg.Reply("@%s privs: %s", msg.Nick, privs))
+	}
+	if se {
+		selsend(ctx, br, send, msg.Reply("@%s emotes: %s", msg.Nick, emotes))
+	}
+	if sf {
+		selsend(ctx, br, send, msg.Reply("@%s effects: %s", msg.Nick, effects))
+	}
 }
 
 func testChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {

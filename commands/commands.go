@@ -223,9 +223,9 @@ func init() {
 		{
 			admin: false,
 			name:  "debug-chan",
-			re:    regexp.MustCompile(`(?i)^debug(?:\s+(?P<channel>\S+))?$`),
+			re:    regexp.MustCompile(`(?i)^debug(?:\s+(?P<op>|channel|tag|status|block|priv(?:ilege)?s?|emotes|effects)\s*(?:\sin\s|\sfor\s)?\s*(?P<channel>\S+))?$`),
 			f:     debugChan,
-			help:  `["debug" channel] Show status of a channel. Also prints to terminal.`,
+			help:  `["debug" {""|"channel"|"tag"|...}] Show status of a channel.`,
 		},
 		{
 			admin: false,

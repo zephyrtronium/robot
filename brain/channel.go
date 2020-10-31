@@ -534,3 +534,31 @@ func (b *Brain) Debug(channel string) (status, block, privs string) {
 	privs = fmt.Sprint(cfg.privs)
 	return status, block, privs
 }
+
+// DebugTag returns lists of emotes and effects for a send tag. If the tag is
+// not used for any channel, the results are empty.
+func (b *Brain) DebugTag(tag string) (emotes, effects []string) {
+	b.emu.Lock()
+	em := b.emotes[tag]
+	b.emu.Unlock()
+	b.fmu.Lock()
+	ef := b.effects[tag]
+	b.fmu.Unlock()
+	emotes = make([]string, 0, len(em.e))
+	effects = make([]string, 0, len(ef.e))
+	for _, v := range em.e {
+		if v.w.Valid {
+			emotes = append(emotes, fmt.Sprintf("%q %d", v.w.String, v.n))
+		} else {
+			emotes = append(emotes, fmt.Sprintf("NULL %d", v.n))
+		}
+	}
+	for _, v := range ef.e {
+		if v.w.Valid {
+			effects = append(effects, fmt.Sprintf("%q %d", v.w.String, v.n))
+		} else {
+			effects = append(effects, fmt.Sprintf("NULL %d", v.n))
+		}
+	}
+	return emotes, effects
+}
