@@ -348,7 +348,7 @@ func (b *Brain) hupPrivs(ctx context.Context) error {
 			if tag.Valid {
 				emotes[tag.String] = emopt{s: sum, e: opts}
 			}
-			rows, err = b.db.QueryContext(ctx, `SELECT effect, SUM(weight) FROM effects WHERE tag=? OR tag IS NULL ORDER BY effect`, tag)
+			rows, err = b.db.QueryContext(ctx, `SELECT effect, SUM(weight) FROM effects WHERE tag=? OR tag IS NULL GROUP BY effect`, tag)
 			if err != nil {
 				return fmt.Errorf("error getting effects for %s: %w", name, err)
 			}
@@ -433,7 +433,7 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 	if rows.Err() != nil {
 		return fmt.Errorf("error getting privileges: %w", rows.Err())
 	}
-	rows, err = tx.QueryContext(ctx, `SELECT emote, weight FROM emotes WHERE tag=? OR tag IS NULL`, cfg.send)
+	rows, err = tx.QueryContext(ctx, `SELECT emote, SUM(weight) FROM emotes WHERE tag=? OR tag IS NULL GROUP BY emote`, cfg.send)
 	if err != nil {
 		return fmt.Errorf("error getting emotes: %w", err)
 	}
@@ -449,7 +449,7 @@ func (b *Brain) Update(ctx context.Context, channel string) error {
 	if rows.Err() != nil {
 		return fmt.Errorf("error getting emotes: %w", rows.Err())
 	}
-	rows, err = tx.QueryContext(ctx, `SELECT effect, weight FROM effects WHERE tag=? OR tag IS NULL`, cfg.send)
+	rows, err = tx.QueryContext(ctx, `SELECT effect, SUM(weight) FROM effects WHERE tag=? OR tag IS NULL GROUP BY effect`, cfg.send)
 	if err != nil {
 		return fmt.Errorf("error getting effects: %w", err)
 	}
