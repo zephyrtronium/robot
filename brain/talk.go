@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/zephyrtronium/robot/irc"
 )
@@ -69,7 +70,7 @@ func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) str
 		if w == "" || err != nil {
 			break
 		}
-		if l += len(w) + 1; l > n {
+		if l += utf8.RuneCountInString(w) + 1; l > n {
 			break
 		}
 		chain = append(chain, w)
