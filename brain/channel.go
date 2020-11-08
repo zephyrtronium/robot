@@ -227,6 +227,18 @@ func (b *Brain) Wait(ctx context.Context, channel string) {
 	}
 }
 
+// SendTag gets the send tag associated with the given channel. The second
+// returned value is false when the channel has no tag.
+func (b *Brain) SendTag(channel string) (string, bool) {
+	cfg := b.config(channel)
+	if cfg == nil {
+		return "", false
+	}
+	cfg.mu.Lock()
+	defer cfg.mu.Unlock()
+	return cfg.send.String, cfg.send.Valid
+}
+
 func (b *Brain) config(channel string) *chancfg {
 	b.cmu.Lock()
 	defer b.cmu.Unlock()

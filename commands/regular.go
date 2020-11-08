@@ -92,7 +92,11 @@ func AAAAA(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc
 		lg.Println("won't talk:", err)
 		return
 	}
-	m := br.TalkIn(ctx, msg.To(), nil)
+	tag, ok := br.SendTag(msg.To())
+	if !ok {
+		return
+	}
+	m := br.Talk(ctx, tag, nil, 40)
 	if m == "" {
 		return
 	}
@@ -102,6 +106,7 @@ func AAAAA(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc
 		}
 		return r
 	}, m)
+	// m = aaaaaRe.ReplaceAllString(m, "${1}H!")
 	if err := br.Said(ctx, msg.To(), m); err != nil {
 		lg.Println("error marking message as said:", err)
 	}
@@ -110,6 +115,8 @@ func AAAAA(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc
 	}
 	selsend(ctx, br, send, msg.Reply("%s", m))
 }
+
+// var aaaaaRe = regexp.MustCompile(`\b(A+)AA\b`)
 
 // doEcho writes a message as a file to echo.
 func doEcho(ctx context.Context, lg *log.Logger, msg, echo, channel string) {
