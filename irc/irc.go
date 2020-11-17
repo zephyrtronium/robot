@@ -451,7 +451,7 @@ func scanField(scan io.RuneScanner, stage string, limit int) (field string, err 
 		b strings.Builder
 		r rune
 	)
-	for i := 0; i < ircLimit; i++ {
+	for i := 0; i < limit; i++ {
 		r, _, err = scan.ReadRune()
 		if err != nil {
 			return b.String(), err
