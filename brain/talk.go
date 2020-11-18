@@ -110,7 +110,6 @@ func (b *Brain) think(ctx context.Context, think []*sql.Stmt, args []interface{}
 			b.opts.Put(opts[:0])
 		}
 	}()
-	args = append([]interface{}{}, args...) // preserve args
 	for i, s := range think {
 		rows, err := s.QueryContext(ctx, args...)
 		if err != nil {
