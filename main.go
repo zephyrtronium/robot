@@ -136,17 +136,44 @@ func loop(ctx context.Context, wg *sync.WaitGroup, br *brain.Brain, send, recv c
 			case "NOTICE":
 				// nothing yet
 			case "CLEARCHAT":
-				if err := br.ClearChat(ctx, msg.To(), msg.Nick); err != nil {
-					lg.Println("error clearing chat:", err)
-				}
+				// Delay forgetting messages to ensure that we finish learning
+				// before removing what is learned.
+				go func(msg irc.Message) {
+					select {
+					case <-ctx.Done():
+						// It's more important to clear the message than to
+						// shutdown quickly.
+						br.ClearChat(context.Background(), msg.To(), msg.Nick)
+						return
+					case <-time.After(time.Second): // do nothing
+					}
+					if err := br.ClearChat(ctx, msg.To(), msg.Nick); err != nil {
+						lg.Println("error clearing chat:", err)
+					} else {
+						lg.Println("cleared messages due to", msg.Text())
+					}
+				}(msg)
 			case "CLEARMSG":
 				id, ok := msg.Tag("target-message-id")
 				if !ok {
 					lg.Println("??? CLEARMSG with no target-message-id")
+					break
 				}
-				if err := br.ClearMsg(ctx, id); err != nil {
-					lg.Println("error clearing message:", err)
-				}
+				go func(id string) {
+					select {
+					case <-ctx.Done():
+						// It's more important to clear the message than to
+						// shutdown quickly.
+						br.ClearMsg(context.Background(), id)
+						return
+					case <-time.After(time.Second): // do nothing
+					}
+					if err := br.ClearMsg(ctx, id); err != nil {
+						lg.Println("error clearing message:", err)
+					} else {
+						lg.Println("cleared message with id", id)
+					}
+				}(id)
 			case "HOSTTARGET":
 				// nothing yet
 			case "USERSTATE":
