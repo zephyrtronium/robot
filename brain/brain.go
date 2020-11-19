@@ -409,7 +409,11 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 	stmts.think = make([]*sql.Stmt, 0, order)
 	for i := 0; i < order-1; i++ {
 		var b strings.Builder
-		fmt.Fprintf(&b, "SELECT DISTINCT suffix, COUNT(*)+%d FROM tuples%d WHERE tag=?", order-i, order)
+		w := order
+		if order-i <= 2 {
+			w = 0
+		}
+		fmt.Fprintf(&b, "SELECT DISTINCT suffix, COUNT(*)+%d FROM tuples%d WHERE tag=?", w, order)
 		writeTupleMatch(&b, order, i)
 		b.WriteString(" GROUP BY suffix;")
 		s, err := db.PrepareContext(ctx, b.String())
