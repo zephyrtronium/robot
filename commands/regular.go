@@ -141,27 +141,27 @@ func source(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- ir
 	selsend(ctx, br, send, msg.Reply(`@%s My source code is at https://github.com/zephyrtronium/robot – `+
 		`I'm written in Go leveraging SQLite3, `+
 		`and I'm free, open-source software licensed `+
-		`under the GNU General Public License, Version 3.`, msg.Nick))
+		`under the GNU General Public License, Version 3.`, msg.DisplayName()))
 }
 
 func givePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", "privacy"); err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.Nick))
+	selsend(ctx, br, send, msg.Reply(`@%s got it, I won't record any of your messages.`, msg.DisplayName()))
 }
 
 func removePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	who := strings.ToLower(msg.Nick)
 	if err := br.SetPriv(ctx, who, "", ""); err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s got it, I'll learn from your messages again.`, msg.Nick))
+	selsend(ctx, br, send, msg.Reply(`@%s got it, I'll learn from your messages again.`, msg.DisplayName()))
 }
 
 func describePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
-	selsend(ctx, br, send, msg.Reply(`@%s see here for info about what information I collect, and how to opt out of all collection: https://github.com/zephyrtronium/robot#what-information-does-robot-store`, msg.Nick))
+	selsend(ctx, br, send, msg.Reply(`@%s see here for info about what information I collect, and how to opt out of all collection: https://github.com/zephyrtronium/robot#what-information-does-robot-store`, msg.DisplayName()))
 }

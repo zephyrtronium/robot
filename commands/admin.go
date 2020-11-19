@@ -33,7 +33,7 @@ import (
 func help(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	cmd := findcmd(matches[1])
 	if cmd == nil {
-		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s couldn't find a command named %q`, msg.Nick, matches[1])))
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s couldn't find a command named %q`, msg.DisplayName(), matches[1])))
 		return
 	}
 	selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), cmd.help))
@@ -42,7 +42,7 @@ func help(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 func invocation(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	cmd := findcmd(matches[1])
 	if cmd == nil {
-		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s couldn't find a command named %q`, msg.Nick, matches[1])))
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s couldn't find a command named %q`, msg.DisplayName(), matches[1])))
 		return
 	}
 	selsend(ctx, br, send, msg.Reply("%s", cmd.re.String()))
@@ -61,9 +61,9 @@ func list(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 func forget(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	n, err := br.ClearPattern(ctx, msg.To(), matches[1])
 	if err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s an error occurred while trying to forget: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s an error occurred while trying to forget: %v`, msg.DisplayName(), err))
 	}
-	selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s deleted %d messages!`, msg.Nick, n)))
+	selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s deleted %d messages!`, msg.DisplayName(), n)))
 }
 
 func silence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -87,7 +87,7 @@ func silence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- i
 		if m := silenceNHrs.FindStringSubmatch(matches[1]); m != nil {
 			n, err := strconv.Atoi(m[1])
 			if err != nil {
-				selsend(ctx, br, send, msg.Reply(`@%s sorry? (%v)`, msg.Nick, err))
+				selsend(ctx, br, send, msg.Reply(`@%s sorry? (%v)`, msg.DisplayName(), err))
 				return
 			}
 			until = msg.Time.Add(time.Duration(n) * time.Hour)
@@ -96,7 +96,7 @@ func silence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- i
 		if m := silenceNMin.FindStringSubmatch(matches[1]); m != nil {
 			n, err := strconv.Atoi(m[1])
 			if err != nil {
-				selsend(ctx, br, send, msg.Reply(`@%s sorry? (%v)`, msg.Nick, err))
+				selsend(ctx, br, send, msg.Reply(`@%s sorry? (%v)`, msg.DisplayName(), err))
 				return
 			}
 			until = msg.Time.Add(time.Duration(n) * time.Minute)
@@ -104,7 +104,7 @@ func silence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- i
 		}
 		dur, err := time.ParseDuration(matches[1])
 		if err != nil {
-			selsend(ctx, br, send, msg.Reply(`@%s sorry? (%v)`, msg.Nick, err))
+			selsend(ctx, br, send, msg.Reply(`@%s sorry? (%v)`, msg.DisplayName(), err))
 			return
 		}
 		until = msg.Time.Add(dur)
@@ -112,17 +112,17 @@ func silence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- i
 	if until.After(msg.Time.Add(12*time.Hour + time.Second)) {
 		err := br.Silence(ctx, msg.To(), msg.Time.Add(12*time.Hour))
 		if err != nil {
-			selsend(ctx, br, send, msg.Reply(`@%s error setting silence: %v`, msg.Nick, err))
+			selsend(ctx, br, send, msg.Reply(`@%s error setting silence: %v`, msg.DisplayName(), err))
 			return
 		}
-		selsend(ctx, br, send, msg.Reply(`@%s silent for 12h. If you really need longer, contact the bot owner.`, msg.Nick))
+		selsend(ctx, br, send, msg.Reply(`@%s silent for 12h. If you really need longer, contact the bot owner.`, msg.DisplayName()))
 		return
 	}
 	if err := br.Silence(ctx, msg.To(), until); err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s error setting silence: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s error setting silence: %v`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s I won't randomly talk or learn for %v`, msg.Nick, until.Sub(msg.Time)))
+	selsend(ctx, br, send, msg.Reply(`@%s I won't randomly talk or learn for %v`, msg.DisplayName(), until.Sub(msg.Time)))
 }
 
 var (
@@ -134,39 +134,39 @@ var (
 
 func unsilence(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if err := br.Silence(ctx, msg.To(), time.Time{}); err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s error removing silence: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s error removing silence: %v`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s thanks for letting me talk again!`, msg.Nick))
+	selsend(ctx, br, send, msg.Reply(`@%s thanks for letting me talk again!`, msg.DisplayName()))
 }
 
 func tooActive(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := br.Activity(ctx, msg.To(), func(x float64) float64 { return x / 2 })
 	if err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s error setting activity: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s error setting activity: %v`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s response rate set to %g%%`, msg.Nick, p*100))
+	selsend(ctx, br, send, msg.Reply(`@%s response rate set to %g%%`, msg.DisplayName(), p*100))
 }
 
 func setProb(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := strconv.ParseFloat(matches[1], 64)
 	if err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err))
+		selsend(ctx, br, send, msg.Reply(`@%s didn't understand %s: %v`, msg.DisplayName(), matches[1], err))
 		return
 	}
 	p *= 0.01 // always use percentages
 	if _, err := br.Activity(ctx, msg.To(), func(float64) float64 { return p }); err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s error setting activity: %v`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s error setting activity: %v`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s response rate set to %g%%!`, msg.Nick, p*100))
+	selsend(ctx, br, send, msg.Reply(`@%s response rate set to %g%%!`, msg.DisplayName(), p*100))
 }
 
 func multigen(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	n, err := strconv.Atoi(matches[1])
 	if err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s didn't understand %s: %v`, msg.Nick, matches[1], err))
+		selsend(ctx, br, send, msg.Reply(`@%s didn't understand %s: %v`, msg.DisplayName(), matches[1], err))
 		return
 	}
 	if n <= 0 {
@@ -190,27 +190,27 @@ func raid(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 }
 
 func givePrivacyAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
-	who := strings.ToLower(msg.Nick)
+	who := strings.ToLower(msg.DisplayName())
 	if !strings.HasPrefix(msg.To(), "#") {
-		selsend(ctx, br, send, msg.Reply(`@%s sorry, I can't modify your privileges in whispers. Contact the bot owner for help.`, msg.Nick))
+		selsend(ctx, br, send, msg.Reply(`@%s sorry, I can't modify your privileges in whispers. Contact the bot owner for help.`, msg.DisplayName()))
 		return
 	}
 	if err := br.SetPriv(ctx, who, msg.To(), "bot"); err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s got it, I won't record any of your messages in %s.`, msg.Nick, msg.To()))
+	selsend(ctx, br, send, msg.Reply(`@%s got it, I won't record any of your messages in %s.`, msg.DisplayName(), msg.To()))
 }
 
 func removePrivacyAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
-	who := strings.ToLower(msg.Nick)
+	who := strings.ToLower(msg.DisplayName())
 	if !strings.HasPrefix(msg.To(), "#") {
-		selsend(ctx, br, send, msg.Reply(`@%s sorry, I can't modify your privileges in whispers. Contact the bot owner for help.`, msg.Nick))
+		selsend(ctx, br, send, msg.Reply(`@%s sorry, I can't modify your privileges in whispers. Contact the bot owner for help.`, msg.DisplayName()))
 		return
 	}
 	if err := br.SetPriv(ctx, who, msg.To(), "admin"); err != nil {
-		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.Nick, err))
+		selsend(ctx, br, send, msg.Reply(`@%s an error occurred: %v. Contact the bot owner for help.`, msg.DisplayName(), err))
 		return
 	}
-	selsend(ctx, br, send, msg.Reply(`@%s got it, I'll learn from your messages in %s again.`, msg.Nick, msg.To()))
+	selsend(ctx, br, send, msg.Reply(`@%s got it, I'll learn from your messages in %s again.`, msg.DisplayName(), msg.To()))
 }
