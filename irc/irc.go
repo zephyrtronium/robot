@@ -191,6 +191,16 @@ func (m Message) To() string {
 	return m.Params[0]
 }
 
+// DisplayName returns a display name for the message sender. If the message
+// has a non-empty display-name tag, then this returns that; otherwise, it
+// returns the sender's nick.
+func (m Message) DisplayName() string {
+	if n, _ := m.Tag("display-name"); n != "" {
+		return n
+	}
+	return m.Nick
+}
+
 // Sender is a message Sender. It may represent a user or server.
 type Sender struct {
 	// Nick is the nickname of the user who produced the message, or the

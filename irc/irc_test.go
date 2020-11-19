@@ -547,3 +547,22 @@ func TestBadges(t *testing.T) {
 		})
 	}
 }
+
+func TestDisplayName(t *testing.T) {
+	cases := []struct {
+		name string
+		msg  irc.Message
+		n    string
+	}{
+		{"none", irc.Message{Tags: "", Sender: irc.Sender{Nick: "nick"}}, "nick"},
+		{"empty", irc.Message{Tags: "display-name=", Sender: irc.Sender{Nick: "nick"}}, "nick"},
+		{"provided", irc.Message{Tags: "display-name=NICK", Sender: irc.Sender{Nick: "nick"}}, "NICK"},
+	}
+	for _, c := range cases {
+		t.Run(c.msg.Tags, func(t *testing.T) {
+			if got := c.msg.DisplayName(); got != c.n {
+				t.Errorf("wrong display name: want %q, got %q", c.n, got)
+			}
+		})
+	}
+}
