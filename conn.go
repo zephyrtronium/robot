@@ -116,7 +116,6 @@ func connSender(ctx context.Context, cancel context.CancelFunc, config connectCo
 	for {
 		select {
 		case <-ctx.Done():
-			cancel()
 			lg.Println("sender: context closed")
 			go write("QUIT :goodbye") // error doesn't matter
 			return
