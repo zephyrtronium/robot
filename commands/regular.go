@@ -23,6 +23,7 @@ import (
 	"log"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/irc"
@@ -34,6 +35,22 @@ func talk(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 		return
 	}
 	with := strings.TrimSpace(matches[1])
+	chk := func() bool {
+		if len(with) <= 1 {
+			return false
+		}
+		if with[0] != '/' && with[0] != '.' {
+			return false
+		}
+		if r, _ := utf8.DecodeRuneInString(with[1:]); !unicode.IsLetter(r) {
+			return false
+		}
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), "no"))
+		return true
+	}
+	if chk() {
+		return
+	}
 	toks := brain.Tokens(with)
 	m := br.TalkIn(ctx, msg.To(), toks)
 	if m == "" {
