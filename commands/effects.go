@@ -1,5 +1,7 @@
 package commands
 
+import "strings"
+
 // Effect applies a named effect to a message.
 func Effect(effect, msg string) string {
 	f := effects[effect]
@@ -16,6 +18,7 @@ func init() {
 		"uwu": uwuEffect,
 		// "AAAAA": aaaaaEffect,
 		"me": meEffect,
+		"o":  oEffect,
 	}
 }
 
@@ -37,3 +40,12 @@ func uwuEffect(s string) string {
 func meEffect(s string) string {
 	return "\x01ACTION " + s + "\x01"
 }
+
+func oEffect(s string) string {
+	return oRep.Replace(s)
+}
+
+var oRep = strings.NewReplacer(
+	"a", "o", "e", "o", "i", "o", "u", "o",
+	"A", "O", "E", "O", "I", "O", "U", "O",
+)
