@@ -372,6 +372,13 @@ func init() {
 			f:    describePrivacy,
 			help: `["what info do you collect?"] Link information about user privacy.`,
 		},
+		{
+			admin: true, regular: true,
+			name: "roar",
+			re:   regexp.MustCompile(`(?i)^(?:r+o+a+r+|r+a+w+r+)[.!¡]*$`),
+			f:    roar,
+			help: `["roar"] Rooooaaaaaarrrrrrrrr.`,
+		},
 		// talk-catchall MUST be last
 		{
 			admin: true, regular: true,

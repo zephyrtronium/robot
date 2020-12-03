@@ -123,7 +123,6 @@ func AAAAA(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc
 		}
 		return r
 	}, m)
-	// m = aaaaaRe.ReplaceAllString(m, "${1}H!")
 	if err := br.Said(ctx, msg.To(), m); err != nil {
 		lg.Println("error marking message as said:", err)
 	}
@@ -132,8 +131,6 @@ func AAAAA(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc
 	}
 	selsend(ctx, br, send, msg.Reply("%s", m))
 }
-
-// var aaaaaRe = regexp.MustCompile(`\b(A+)AA\b`)
 
 // doEcho writes a message as a file to echo.
 func doEcho(ctx context.Context, lg *log.Logger, msg, echo, channel string) {
@@ -181,4 +178,11 @@ func removePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send ch
 
 func describePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	selsend(ctx, br, send, msg.Reply(`@%s see here for info about what information I collect, and how to opt out of all collection: https://github.com/zephyrtronium/robot#what-information-does-robot-store`, msg.DisplayName()))
+}
+
+func roar(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	if err := br.ShouldTalk(ctx, msg, false); err != nil {
+		lg.Println("won't talk:", err)
+	}
+	selsend(ctx, br, send, msg.Reply("rawr ;3"))
 }
