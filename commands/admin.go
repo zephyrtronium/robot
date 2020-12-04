@@ -149,6 +149,15 @@ func tooActive(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<-
 	selsend(ctx, br, send, msg.Reply(`@%s response rate set to %g%%`, msg.DisplayName(), p*100))
 }
 
+func moreActive(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	p, err := br.Activity(ctx, msg.To(), func(x float64) float64 { return x + 0.01 })
+	if err != nil {
+		selsend(ctx, br, send, msg.Reply(`@%s error setting activity: %v`, msg.DisplayName(), err))
+		return
+	}
+	selsend(ctx, br, send, msg.Reply(`@%s response rate set to %g%%`, msg.DisplayName(), p*100))
+}
+
 func setProb(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	p, err := strconv.ParseFloat(matches[1], 64)
 	if err != nil {

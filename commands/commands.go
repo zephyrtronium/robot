@@ -288,6 +288,13 @@ func init() {
 		},
 		{
 			admin: true,
+			name:  "more-active",
+			re:    regexp.MustCompile(`(?i)^(?:(?:you'?re?|you\s+are|u\s*r)\s+not\s+(?:active|speaking|talkative)(?:\s+enough)?|(?:speak|talk)\s+more(?:\s+often|frequently)?)$`),
+			f:     moreActive,
+			help:  `["speak more"] Increase the random response rate.`,
+		},
+		{
+			admin: true,
 			name:  "set-prob",
 			re:    regexp.MustCompile(`(?i)^(?:set\s+)?(?:(?:rand(?:om)\s+)?response\s+)?(?:prob(?:ability)?|rate)\s+(?:to\s+)?(?P<prob>[0-9.]+)%?$`),
 			f:     setProb,
