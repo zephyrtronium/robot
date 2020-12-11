@@ -77,6 +77,9 @@ func main() {
 		log.Println("configuring global privileges")
 		gprivs(ctx, br, config.Privs)
 	}
+
+	br.Close()
+	log.Println("all done")
 }
 
 func uchan(ctx context.Context, br *brain.Brain, channel string, cfg channel) {
