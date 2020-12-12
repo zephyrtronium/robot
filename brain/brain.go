@@ -128,6 +128,16 @@ type statements struct {
 	// expunges in a Tx. Also, recall that a trigger deletes all messages older
 	// than fifteen minutes upon insertion into history.
 	historySince *sql.Stmt
+	// memeDetector is the statement to detect repeated messages from history.
+	// The parameters are the channel and the message text. This statement
+	// should be used with QueryRow. The result is whether it's a meme.
+	memeDetector *sql.Stmt
+	// copypasta is the statement to add a message to meme history, as well as
+	// deleting old memes. Its arguments are the new message timestamp, the
+	// channel where the message was sent, and the message text. This statement
+	// should be expected to fail due to uniqueness constraint violations,
+	// which indicate a duplicate copypasta. It should be used with Exec.
+	copypasta *sql.Stmt
 	// forget is the statement to delete tuples from the DB. First parameter is
 	// is the tag, then (order+1) more for the tuple and suffix. This statement
 	// should be used with Exec in a Tx with expunge.
@@ -294,6 +304,11 @@ CREATE TABLE IF NOT EXISTS chans (
 	silence	DATETIME, -- never try to talk before this time if non-null
 	echo	BOOLEAN NOT NULL DEFAULT FALSE -- whether to allow echoing messages
 );
+CREATE TABLE IF NOT EXISTS copypasta (
+	chan	TEXT PRIMARY KEY,
+	min		INTEGER, -- minimum number of matches to decide a message is a meme
+	lim		INTEGER NOT NULL DEFAULT 0 CHECK (lim BETWEEN 0 AND 900) -- seconds to limit meme detection
+);
 CREATE TABLE IF NOT EXISTS privs (
 	user	TEXT NOT NULL, -- username to which this priv applies
 	chan	TEXT, -- null means this priv applies everywhere
@@ -313,6 +328,12 @@ CREATE TABLE IF NOT EXISTS generated (
 	time	DATETIME NOT NULL, -- timestamp of generated message
 	tag		TEXT NOT NULL, -- send tag sent to
 	msg		TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS memes (
+	time	DATETIME NOT NULL, -- timestamp of copypasted message
+	chan	TEXT NOT NULL, -- channel copypasted
+	msg		TEXT NOT NULL, -- copypasta text
+	UNIQUE(chan, msg)
 );
 CREATE TABLE IF NOT EXISTS quotes (
 	id		INTEGER PRIMARY KEY ASC, -- quote id number
@@ -340,6 +361,7 @@ CREATE TABLE IF NOT EXISTS audit (
 );
 CREATE INDEX IF NOT EXISTS history_id_index ON history(tid);
 CREATE INDEX IF NOT EXISTS history_senderh_index ON history(chan, senderh);
+CREATE INDEX IF NOT EXISTS memes_msg_index ON memes(chan, msg);
 CREATE TRIGGER IF NOT EXISTS history_limit AFTER INSERT ON history BEGIN
 	DELETE FROM history WHERE strftime('%s', time) < strftime('%s', 'now', '-15 minutes');
 END;
@@ -348,6 +370,9 @@ CREATE TRIGGER IF NOT EXISTS generated_limit AFTER INSERT ON generated BEGIN
 END;
 CREATE TRIGGER IF NOT EXISTS audit_limit AFTER INSERT ON audit BEGIN
 	DELETE FROM audit WHERE strftime('%s', time) < strftime('%s', 'now', '-7 days');
+END;
+CREATE TRIGGER IF NOT EXISTS meme_limit BEFORE INSERT ON memes BEGIN
+	DELETE FROM memes WHERE strftime('%s', time) < strftime('%s', new.time, '-15 minutes');
 END;
 `
 
@@ -426,7 +451,7 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 	if err != nil {
 		panic(err)
 	}
-	stmts.familiar, err = db.PrepareContext(ctx, `SELECT COUNT(*) FROM generated WHERE tag=? AND ? GLOB msg || '*'`)
+	stmts.familiar, err = db.PrepareContext(ctx, `SELECT COUNT(*) FROM generated WHERE (tag=?1 OR ?1 IS NULL) AND ?2 GLOB msg || '*'`)
 	if err != nil {
 		panic(err)
 	}
@@ -443,6 +468,14 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 		panic(err)
 	}
 	stmts.historySince, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND strftime('%s', time) >= strftime('%s', ?)`)
+	if err != nil {
+		panic(err)
+	}
+	stmts.memeDetector, err = db.PrepareContext(ctx, `SELECT COUNT(DISTINCT history.senderh) >= copypasta.min FROM (history LEFT JOIN copypasta USING(chan)) WHERE chan=? AND strftime('%s', history.time) >= strftime('%s', 'now', '-' || copypasta.lim || ' seconds') AND history.msg=?`)
+	if err != nil {
+		panic(err)
+	}
+	stmts.copypasta, err = db.PrepareContext(ctx, `INSERT INTO memes(time, chan, msg) VALUES (strftime('%s', ?), ?, ?)`)
 	if err != nil {
 		panic(err)
 	}

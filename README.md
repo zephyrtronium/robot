@@ -175,6 +175,10 @@ Robot's database tables are:
 	+ `me` - bot's username, used as nick
 	+ `pfix` - Markov chain order, as described [above](#how-robot-works)
 	+ `block` - regular expression matching messages to block
+- `copypasta` - copypasta detection configuration
+	+ `chan` - channel to which this configuration applies
+	+ `min` - number of messages required to trigger copypasta detection
+	+ `lim` - time in seconds to consider messages for copypasta
 - `effects` - global and per-channel effects to apply to messages
 	+ `tag` - send tag where used, or everywhere if null
 	+ `effect` - effect name, see [above](#effects)
@@ -194,6 +198,10 @@ Robot's database tables are:
 	+ `chan` - channel received in
 	+ `tag` - tag used to learn the message
 	+ `msg` - message text
+- `memes` - copypasta messages in the last fifteen minutes
+	+ `time` - timestamp of copypaste
+	+ `chan` - channel message was copypasted in
+	+ `msg` - copypasta message text
 - `privs` - global and per-channel user priviliges
 	+ `user` - username receiving this privilege
 	+ `chan` - channel where applicable, or NULL if a global default

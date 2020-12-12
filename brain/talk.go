@@ -20,6 +20,7 @@ package brain
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -311,3 +312,50 @@ func (b *Brain) doEcho(tag, dir, msg string) {
 	f.WriteString(msg)
 	f.Close()
 }
+
+// CheckCopypasta returns nil if the message is copypasta that the bot should
+// repeat, considering channel settings and whether the bot has already
+// copypasted it, or an error explaining why the bot should not repeat it.
+func (b *Brain) CheckCopypasta(ctx context.Context, msg irc.Message) error {
+	if msg.Command != "PRIVMSG" {
+		return fmt.Errorf("message not PRIVMSG")
+	}
+	tx, err := b.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("unable to open transaction: %w", err)
+	}
+	defer tx.Commit()
+	var ok sql.NullBool
+	res := tx.StmtContext(ctx, b.stmts.memeDetector).QueryRowContext(ctx, msg.To(), msg.Trailing)
+	if err := res.Scan(&ok); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return NoCopypasta
+		}
+		return fmt.Errorf("error checking message for copypasta: %w", err)
+	}
+	if !ok.Bool {
+		return NoCopypasta
+	}
+	var n int64
+	res = tx.StmtContext(ctx, b.stmts.familiar).QueryRowContext(ctx, nil, msg.Trailing)
+	if err := res.Scan(&n); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("error checking generated messages for copypasta: %w", err)
+	}
+	if n > 0 {
+		return NoCopypasta
+	}
+	if _, err := tx.StmtContext(ctx, b.stmts.copypasta).ExecContext(ctx, msg.Time, msg.To(), msg.Trailing); err != nil {
+		return fmt.Errorf("error reserving copypasta: %w", err)
+	}
+	return nil
+}
+
+type noCopypasta struct{}
+
+func (noCopypasta) Error() string {
+	return "not copypasta"
+}
+
+// NoCopypasta is a sentinel error returned by CheckCopypasta to indicate that
+// a message is not a meme for a generic reason.
+var NoCopypasta = noCopypasta{}
