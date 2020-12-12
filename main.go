@@ -22,6 +22,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"io/ioutil"
 	"log"
@@ -205,6 +206,15 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			return nil
 		}
 	}
+	// // roughly a special case of planned copypasta feature, requested in advance
+	// if msg.Trailing == "Jam check catJAM" {
+	// 	if err := br.ShouldTalk(ctx, msg, false); err != nil {
+	// 		lg.Println("won't jam:", err)
+	// 		return nil
+	// 	}
+	// 	send <- msg.Reply("catJAM")
+	// 	return nil
+	// }
 	if br.ShouldTalk(ctx, msg, true) == nil {
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {
@@ -225,6 +235,19 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 	}
 	if err := br.Learn(ctx, msg); err != nil {
 		lg.Println("error learning message:", err)
+	}
+	if err := br.CheckCopypasta(ctx, msg); err != nil {
+		if !errors.Is(err, brain.NoCopypasta) {
+			lg.Println(err)
+			return nil
+		}
+	} else {
+		// This message is copypasta.
+		if err := br.ShouldTalk(ctx, msg, false); err != nil {
+			lg.Println("won't copypasta:", err)
+			return nil
+		}
+		send <- msg.Reply("%s", msg.Trailing)
 	}
 	return nil
 }
