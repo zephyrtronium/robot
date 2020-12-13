@@ -43,34 +43,46 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 	tag := cfg.learn.String
 	cfg.mu.Unlock()
 	toks := Tokens(msg.Trailing)
-	if len(toks) == 0 {
-		return nil
-	}
-	args := make([]interface{}, b.order+2)
-	args[0] = tag
-	tx, err := b.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("error opening transaction: %w", err)
-	}
-	s := tx.StmtContext(ctx, b.stmts.learn)
-	for _, tok := range toks {
+	var tx *sql.Tx
+	var err error
+	switch len(toks) {
+	case 0:
+		return tx.Commit()
+	case 1:
+		// We don't want to learn from messages with only one token because
+		// they're generally boring, but we still want them to be added to
+		// history so that they can be used for copypasta.
+		tx, err = b.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("error opening transaction: %w", err)
+		}
+	default:
+		args := make([]interface{}, b.order+2)
+		args[0] = tag
+		tx, err = b.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("error opening transaction: %w", err)
+		}
+		s := tx.StmtContext(ctx, b.stmts.learn)
+		for _, tok := range toks {
+			copy(args[1:], args[2:])
+			args[len(args)-1] = tok
+			if _, err := s.ExecContext(ctx, args...); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("error learning %+v: %w", args, err)
+			}
+			// While we still have the token easily available, make it lowercase.
+			// On the next iteration, or after this loop if this is the last one,
+			// it will be copied into the prefix tuple.
+			args[len(args)-1] = strings.ToLower(tok)
+		}
+		// Add a final tuple for the end of walk.
 		copy(args[1:], args[2:])
-		args[len(args)-1] = tok
+		args[len(args)-1] = nil
 		if _, err := s.ExecContext(ctx, args...); err != nil {
 			tx.Rollback()
-			return fmt.Errorf("error learning %+v: %w", args, err)
+			return fmt.Errorf("error learning end-of-message %+v: %w", args, err)
 		}
-		// While we still have the token easily available, make it lowercase.
-		// On the next iteration, or after this loop if this is the last one,
-		// it will be copied into the prefix tuple.
-		args[len(args)-1] = strings.ToLower(tok)
-	}
-	// Add a final tuple for the end of walk.
-	copy(args[1:], args[2:])
-	args[len(args)-1] = nil
-	if _, err := s.ExecContext(ctx, args...); err != nil {
-		tx.Rollback()
-		return fmt.Errorf("error learning end-of-message %+v: %w", args, err)
 	}
 	// Add the message to history.
 	h := UserHash(channel, msg.Nick)

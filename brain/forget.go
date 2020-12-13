@@ -189,6 +189,11 @@ func (b *Brain) ClearSince(ctx context.Context, channel string, since time.Time)
 func (b *Brain) forget(ctx context.Context, s *sql.Stmt, tag, msg string) error {
 	// This is essentially the same as Learn, just using a different statement.
 	toks := Tokens(msg)
+	if len(toks) <= 1 {
+		// We never learn from messages with only one token, so don't try to
+		// unlearn them either.
+		return nil
+	}
 	args := make([]interface{}, b.order+2)
 	args[0] = tag
 	for _, tok := range toks {
