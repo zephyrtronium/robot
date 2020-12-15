@@ -372,7 +372,7 @@ CREATE TRIGGER IF NOT EXISTS audit_limit AFTER INSERT ON audit BEGIN
 	DELETE FROM audit WHERE strftime('%s', time) < strftime('%s', 'now', '-7 days');
 END;
 CREATE TRIGGER IF NOT EXISTS meme_limit BEFORE INSERT ON memes BEGIN
-	DELETE FROM memes WHERE strftime('%s', time) < strftime('%s', new.time, '-15 minutes');
+	DELETE FROM memes WHERE time < new.time-900; -- fifteen minutes
 END;
 `
 
