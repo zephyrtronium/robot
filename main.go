@@ -206,15 +206,6 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			return nil
 		}
 	}
-	// // roughly a special case of planned copypasta feature, requested in advance
-	// if msg.Trailing == "Jam check catJAM" {
-	// 	if err := br.ShouldTalk(ctx, msg, false); err != nil {
-	// 		lg.Println("won't jam:", err)
-	// 		return nil
-	// 	}
-	// 	send <- msg.Reply("catJAM")
-	// 	return nil
-	// }
 	if br.ShouldTalk(ctx, msg, true) == nil {
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {
