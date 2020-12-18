@@ -43,10 +43,11 @@ import (
 
 const copying = `
 robot  Copyright (C) 2020  Branden J Brown
-This program comes with ABSOLUTELY NO WARRANTY; for details type 'license w'.
+This program comes with ABSOLUTELY NO WARRANTY; for details type 'warranty'.
 This is free software, and you are welcome to redistribute it
 under certain conditions; see the GNU General Public License, Version 3,
 for details.
+
 `
 
 func main() {
@@ -104,7 +105,10 @@ func main() {
 	send := make(chan irc.Message)
 	recv := make(chan irc.Message, 1)
 	lg := log.New(os.Stderr, "(irc)", log.Ltime)
-	go connect(ctx, cfg, send, recv, lg)
+	go func() {
+		connect(ctx, cfg, send, recv, lg)
+		cancel()
+	}()
 	var wg sync.WaitGroup
 	procs := runtime.GOMAXPROCS(0)
 	wg.Add(procs + 1)
