@@ -38,6 +38,7 @@ import (
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/commands"
+	"github.com/zephyrtronium/robot/dash"
 	"github.com/zephyrtronium/robot/irc"
 )
 
@@ -51,13 +52,14 @@ for details.
 `
 
 func main() {
-	var source, remote, token string
+	var source, remote, token, dsh string
 	var secure bool
 	var checkp time.Duration
 	var botlvl, echo string
 	flag.StringVar(&source, "source", "", "SQL database source (required)")
 	flag.StringVar(&remote, "remote", "irc.chat.twitch.tv:6697", "remote address, IRC protocol")
 	flag.StringVar(&token, "token", "", "OAuth token")
+	flag.StringVar(&dsh, "dash", "", "dashboard address (no dash if not given)")
 	flag.BoolVar(&secure, "secure", true, "use TLS")
 	flag.DurationVar(&checkp, "period", time.Minute, "period between checking broadcaster online statuses")
 	flag.StringVar(&botlvl, "level", "", `bot level, "" or "known" or "verified"`)
@@ -111,11 +113,19 @@ func main() {
 	}()
 	var wg sync.WaitGroup
 	procs := runtime.GOMAXPROCS(0)
-	wg.Add(procs + 1)
+	wg.Add(procs + 2)
 	go stdin(ctx, cancel, &wg, br, log.New(os.Stderr, "(stdin)", log.Ltime))
 	lgp := log.New(os.Stderr, "(worker)", log.Ltime)
 	for i := 0; i < procs; i++ {
 		go loop(ctx, &wg, br, send, recv, lgp)
+	}
+	if dsh != "" {
+		go func() {
+			lg := log.New(os.Stderr, "(owner-dash)", log.Ltime)
+			if err := dash.Owner(ctx, &wg, br, dsh, nil, lg); err != nil {
+				lg.Fatalf("dashboard server error: %v", err)
+			}
+		}()
 	}
 	wg.Wait()
 	br.Close()
