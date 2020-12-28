@@ -90,8 +90,11 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 	var w strings.Builder
 	w.Grow(len(msg.Tags))
 	msg.ForeachTag(func(key, value string) {
-		if key != "display-name" {
-			w.WriteString(key + "=" + value + " ")
+		switch key {
+		case "display-name", "user-id":
+			w.WriteString(key + "=(redacted)\n")
+		default:
+			w.WriteString(key + "=" + value + "\n")
 		}
 	})
 	if _, err := tx.StmtContext(ctx, b.stmts.record).ExecContext(ctx, id, msg.Time, w.String(), h[:], channel, tag, msg.Trailing); err != nil {
