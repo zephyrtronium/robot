@@ -31,47 +31,77 @@ type messageItem struct {
 	Tags string
 }
 
-const ownerTemplSrc = `
-<http>
-<head>
+const ownerTemplSrc = `<!DOCTYPE html>
 <title>{{.Me}}</title>
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:ital@0;1&display=swap" rel="stylesheet"> 
 <style>
-	.messages {
-		display: flex;
-		flex-direction: column;
-	}
-	
-	.message {
-		border: 1px solid black;
-		display: flex;
-		flex: none;
-	}
-	
-	.message > div {
-		flex: none;
-		padding: 0px 8px;
-	}
-	
-	.message > .message__tags {
-		display: none;
-	}
-	
-	.message:hover > .message__tags {
-		display: contents;
-	}
+html {
+	font-family: 'Source Sans Pro', sans-serif;
+	background-color: #0e0e10;
+	color: #efeff1;
+}
+
+.messages {
+	display: flex;
+	flex-direction: column-reverse;
+	margin: 0 auto;
+	max-width: 75%;
+	max-height: 98vh;
+	overflow-y: scroll;
+}
+
+.message {
+	display: flex;
+	flex: none;
+	align-items: center;
+	color: #afafb1;
+}
+
+.message > div {
+	padding: 0px 8px;
+}
+
+.message > div > p {
+	margin: 0px;
+}
+
+.message__time {
+	flex-basis: 4em;
+	text-align: right;
+}
+
+.message__text {
+	color: #efeff1;
+	flex: auto;
+	flex-basis: fill;
+}
+
+.message:hover {
+	padding: 1em 0px;
+}
+
+.message > .message__tags {
+	display: none;
+}
+
+.message:hover > .message__tags {
+	display: inline;
+	max-width: 50%;
+	overflow-wrap: anywhere;
+	font-style: italic;
+	font-size: small;
+	text-align: right;
+}
 </style>
-</head>
-<body>
 <div class="messages">
 {{range .Messages}}	<div class="message">
-		<div class="message__time"><p>{{.Time}}</p></div>
-		<div class="message__ch"><p>{{.Ch}}</p></div>
-		<div class="message__text"><p>{{.Text}}</p></div>
-		<div class="message__tags"><p>{{.Tags}}</p></div>
+		<div class="message__time"><p>{{.Time}}</div>
+		<div class="message__ch"><p>{{.Ch}}</div>
+		<div class="message__text"><p>{{.Text}}</div>
+		<div class="message__tags"><p>{{.Tags}}</div>
 	</div>
 {{end}}</div>
-</body>
-</http>
 `
 
 var ownerTempl = template.Must(template.New("owner").Parse(ownerTemplSrc))
@@ -95,7 +125,7 @@ func (h *ownerHandler) get(w http.ResponseWriter) {
 	}
 	w.Header().Add("Content-Type", "text/html; charset=utf-8")
 	w.Header().Add("X-Content-Type-Options", "nosniff")
-	rows, err := h.br.Query(context.TODO(), `SELECT tags, time, chan, msg FROM history`)
+	rows, err := h.br.Query(context.TODO(), `SELECT tags, time, chan, msg FROM history ORDER BY time DESC`)
 	if err != nil {
 		failed(err, "history query")
 		return
