@@ -159,6 +159,31 @@ func (m Message) Tag(name string) (val string, ok bool) {
 	return "", false
 }
 
+// ForeachTag calls f for each tag on m. Tag values are unquoted and may be the
+// empty string.
+func (m Message) ForeachTag(f func(key, value string)) {
+	tags := m.Tags
+	for tags != "" {
+		k := strings.IndexByte(tags, ';')
+		tag := tags
+		if k >= 0 {
+			tag = tags[:k]
+			tags = tags[k+1:]
+		} else {
+			tags = ""
+		}
+		k = strings.IndexByte(tag, '=')
+		var key, val string
+		if k >= 0 {
+			key = tag[:k]
+			val = tag[k+1:]
+		} else {
+			key = tag
+		}
+		f(key, unquoteTag(val))
+	}
+}
+
 // Badges appends the list of Twitch badges, parsed from the badges tag and
 // without versions, to v and returns v.
 func (m Message) Badges(v []string) []string {
