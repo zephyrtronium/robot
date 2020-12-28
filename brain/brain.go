@@ -319,6 +319,7 @@ CREATE TABLE IF NOT EXISTS history (
 	id		INTEGER PRIMARY KEY ASC,
 	tid		TEXT, -- message id from Twitch tags
 	time	DATETIME NOT NULL, -- message timestamp
+	tags	TEXT NOT NULL DEFAULT '', -- message tags
 	senderh	BLOB(32) NOT NULL, -- hashed name of sender
 	chan	TEXT NOT NULL,
 	tag		TEXT NOT NULL, -- tag used to learn this message
@@ -427,7 +428,7 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 	if err != nil {
 		panic(err)
 	}
-	stmts.record, err = db.PrepareContext(ctx, `INSERT INTO history (tid, time, senderh, chan, tag, msg) VALUES (?, ?, ?, ?, ?, ?);`)
+	stmts.record, err = db.PrepareContext(ctx, `INSERT INTO history (tid, time, tags, senderh, chan, tag, msg) VALUES (?, ?, ?, ?, ?, ?, ?);`)
 	if err != nil {
 		panic(err)
 	}

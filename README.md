@@ -194,6 +194,7 @@ Robot's database tables are:
 - `history` - messages learned from in the last fifteen minutes
 	+ `tid` - Twitch IRC message ID
 	+ `time` - timestamp of message receipt
+	+ `tags` - formatted tags on the message, with `display-name` stripped
 	+ `senderh` - hash corresponding to the message sender
 	+ `chan` - channel received in
 	+ `tag` - tag used to learn the message

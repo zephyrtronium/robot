@@ -87,7 +87,14 @@ func (b *Brain) Learn(ctx context.Context, msg irc.Message) error {
 	// Add the message to history.
 	h := UserHash(channel, msg.Nick)
 	id, _ := msg.Tag("id")
-	if _, err := tx.StmtContext(ctx, b.stmts.record).ExecContext(ctx, id, msg.Time, h[:], channel, tag, msg.Trailing); err != nil {
+	var w strings.Builder
+	w.Grow(len(msg.Tags))
+	msg.ForeachTag(func(key, value string) {
+		if key != "display-name" {
+			w.WriteString(key + "=" + value + " ")
+		}
+	})
+	if _, err := tx.StmtContext(ctx, b.stmts.record).ExecContext(ctx, id, msg.Time, w.String(), h[:], channel, tag, msg.Trailing); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("error recording message: %w", err)
 	}
