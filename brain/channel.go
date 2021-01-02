@@ -545,14 +545,11 @@ func (b *Brain) AddAffection(ctx context.Context, channel, uid string, score int
 // given channel, this returns 0, nil.
 func (b *Brain) Affection(ctx context.Context, channel, uid string) (int64, error) {
 	r := b.db.QueryRowContext(ctx, `SELECT score FROM scores WHERE chan=? AND userid=?`, channel, uid)
-	if r.Err() != nil {
-		if errors.Is(r.Err(), sql.ErrNoRows) {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("error getting score for %s in %s: %w", uid, channel, r.Err())
-	}
 	var x int64
 	if err := r.Scan(&x); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil
+		}
 		return 0, fmt.Errorf("error scanning score for %s in %s: %w", uid, channel, err)
 	}
 	return x, nil
@@ -578,14 +575,11 @@ func (b *Brain) Marry(ctx context.Context, channel, uid string, when time.Time) 
 // Marriage gets the current marriage info for a channel.
 func (b *Brain) Marriage(ctx context.Context, channel string) (uid string, when time.Time, score int64, err error) {
 	r := b.db.QueryRowContext(ctx, `SELECT marriages.userid, marriages.time, scores.score FROM (marriages JOIN scores USING (userid)) WHERE marriages.chan=?`, channel)
-	if r.Err() != nil {
-		if errors.Is(r.Err(), sql.ErrNoRows) {
+	if err = r.Scan(&uid, &when, &score); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = nil
 			return
 		}
-		err = fmt.Errorf("error getting marriage in %s: %w", channel, r.Err())
-		return
-	}
-	if err = r.Scan(&uid, &when, &score); err != nil {
 		err = fmt.Errorf("error scanning marriage result: %w", err)
 	}
 	return
