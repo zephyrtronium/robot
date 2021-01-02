@@ -20,6 +20,7 @@ package brain
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -517,6 +518,77 @@ func (b *Brain) Privilege(ctx context.Context, channel, nick string, badges []st
 		}
 	}
 	return "", nil
+}
+
+// TrackAffection begins tracking a user's score in a channel. added is false
+// if the user already has their score tracked.
+func (b *Brain) TrackAffection(ctx context.Context, channel, uid string) (added bool, err error) {
+	res, err := b.db.ExecContext(ctx, `INSERT OR IGNORE INTO scores(chan, userid) VALUES (?, ?)`, channel, uid)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n != 0, err
+}
+
+// AddAffection adds to a user's score. If the user does not have a score in
+// the given channel, this silently does nothing.
+func (b *Brain) AddAffection(ctx context.Context, channel, uid string, score int64) error {
+	_, err := b.stmts.addScore.ExecContext(ctx, channel, uid, score)
+	if err != nil {
+		return fmt.Errorf("error adding %d to score for %s in %s: %w", score, uid, channel, err)
+	}
+	return nil
+}
+
+// Affection gets a user's score. If the user does not have a score in the
+// given channel, this returns 0, nil.
+func (b *Brain) Affection(ctx context.Context, channel, uid string) (int64, error) {
+	r := b.db.QueryRowContext(ctx, `SELECT score FROM scores WHERE chan=? AND userid=?`, channel, uid)
+	if r.Err() != nil {
+		if errors.Is(r.Err(), sql.ErrNoRows) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("error getting score for %s in %s: %w", uid, channel, r.Err())
+	}
+	var x int64
+	if err := r.Scan(&x); err != nil {
+		return 0, fmt.Errorf("error scanning score for %s in %s: %w", uid, channel, err)
+	}
+	return x, nil
+}
+
+// Marry sets the marriage for channel. If uid is the empty string, divorce the
+// current marriage in channel instead.
+func (b *Brain) Marry(ctx context.Context, channel, uid string, when time.Time) error {
+	if uid == "" {
+		_, err := b.db.ExecContext(ctx, `DELETE FROM marriages WHERE chan=?`, channel)
+		if err != nil {
+			return fmt.Errorf("error getting a divorce in %s: %w", channel, err)
+		}
+		return nil
+	}
+	_, err := b.db.ExecContext(ctx, `INSERT OR REPLACE INTO marriages(chan, userid, time) VALUES (?, ?, ?)`, channel, uid, when)
+	if err != nil {
+		return fmt.Errorf("error marrying %s in %s: %w", uid, channel, err)
+	}
+	return nil
+}
+
+// Marriage gets the current marriage info for a channel.
+func (b *Brain) Marriage(ctx context.Context, channel string) (uid string, when time.Time, score int64, err error) {
+	r := b.db.QueryRowContext(ctx, `SELECT marriages.userid, marriages.time, scores.score FROM (marriages JOIN scores USING (userid)) WHERE marriages.chan=?`, channel)
+	if r.Err() != nil {
+		if errors.Is(r.Err(), sql.ErrNoRows) {
+			return
+		}
+		err = fmt.Errorf("error getting marriage in %s: %w", channel, r.Err())
+		return
+	}
+	if err = r.Scan(&uid, &when, &score); err != nil {
+		err = fmt.Errorf("error scanning marriage result: %w", err)
+	}
+	return
 }
 
 // Debug returns strings describing the current status of a channel. If the

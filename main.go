@@ -236,6 +236,10 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 				go doEcho(ctx, lg, m, echo, msg.To())
 			}
 			send <- irc.Privmsg(msg.To(), m)
+			uid, _ := msg.Tag("user-id")
+			if err := br.AddAffection(ctx, msg.To(), uid, 30); err != nil {
+				lg.Println("couldn't add affection:", err)
+			}
 		}
 	}
 	if err := br.Learn(ctx, msg); err != nil {
@@ -253,6 +257,10 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			return nil
 		}
 		send <- msg.Reply("%s", msg.Trailing)
+		uid, _ := msg.Tag("user-id")
+		if err := br.AddAffection(ctx, msg.To(), uid, 20); err != nil {
+			lg.Println("couldn't add affection:", err)
+		}
 	}
 	return nil
 }

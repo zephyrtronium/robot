@@ -19,9 +19,12 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -183,6 +186,112 @@ func describePrivacy(ctx context.Context, br *brain.Brain, lg *log.Logger, send 
 func roar(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	if err := br.ShouldTalk(ctx, msg, false); err != nil {
 		lg.Println("won't talk:", err)
+		return
 	}
 	selsend(ctx, br, send, msg.Reply("rawr ;3"))
+}
+
+func marry(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	if err := br.ShouldTalk(ctx, msg, false); err != nil {
+		lg.Println("won't talk:", err)
+		return
+	}
+	priv, err := br.Privilege(ctx, msg.To(), msg.Nick, msg.Badges(nil))
+	if err != nil {
+		lg.Printf("error getting priviliges for %s in %s: %v", msg.Nick, msg.To(), err)
+		return
+	}
+	if priv == "privacy" || priv == "bot" {
+		selsend(ctx, br, send, msg.Reply(`@%s Sorry, this feature requires recording some information about you, which your privacy level prohibits me from doing.`, msg.DisplayName()))
+		return
+	}
+	uid, ok := msg.Tag("user-id")
+	if !ok {
+		lg.Println("no user-id:", msg)
+		return
+	}
+	new, err := br.TrackAffection(ctx, msg.To(), uid)
+	if err != nil {
+		selsend(ctx, br, send, msg.Reply(`@%s there was a problem adding you to my suitors: %v`, msg.DisplayName(), err))
+		return
+	}
+	if new {
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s Interesting. I suppose I could add you to my list. Good luck, little one. You're going to need it.`, msg.DisplayName())))
+		return
+	}
+	score, err := br.Affection(ctx, msg.To(), uid)
+	if err != nil {
+		selsend(ctx, br, send, msg.Reply(`@%s there was a problem checking how much I like you: %v`, err))
+		return
+	}
+	if score < 50 {
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s no`, msg.DisplayName())))
+		return
+	}
+	// Marriage is not atomic, but I'm not terribly concerned about it.
+	cur, since, beat, err := br.Marriage(ctx, msg.To())
+	if cur == "" {
+		if err := br.Marry(ctx, msg.To(), uid, msg.Time); err != nil {
+			selsend(ctx, br, send, msg.Reply(`@%s I tried, but couldn't: %v`, msg.DisplayName(), err))
+			return
+		}
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s sure why not`, msg.DisplayName())))
+		return
+	}
+	if uid == cur {
+		switch msg.Time.Nanosecond() / 1e7 % 5 {
+		case 0, 1, 3:
+			selsend(ctx, br, send, msg.Reply(`@%s How could you forget we're already together? I hate you! Unsubbed, unfollowed, unloved!`, msg.DisplayName()))
+			if err := br.Marry(ctx, msg.To(), "", msg.Time); err != nil {
+				lg.Printf("error divorcing in %s: %v", msg.To(), err)
+			}
+			if err := br.AddAffection(ctx, msg.To(), cur, -beat/4); err != nil {
+				lg.Printf("error dropping score for %s uid=%s in %s: %v", msg.DisplayName(), cur, msg.To(), err)
+			}
+		default:
+			selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s We're already together, silly! You're so funny and cute haha.`, msg.DisplayName())))
+			if err := br.AddAffection(ctx, msg.To(), cur, 1); err != nil {
+				lg.Println(err)
+			}
+		}
+		return
+	}
+	if msg.Time.Sub(since) < 1*time.Hour {
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s My heart yet belongs to another...`, msg.DisplayName())))
+		return
+	}
+	if score < beat-beat/8 {
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s I'm touched, but I must decline. I'm in love with someone else.`, msg.DisplayName())))
+		if err := br.AddAffection(ctx, msg.To(), cur, 1); err != nil {
+			lg.Println(err)
+		}
+		return
+	}
+	if err := br.Marry(ctx, msg.To(), uid, msg.Time); err != nil {
+		selsend(ctx, br, send, msg.Reply(`@%s I tried, but couldn't: %v`, msg.DisplayName(), err))
+		return
+	}
+	if matches[1] == "partner" {
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s Yes! I'll be your partner!`, msg.DisplayName())))
+		return
+	}
+	selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s Yes! I'll marry you!`, msg.DisplayName())))
+}
+
+func affection(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	if err := br.ShouldTalk(ctx, msg, false); err != nil {
+		lg.Println("won't talk:", err)
+		return
+	}
+	uid, _ := msg.Tag("user-id")
+	score, err := br.Affection(ctx, msg.To(), uid)
+	if err != nil {
+		selsend(ctx, br, send, msg.Reply(`@%s there was a problem checking how much I like you: %v`, msg.DisplayName(), err))
+		return
+	}
+	if score <= 0 {
+		selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s literally zero`, msg.DisplayName())))
+		return
+	}
+	selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), fmt.Sprintf(`@%s about %f`, msg.DisplayName(), math.Log2(float64(score)))))
 }

@@ -386,6 +386,20 @@ func init() {
 			f:    roar,
 			help: `["roar"] Rooooaaaaaarrrrrrrrr.`,
 		},
+		{
+			admin: true, regular: true,
+			name: "marry",
+			re:   regexp.MustCompile(`(?i)^[¿¡]*\s*(?:ple?a?se?\s+)?(?:will\s+y?o?u\s+)?(?:\s*ple?a?se?\s+)?(?:marry\s+me|be?\s+my\s+(wife|waifu|h[ua]su?bando?|partner|spouse|daddy))(?:\s+ple?a?se?\s*)?\s*[.?!¿¡]*$`),
+			f:    marry,
+			help: `["will you be my daddy"] Ask if I'll marry you. What a privilege!`,
+		},
+		{
+			admin: true, regular: true,
+			name: "affection",
+			re:   regexp.MustCompile(`(?i)^[¿¡]*\s*how\s+much\s+do\s+you\s+(?:like|love)\s+me\s*[?!¿¡]*`),
+			f:    affection,
+			help: `["how much do you like me"] Check your score in ranked competitive marriage.`,
+		},
 		// talk-catchall MUST be last
 		{
 			admin: true, regular: true,

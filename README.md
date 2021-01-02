@@ -18,12 +18,13 @@ For the exact syntax to use these commands, see [the relevant section](#commands
 
 ## What information does Robot store?
 
-Robot stores four types of information:
+Robot stores five types of information:
 
 - Configuration details. This includes things like channels to connect to, how frequently to send messages, and who has certain [privileges](#privileges) (including "privacy" privileges). For the most part, this information is relevant only to bot owners, broadcasters, and mods.
 - Fifteen-minute history. Robot records all chat messages received in the last fifteen minutes, storing a hash specific to the sender, the channel it was sent to, the time it was received, and the full message text. Robot uses this information to delete messages it's learned under [certain circumstances](#tools-for-broadcasters-and-mods). Whenever Robot receives a new message, all records older than fifteen minutes are removed. Robot also records the messages it's generated in the last fifteen minutes.
 - One-week privileged command audit. Robot records uses of most admin- and owner-level commands for seven days, including the user, the command that was used with the full message text, the channel in which it was used, and the time the message was received. For security reasons, there is no way to opt out of this data collection.
 - Markov chain tuples. This is the majority of Robot's data, a simple list of prefix and suffix words tagged with the location that prefix and suffix may be used. This data is anonymous; Robot does not know who sent the messages that were used to obtain this information.
+- Affection information. If you use the marriage [command](#commands), Robot associates an "affection level" roughly based on how often you cause her to speak with your Twitch user ID (which is a number unrelated to your username).
 
 If you want Robot not to record information from you for any reason, simply use the `give me privacy` [command](#commands). Once you're set up to be private, none of your messages will enter her history or Markov chain data. You'll still be able to ask Robot for messages. If you'd like the bot to learn from you again after going private, use the `learn from me again` command.
 
@@ -83,6 +84,8 @@ The command invocation is checked against the list of commands for which the use
 - `generate something with starting chain` generates a message that starts with `starting chain`. (Nothing happens if the bot doesn't know anything to say from there.)
 - `uwu` genyewates an especiawwy uwu message.
 - `how are you?` AAAAAAAAA A AAAAAAA AAA AAAA AAAAAAAA AA AA AAAAA.
+- `roar` makes the bot go rawr ;3
+- `will you marry me?` asks the bot to be your waifu, husbando, or whatever other label for a domestic partner is appropriate. Robot is choosy and capricious.
 
 If a command invocation doesn't match any command, it instead prompts Robot to speak.
 
@@ -105,8 +108,8 @@ If a command invocation doesn't match any command, it instead prompts Robot to s
 Robot can apply effects to randomly generated messages, modifying the actual output text. Effects can be configured per channel. The possible effects are:
 
 - `uwu`: Transform using the uwu command.
-- `AAAAA`: Transform using the AAAAA command.
 - `me`: Use `/me` (CTCP ACTION) for the message.
+- `o`: Replace vowels with o.
 
 ## Privileges
 
@@ -119,7 +122,7 @@ Robot has six privilege levels:
 - `bot` is a mix of admin and ignore privileges. Users with bot privileges can invoke admin commands, but Robot does not learn from their other messages.
 - `privacy` is a mix of regular and ignore privileges. Users with privacy privileges can invoke regular-level commands, but Robot does not learn from their messages.
 
-Robot scans a user's chat badges to assign default privileges. Unless overridden per user, broadcasters and mods, Twitch staff have owner privileges, and everyone else (including VIPs and subscribers) has regular privileges.
+Robot scans a user's chat badges to assign default privileges. Unless overridden per user, broadcasters, mods, and Twitch staff have owner privileges, and everyone else (including VIPs and subscribers) has regular privileges.
 
 ## Rate limits
 
@@ -199,6 +202,10 @@ Robot's database tables are:
 	+ `chan` - channel received in
 	+ `tag` - tag used to learn the message
 	+ `msg` - message text
+- `marriages` - users the bot is currently "married" to
+	+ `chan` - channel to which this marriage applies
+	+ `userid` - Twitch user ID for the partner in this channel
+	+ `time` - time at which the partnership was affirmed
 - `memes` - copypasta messages in the last fifteen minutes
 	+ `time` - timestamp of copypaste
 	+ `chan` - channel message was copypasted in
@@ -208,6 +215,10 @@ Robot's database tables are:
 	+ `chan` - channel where applicable, or NULL if a global default
 	+ `priv` - privilege type, one of "owner", "admin", "bot", "privacy", or "ignore". (Regular privs are implied by not being in the table, or can be forced by setting this to the empty string.)
 - `quotes` - unused
+- `scores` - "affection" levels for marriages
+	+ `chan` - channel to which this affection level applies
+	+ `userid` - Twitch user ID
+	+ `score` - affection level for this user
 - `tuplesn`, where `n` is a number - Markov chain data n prefix words
 	+ `tag` - tag with which this chain was learned
 	+ `p0`, `p1`, ... - prefix words; null means before start of message

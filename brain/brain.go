@@ -150,6 +150,9 @@ type statements struct {
 	// audit. The parameters are message time, channel, sender, command name,
 	// and msg.
 	audit *sql.Stmt
+	// addScore is the statement to add to a user's score. The parameters are
+	// the channel, user ID, and points to add.
+	addScore *sql.Stmt
 }
 
 type optfreq struct {
@@ -342,6 +345,17 @@ CREATE TABLE IF NOT EXISTS quotes (
 	msg		TEXT NOT NULL,
 	blame	TEXT NOT NULL -- who added the quote
 );
+CREATE TABLE IF NOT EXISTS scores (
+	chan	TEXT NOT NULL,
+	userid	TEXT NOT NULL,
+	score	INTEGER NOT NULL DEFAULT 0,
+	UNIQUE(chan, userid)
+);
+CREATE TABLE IF NOT EXISTS marriages (
+	chan	TEXT PRIMARY KEY,
+	userid	TEXT NOT NULL,
+	time	DATETIME
+);
 CREATE TABLE IF NOT EXISTS emotes (
 	id		INTEGER PRIMARY KEY ASC,
 	tag		TEXT, -- send tag where used, or everywhere if null
@@ -423,15 +437,8 @@ func writeCols(b *strings.Builder, order int, suf string) {
 
 func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 	stmts := statements{}
-	var err error
-	stmts.learn, err = db.PrepareContext(ctx, makeLearn(order))
-	if err != nil {
-		panic(err)
-	}
-	stmts.record, err = db.PrepareContext(ctx, `INSERT INTO history (tid, time, tags, senderh, chan, tag, msg) VALUES (?, ?, ?, ?, ?, ?, ?);`)
-	if err != nil {
-		panic(err)
-	}
+	stmts.learn = mustPrepare(ctx, db, makeLearn(order))
+	stmts.record = mustPrepare(ctx, db, `INSERT INTO history (tid, time, tags, senderh, chan, tag, msg) VALUES (?, ?, ?, ?, ?, ?, ?);`)
 	stmts.think = make([]*sql.Stmt, 0, order)
 	for i := 0; i < order-1; i++ {
 		var b strings.Builder
@@ -442,57 +449,30 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 		fmt.Fprintf(&b, "SELECT DISTINCT suffix, COUNT(*)+%d FROM tuples%d WHERE tag=?", w, order)
 		writeTupleMatch(&b, order, i)
 		b.WriteString(" GROUP BY suffix;")
-		s, err := db.PrepareContext(ctx, b.String())
-		if err != nil {
-			panic(err)
-		}
+		s := mustPrepare(ctx, db, b.String())
 		stmts.think = append(stmts.think, s)
 	}
-	stmts.thought, err = db.PrepareContext(ctx, `INSERT INTO generated(time, tag, msg) VALUES (strftime('%s', 'now'), ?, ?)`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.familiar, err = db.PrepareContext(ctx, `SELECT COUNT(*) FROM generated WHERE (tag=?1 OR ?1 IS NULL) AND ?2 GLOB msg || '*'`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.historyID, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE tid=?`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.historyHash, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND senderh=?`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.historyPattern, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND msg LIKE '%' || ? || '%'`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.historySince, err = db.PrepareContext(ctx, `SELECT id, tag, msg FROM history WHERE chan=? AND strftime('%s', time) >= strftime('%s', ?)`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.memeDetector, err = db.PrepareContext(ctx, `SELECT COUNT(DISTINCT history.senderh) >= copypasta.min FROM (history LEFT JOIN copypasta USING(chan)) WHERE chan=? AND strftime('%s', history.time) >= strftime('%s', 'now', '-' || copypasta.lim || ' seconds') AND history.msg=?`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.copypasta, err = db.PrepareContext(ctx, `INSERT INTO memes(time, chan, msg) VALUES (strftime('%s', ?), ?, ?)`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.forget, err = db.PrepareContext(ctx, makeForget(order))
-	if err != nil {
-		panic(err)
-	}
-	stmts.expunge, err = db.PrepareContext(ctx, `DELETE FROM history WHERE id=?`)
-	if err != nil {
-		panic(err)
-	}
-	stmts.audit, err = db.PrepareContext(ctx, `INSERT INTO audit(time, chan, sender, cmd, msg) VALUES (?, ?, ?, ?, ?)`)
-	if err != nil {
-		panic(err)
-	}
+	stmts.thought = mustPrepare(ctx, db, `INSERT INTO generated(time, tag, msg) VALUES (strftime('%s', 'now'), ?, ?)`)
+	stmts.familiar = mustPrepare(ctx, db, `SELECT COUNT(*) FROM generated WHERE (tag=?1 OR ?1 IS NULL) AND ?2 GLOB msg || '*'`)
+	stmts.historyID = mustPrepare(ctx, db, `SELECT id, tag, msg FROM history WHERE tid=?`)
+	stmts.historyHash = mustPrepare(ctx, db, `SELECT id, tag, msg FROM history WHERE chan=? AND senderh=?`)
+	stmts.historyPattern = mustPrepare(ctx, db, `SELECT id, tag, msg FROM history WHERE chan=? AND msg LIKE '%' || ? || '%'`)
+	stmts.historySince = mustPrepare(ctx, db, `SELECT id, tag, msg FROM history WHERE chan=? AND strftime('%s', time) >= strftime('%s', ?)`)
+	stmts.memeDetector = mustPrepare(ctx, db, `SELECT COUNT(DISTINCT history.senderh) >= copypasta.min FROM (history LEFT JOIN copypasta USING(chan)) WHERE chan=? AND strftime('%s', history.time) >= strftime('%s', 'now', '-' || copypasta.lim || ' seconds') AND history.msg=?`)
+	stmts.copypasta = mustPrepare(ctx, db, `INSERT INTO memes(time, chan, msg) VALUES (strftime('%s', ?), ?, ?)`)
+	stmts.forget = mustPrepare(ctx, db, makeForget(order))
+	stmts.expunge = mustPrepare(ctx, db, `DELETE FROM history WHERE id=?`)
+	stmts.audit = mustPrepare(ctx, db, `INSERT INTO audit(time, chan, sender, cmd, msg) VALUES (?, ?, ?, ?, ?)`)
+	stmts.addScore = mustPrepare(ctx, db, `UPDATE scores SET score=score+?3 WHERE chan=?1 AND userid=?2`)
 	return stmts
+}
+
+func mustPrepare(ctx context.Context, db *sql.DB, stmt string) *sql.Stmt {
+	st, err := db.PrepareContext(ctx, stmt)
+	if err != nil {
+		panic(fmt.Errorf("error preparing %q: %w", stmt, err))
+	}
+	return st
 }
 
 // Close closes the brain's database connection.
