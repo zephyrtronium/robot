@@ -214,7 +214,6 @@ Robot's database tables are:
 	+ `user` - username receiving this privilege
 	+ `chan` - channel where applicable, or NULL if a global default
 	+ `priv` - privilege type, one of "owner", "admin", "bot", "privacy", or "ignore". (Regular privs are implied by not being in the table, or can be forced by setting this to the empty string.)
-- `quotes` - unused
 - `scores` - "affection" levels for marriages
 	+ `chan` - channel to which this affection level applies
 	+ `userid` - Twitch user ID

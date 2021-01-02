@@ -339,12 +339,6 @@ CREATE TABLE IF NOT EXISTS memes (
 	msg		TEXT NOT NULL, -- copypasta text
 	UNIQUE(chan, msg)
 );
-CREATE TABLE IF NOT EXISTS quotes (
-	id		INTEGER PRIMARY KEY ASC, -- quote id number
-	time	DATETIME NOT NULL, -- quoted timestamp
-	msg		TEXT NOT NULL,
-	blame	TEXT NOT NULL -- who added the quote
-);
 CREATE TABLE IF NOT EXISTS scores (
 	chan	TEXT NOT NULL,
 	userid	TEXT NOT NULL,
