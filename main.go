@@ -220,6 +220,7 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			return nil
 		}
 	}
+	uid, _ := msg.Tag("user-id")
 	if br.ShouldTalk(ctx, msg, true) == nil {
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {
@@ -236,9 +237,8 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 				go doEcho(ctx, lg, m, echo, msg.To())
 			}
 			send <- irc.Privmsg(msg.To(), m)
-			uid, _ := msg.Tag("user-id")
 			if err := br.AddAffection(ctx, msg.To(), uid, 30); err != nil {
-				lg.Println("couldn't add affection:", err)
+				lg.Println("couldn't add random chance affection:", err)
 			}
 		}
 	}
@@ -257,9 +257,17 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			return nil
 		}
 		send <- msg.Reply("%s", msg.Trailing)
-		uid, _ := msg.Tag("user-id")
 		if err := br.AddAffection(ctx, msg.To(), uid, 20); err != nil {
-			lg.Println("couldn't add affection:", err)
+			lg.Println("couldn't add copypasta affection:", err)
+		}
+	}
+	ok, err := br.DidSay(ctx, msg.To(), msg.Trailing)
+	if err != nil {
+		lg.Println(err)
+	}
+	if ok {
+		if err := br.AddAffection(ctx, msg.To(), uid, 7); err != nil {
+			lg.Println("couldn't add affection for copying me:", err)
 		}
 	}
 	return nil

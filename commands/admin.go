@@ -222,3 +222,8 @@ func removePrivacyAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, se
 	}
 	selsend(ctx, br, send, msg.Reply(`@%s got it, I'll learn from your messages in %s again.`, msg.DisplayName(), msg.To()))
 }
+
+func describeMarriage(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	const s = `I am looking for a long series of short-term relationships and am holding a ranked competitive how-much-I-like-you tournament to decide my suitors! Politely ask me to marry you (or become your partner) and I'll start tracking your score. I like copypasta, memes, and long walks in the chat.`
+	selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), s))
+}

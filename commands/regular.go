@@ -63,6 +63,12 @@ func talk(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.
 		go doEcho(ctx, lg, m, echo, msg.To())
 	}
 	selsend(ctx, br, send, msg.Reply("%s", m))
+	if len(toks) == 0 {
+		uid, _ := msg.Tag("user-id")
+		if err := br.AddAffection(ctx, msg.To(), uid, 2); err != nil {
+			lg.Println("couldn't add affection:", err)
+		}
+	}
 }
 
 func talkCatchall(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
@@ -75,6 +81,10 @@ func talkCatchall(ctx context.Context, br *brain.Brain, lg *log.Logger, send cha
 		go doEcho(ctx, lg, m, echo, msg.To())
 	}
 	selsend(ctx, br, send, msg.Reply("%s", m))
+	uid, _ := msg.Tag("user-id")
+	if err := br.AddAffection(ctx, msg.To(), uid, 2); err != nil {
+		lg.Println("couldn't add affection:", err)
+	}
 }
 
 func uwu(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {

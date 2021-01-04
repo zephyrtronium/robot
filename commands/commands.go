@@ -331,6 +331,13 @@ func init() {
 			help:  `["learn from me again"] Re-enable recording your messages.`,
 		},
 		{
+			admin: true,
+			name:  "describe-marriage",
+			re:    regexp.MustCompile(`(?i)^(?:tell\s+me|talk)?\s*(?:about)?\s*(?:ranked)?\s*(?:competitive)?\s*marriage$`),
+			f:     describeMarriage,
+			help:  `["talk about marriage"] Give a summary of the ranked competitive marriage mechanics.`,
+		},
+		{
 			admin: true, regular: true,
 			name: "talk",
 			re:   regexp.MustCompile(`(?i)^(?:say|speak|talk|generate)(?:(?:\s+something)?(?:\s+starting)?\s+with|\s+meme|\s+raid\s+message)?(?:\s+(?P<chain>.+))?$`),
@@ -389,7 +396,7 @@ func init() {
 		{
 			admin: true, regular: true,
 			name: "marry",
-			re:   regexp.MustCompile(`(?i)^[¿¡]*\s*(?:ple?a?se?\s+)?(?:will\s+y?o?u\s+)?(?:\s*ple?a?se?\s+)?(?:marry\s+me|be?\s+my\s+(wife|waifu|h[ua]su?bando?|partner|spouse|daddy))(?:\s+ple?a?se?\s*)?\s*[.?!¿¡]*$`),
+			re:   regexp.MustCompile(`(?i)^[¿¡]*\s*(?:ple?a?se?\s+)?(?:will\s+y?o?u\s+)?(?:\s*ple?a?se?\s+)?(?:marry\s+me|be?\s+my\s+(wife|waifu|h[ua]su?bando?|partner|spouse|daddy))`),
 			f:    marry,
 			help: `["will you be my daddy"] Ask if I'll marry you. What a privilege!`,
 		},
