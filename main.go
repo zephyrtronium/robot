@@ -169,9 +169,9 @@ func loop(ctx context.Context, wg *sync.WaitGroup, br *brain.Brain, send, recv c
 					}
 				}(msg)
 			case "CLEARMSG":
-				id, ok := msg.Tag("target-message-id")
+				id, ok := msg.Tag("target-msg-id")
 				if !ok {
-					lg.Println("??? CLEARMSG with no target-message-id")
+					lg.Println("??? CLEARMSG with no target-msg-id")
 					break
 				}
 				go func(id string) {
