@@ -248,3 +248,56 @@ func testChan(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- 
 		selsend(ctx, br, send, msg.Reply(`@%s unrecognized op`, msg.DisplayName()))
 	}
 }
+
+func roarOwner(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	if err := br.ShouldTalk(ctx, msg, false); err != nil {
+		lg.Println("won't talk:", err)
+		return
+	}
+	if echo := br.EchoTo(msg.To()); echo != "" {
+		go doEcho(ctx, lg, "roooaaaaarrrrrrr", echo, msg.To())
+	}
+	selsend(ctx, br, send, msg.Reply("rawr ;3"))
+}
+
+func echoline(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	if echo := br.EchoTo(msg.To()); echo != "" {
+		doEcho(ctx, lg, matches[1], echo, msg.To())
+	}
+}
+
+func setTag(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	kind := matches[1]
+	tag := matches[2]
+	where := matches[3]
+	if where == "" {
+		where = msg.To()
+	}
+	switch {
+	case strings.EqualFold(kind, "learn"):
+		r, err := br.Exec(ctx, `UPDATE chans SET learn=? WHERE name=?`, tag, where)
+		if err != nil {
+			selsend(ctx, br, send, msg.Reply("@%s couldn't set learn tag in %s: %v", msg.DisplayName(), where, err))
+			return
+		}
+		if n, _ := r.RowsAffected(); n == 0 {
+			selsend(ctx, br, send, msg.Reply("@%s setting learn tag in %s didn't change any rows", msg.DisplayName(), where))
+			return
+		}
+		selsend(ctx, br, send, msg.Reply("@%s learn tag in %s set to %q", msg.DisplayName(), where, tag))
+	case strings.EqualFold(kind, "send"):
+		r, err := br.Exec(ctx, `UPDATE chans SET send=? WHERE name=?`, tag, where)
+		if err != nil {
+			selsend(ctx, br, send, msg.Reply("@%s couldn't set send tag in %s: %v", msg.DisplayName(), where, err))
+			return
+		}
+		if n, _ := r.RowsAffected(); n == 0 {
+			selsend(ctx, br, send, msg.Reply("@%s setting send tag in %s didn't change any rows", msg.DisplayName(), where))
+			return
+		}
+		selsend(ctx, br, send, msg.Reply("@%s send tag in %s set to %q", msg.DisplayName(), where, tag))
+	}
+	if err := br.Update(ctx, where); err != nil {
+		selsend(ctx, br, send, msg.Reply(`@%s resync didn't work though`, msg.DisplayName()))
+	}
+}
