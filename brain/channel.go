@@ -523,7 +523,7 @@ func (b *Brain) Privilege(ctx context.Context, channel, nick string, badges []st
 // TrackAffection begins tracking a user's score in a channel. added is false
 // if the user already has their score tracked.
 func (b *Brain) TrackAffection(ctx context.Context, channel, uid string) (added bool, err error) {
-	res, err := b.db.ExecContext(ctx, `INSERT OR IGNORE INTO scores(chan, userid) VALUES (?, ?)`, channel, uid)
+	res, err := b.db.ExecContext(ctx, `INSERT OR IGNORE INTO scores(chan, userid, score) VALUES (?1, ?2, (SELECT MIN(score) FROM scores WHERE chan=?1))`, channel, uid)
 	if err != nil {
 		return false, err
 	}
@@ -532,7 +532,8 @@ func (b *Brain) TrackAffection(ctx context.Context, channel, uid string) (added 
 }
 
 // AddAffection adds to a user's score. If the user does not have a score in
-// the given channel, this silently does nothing.
+// the given channel, this silently does nothing. If uid is the empty string,
+// this adds score to all users in the channel.
 func (b *Brain) AddAffection(ctx context.Context, channel, uid string, score int64) error {
 	_, err := b.stmts.addScore.ExecContext(ctx, channel, uid, score)
 	if err != nil {

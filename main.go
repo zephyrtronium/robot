@@ -221,6 +221,9 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 		}
 	}
 	uid, _ := msg.Tag("user-id")
+	if err := br.AddAffection(ctx, msg.To(), "", 1); err != nil {
+		lg.Printf("couldn't add affection to everyone in %s: %v", msg.To(), err)
+	}
 	if br.ShouldTalk(ctx, msg, true) == nil {
 		m := br.TalkIn(ctx, msg.To(), nil)
 		if m != "" {

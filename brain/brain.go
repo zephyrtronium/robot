@@ -457,7 +457,7 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 	stmts.forget = mustPrepare(ctx, db, makeForget(order))
 	stmts.expunge = mustPrepare(ctx, db, `DELETE FROM history WHERE id=?`)
 	stmts.audit = mustPrepare(ctx, db, `INSERT INTO audit(time, chan, sender, cmd, msg) VALUES (?, ?, ?, ?, ?)`)
-	stmts.addScore = mustPrepare(ctx, db, `UPDATE scores SET score=score+?3 WHERE chan=?1 AND userid=?2`)
+	stmts.addScore = mustPrepare(ctx, db, `UPDATE scores SET score=score+?3 WHERE chan=?1 AND (userid=?2 OR ?2='')`)
 	return stmts
 }
 
