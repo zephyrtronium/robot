@@ -180,7 +180,7 @@ func init() {
 		{
 			admin: false,
 			name:  "raw",
-			re:    regexp.MustCompile(`(?i)^raw\s+(?P<cmd>\d{3}|[A-Z0-9]+)\s*(?P<params>(?:\s*[^: ]\S*)*)?\s*(?::(?P<trailing>.*))?$`),
+			re:    regexp.MustCompile(`(?i)^raw\s+(?:@(?P<tags>\S+)\s+)?(?P<cmd>\d{3}|[A-Z0-9]+)\s*(?P<params>(?:\s*[^: ]\S*)*)?\s*(?::(?P<trailing>.*))?$`),
 			f:     raw,
 			help:  `["raw" CMD params :trailing] Send a raw IRC message.`,
 		},

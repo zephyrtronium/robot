@@ -54,9 +54,10 @@ func resync(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- ir
 
 func raw(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
 	m := irc.Message{
-		Command:  matches[1],
-		Params:   strings.Fields(matches[2]),
-		Trailing: matches[3],
+		Tags:     matches[1],
+		Command:  matches[2],
+		Params:   strings.Fields(matches[3]),
+		Trailing: matches[4],
 	}
 	selsend(ctx, br, send, m)
 }
