@@ -73,7 +73,21 @@ func (m Message) Reply(format string, args ...interface{}) Message {
 	msg := strings.TrimSpace(fmt.Sprintf(format, args...))
 	switch m.Command {
 	case "PRIVMSG":
-		return Privmsg(m.To(), msg)
+		r := Privmsg(m.To(), msg)
+		if !strings.HasPrefix(msg, "@") {
+			return r
+		}
+		dn := m.DisplayName() + " "
+		if !strings.HasPrefix(msg[1:], dn) {
+			return r
+		}
+		if id, ok := m.Tag("id"); ok {
+			// TODO: should quote id
+			r.Tags = "reply-parent-msg-id=" + id
+			// TMI prepends the respondee's username.
+			r.Trailing = r.Trailing[len(dn)+1:]
+		}
+		return r
 	case "WHISPER":
 		return Whisper(m.Nick, msg)
 	default:

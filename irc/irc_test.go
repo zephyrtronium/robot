@@ -381,7 +381,7 @@ func TestParse(t *testing.T) {
 
 func TestString(t *testing.T) {
 	// We're only really interested in correct formatting of messages we send,
-	// so we don't need to test tags or sender.
+	// so we don't need to test sender.
 	cases := []struct {
 		in  irc.Message
 		out string
@@ -395,6 +395,15 @@ func TestString(t *testing.T) {
 		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}, Trailing: "anime"}, "PRIVMSG #madoka #homura :anime"},
 		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka"}, Trailing: "anime madoka homura"}, "PRIVMSG #madoka :anime madoka homura"},
 		{irc.Message{Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}, Trailing: "anime madoka homura"}, "PRIVMSG #madoka #homura :anime madoka homura"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG"}, "@a=b;c PRIVMSG"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Params: []string{"#madoka"}}, "@a=b;c PRIVMSG #madoka"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}}, "@a=b;c PRIVMSG #madoka #homura"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Trailing: "anime"}, "@a=b;c PRIVMSG :anime"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Trailing: "anime madoka homura"}, "@a=b;c PRIVMSG :anime madoka homura"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Params: []string{"#madoka"}, Trailing: "anime"}, "@a=b;c PRIVMSG #madoka :anime"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}, Trailing: "anime"}, "@a=b;c PRIVMSG #madoka #homura :anime"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Params: []string{"#madoka"}, Trailing: "anime madoka homura"}, "@a=b;c PRIVMSG #madoka :anime madoka homura"},
+		{irc.Message{Tags: "a=b;c", Command: "PRIVMSG", Params: []string{"#madoka", "#homura"}, Trailing: "anime madoka homura"}, "@a=b;c PRIVMSG #madoka #homura :anime madoka homura"},
 	}
 	for _, c := range cases {
 		t.Run(c.out, func(t *testing.T) {
@@ -565,4 +574,36 @@ func TestDisplayName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReply(t *testing.T) {
+	cases := []struct {
+		to    irc.Message
+		msg   string
+		args  []interface{}
+		reply irc.Message
+	}{
+		{qp(":anime!anime@anime.tmi.twitch.tv PRIVMSG #test :madoka"), "homura", nil, qp("PRIVMSG #test :homura")},
+		{qp(":anime!anime@anime.tmi.twitch.tv PRIVMSG #test :madoka"), "@%s homura", []interface{}{"anime"}, qp("PRIVMSG #test :@anime homura")},
+		{qp("@id=abcd :anime!anime@anime.tmi.twitch.tv PRIVMSG #test :madoka"), "homura", nil, qp("PRIVMSG #test :homura")},
+		{qp("@id=abcd :anime!anime@anime.tmi.twitch.tv PRIVMSG #test :madoka"), "@animem homura", nil, qp("PRIVMSG #test :@animem homura")},
+		{qp("@id=abcd;display-name=Anime :anime!anime@anime.tmi.twitch.tv PRIVMSG #test :madoka"), "@%s homura", []interface{}{"anime"}, qp("PRIVMSG #test :@anime homura")},
+		{qp("@id=abcd :anime!anime@anime.tmi.twitch.tv PRIVMSG #test :madoka"), "@%s homura", []interface{}{"anime"}, qp("@reply-parent-msg-id=abcd PRIVMSG #test :homura")},
+	}
+	for _, c := range cases {
+		r := c.to.Reply(c.msg, c.args...)
+		r.Time = time.Time{}
+		if diff := cmp.Diff(c.reply, r); diff != "" {
+			t.Errorf("%q -> %q gave wrong reply (-want +got):\n%s", c.to.String(), c.msg, diff)
+		}
+	}
+}
+
+func qp(s string) irc.Message {
+	r, err := irc.Parse(strings.NewReader(s + "\r\n"))
+	if err != nil {
+		panic(err)
+	}
+	r.Time = time.Time{}
+	return r
 }
