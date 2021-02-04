@@ -36,7 +36,23 @@ import (
 // the earlier ones). If the resulting walk has no more words than the starting
 // chain, then the result is the empty string.
 func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) string {
-	if chain != nil {
+	tx, err := b.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ""
+	}
+	defer tx.Commit()
+	if len(chain) > 0 {
+		// Verify that the chain is plausible, so this can't cause the bot to
+		// say any message.
+		s := tx.StmtContext(ctx, b.stmts.verify)
+		args := []interface{}{tag, nil, chain[0]}
+		var r bool
+		for _, w := range chain[1:] {
+			args[1], args[2] = strings.ToLower(args[2].(string)), w
+			if err := s.QueryRowContext(ctx, args...).Scan(&r); err != nil {
+				return ""
+			}
+		}
 		// Ensure that an append causes a copy.
 		chain = chain[:len(chain):len(chain)]
 	}
@@ -57,11 +73,6 @@ func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) str
 			l += len(v) + 1
 		}
 	}
-	tx, err := b.db.BeginTx(ctx, nil)
-	if err != nil {
-		return ""
-	}
-	defer tx.Commit()
 	think := make([]*sql.Stmt, len(b.stmts.think))
 	for i, s := range b.stmts.think {
 		think[i] = tx.StmtContext(ctx, s)

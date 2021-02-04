@@ -97,6 +97,10 @@ type statements struct {
 	// think are for queries of descending size, starting with a full chain of
 	// size (order), then (order-1), down to 2.
 	think []*sql.Stmt
+	// verify is the statement to check whether a pair of words has a given
+	// tag. Parameters are tag, prefix, and suffix. This statement should be
+	// used with QueryRow. The result contains no rows when there is no match.
+	verify *sql.Stmt
 	// thought is the statement to register a generated message. Parameters are
 	// tag and message. This statement should be used with Exec.
 	thought *sql.Stmt
@@ -446,6 +450,7 @@ func prepStmts(ctx context.Context, db *sql.DB, order int) statements {
 		s := mustPrepare(ctx, db, b.String())
 		stmts.think = append(stmts.think, s)
 	}
+	stmts.verify = mustPrepare(ctx, db, fmt.Sprintf(`SELECT TRUE FROM tuples%d WHERE tag=? AND p%d IS ? AND suffix IS ?`, order, order-1))
 	stmts.thought = mustPrepare(ctx, db, `INSERT INTO generated(time, tag, msg) VALUES (strftime('%s', 'now'), ?, ?)`)
 	stmts.familiar = mustPrepare(ctx, db, `SELECT COUNT(*) FROM generated WHERE (tag=?1 OR ?1 IS NULL) AND ?2 GLOB msg || '*'`)
 	stmts.historyID = mustPrepare(ctx, db, `SELECT id, tag, msg FROM history WHERE tid=?`)
