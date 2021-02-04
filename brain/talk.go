@@ -56,7 +56,6 @@ func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) str
 		// Ensure that an append causes a copy.
 		chain = chain[:len(chain):len(chain)]
 	}
-	min := len(chain)
 	args := make([]interface{}, b.order+1)
 	args[0] = tag
 	l := 0
@@ -77,9 +76,13 @@ func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) str
 	for i, s := range b.stmts.think {
 		think[i] = tx.StmtContext(ctx, s)
 	}
+	first := true
 	for {
-		w, err := b.think(ctx, think, args)
-		if w == "" || err != nil {
+		w, err := b.think(ctx, think, args, first)
+		if err != nil {
+			return ""
+		}
+		if w == "" {
 			break
 		}
 		if l += utf8.RuneCountInString(w) + 1; l > n {
@@ -88,9 +91,7 @@ func (b *Brain) Talk(ctx context.Context, tag string, chain []string, n int) str
 		chain = append(chain, w)
 		copy(args[1:], args[2:])
 		args[len(args)-1] = strings.ToLower(w)
-	}
-	if len(chain) <= min {
-		return ""
+		first = false
 	}
 	msg := strings.TrimSpace(strings.Join(chain, " ") + " " + b.Emote(ctx, tag))
 	tx.StmtContext(ctx, b.stmts.thought).ExecContext(ctx, tag, msg)
@@ -115,7 +116,7 @@ func (b *Brain) TalkIn(ctx context.Context, channel string, chain []string) stri
 	return b.Talk(ctx, tag.String, chain, n)
 }
 
-func (b *Brain) think(ctx context.Context, think []*sql.Stmt, args []interface{}) (string, error) {
+func (b *Brain) think(ctx context.Context, think []*sql.Stmt, args []interface{}, first bool) (string, error) {
 	opts := b.opts.Get().([]optfreq)
 	defer func() {
 		if opts != nil {
@@ -132,7 +133,9 @@ func (b *Brain) think(ctx context.Context, think []*sql.Stmt, args []interface{}
 			if err := rows.Scan(&w.w, &w.n); err != nil {
 				return "", err
 			}
-			opts = append(opts, w)
+			if !first || w.w.Valid {
+				opts = append(opts, w)
+			}
 		}
 		if rows.Err() != nil {
 			return "", rows.Err()
@@ -144,7 +147,7 @@ func (b *Brain) think(ctx context.Context, think []*sql.Stmt, args []interface{}
 		}
 	}
 	if len(opts) == 0 {
-		return "", nil
+		return "", sql.ErrNoRows
 	}
 	var s int64
 	for i, v := range opts {
