@@ -265,6 +265,7 @@ func echoline(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- 
 	if echo := br.EchoTo(msg.To()); echo != "" {
 		doEcho(ctx, lg, matches[1], echo, msg.To())
 	}
+	selsend(ctx, br, send, msg.Reply("%s", matches[1]))
 }
 
 func setTag(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {

@@ -102,6 +102,7 @@ If a command invocation doesn't match any command, it instead prompts Robot to s
 - `set response probability to <prob>%` sets Robot's random response rate to a particular value.
 - `speak <n> times` generates up to n messages at once, bypassing the bot's rate limit. The maximum for n is 5.
 - `raid` generates five messages at once.
+- `echo <message>` repeats an arbitrary message.
 
 ## Effects
 

@@ -227,3 +227,7 @@ func describeMarriage(ctx context.Context, br *brain.Brain, lg *log.Logger, send
 	const s = `I am looking for a long series of short-term relationships and am holding a ranked competitive how-much-I-like-you tournament to decide my suitors! Politely ask me to marry you (or become your partner) and I'll start tracking your score. I like copypasta, memes, and long walks in the chat.`
 	selsend(ctx, br, send, br.Privmsg(ctx, msg.To(), s))
 }
+
+func echoAdmin(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string) {
+	selsend(ctx, br, send, msg.Reply("%s", matches[1]))
+}

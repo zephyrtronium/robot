@@ -244,7 +244,7 @@ func init() {
 		},
 		{
 			admin: false,
-			name:  "echo",
+			name:  "echo-owner",
 			re:    regexp.MustCompile(`(?i)^echo\s+(?P<message>.*)$`),
 			f:     echoline,
 			help:  `["echo" message] Echo a message, if settings allow.`,
@@ -359,6 +359,13 @@ func init() {
 			re:       regexp.MustCompile(`(?i)^(?:tell\s+me|talk)?\s*(?:about)?\s*(?:ranked)?\s*(?:competitive)?\s*marriage$`),
 			f:        describeMarriage,
 			help:     `["talk about marriage"] Give a summary of the ranked competitive marriage mechanics.`,
+		},
+		{
+			admin: true,
+			name:  "echo-admin",
+			re:    regexp.MustCompile(`(?i)^echo\s+(?P<message>.*)$`),
+			f:     echoAdmin,
+			help:  `["echo" message] Repeat a message.`,
 		},
 		{
 			admin: true, regular: true,
