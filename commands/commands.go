@@ -38,7 +38,14 @@ import (
 func Do(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, priv, cmd string) string {
 	for _, c := range all {
 		if m := c.ok(priv, cmd); m != nil {
-			c.f(ctx, br, lg, send, msg, m)
+			call := call{
+				br:      br,
+				send:    send,
+				msg:     msg,
+				matches: m,
+				lg:      lg,
+			}
+			c.f(ctx, &call)
 			if !c.harmless && !c.regular {
 				if err := br.Audit(ctx, msg, c.name); err != nil {
 					lg.Println("error auditing command:", err)
@@ -91,6 +98,14 @@ func Parse(me, msg string) (cmd string, ok bool) {
 	return
 }
 
+type call struct {
+	br      *brain.Brain
+	send    chan<- irc.Message
+	msg     irc.Message
+	matches []string
+	lg      *log.Logger
+}
+
 type command struct {
 	// disable indicates that a command should never be used, even by owners,
 	// if nonzero.
@@ -113,7 +128,7 @@ type command struct {
 	// entire line.
 	re *regexp.Regexp
 	// f is the function to invoke.
-	f func(ctx context.Context, br *brain.Brain, lg *log.Logger, send chan<- irc.Message, msg irc.Message, matches []string)
+	f func(ctx context.Context, call *call)
 	// help is a short usage for the command.
 	help string
 }
