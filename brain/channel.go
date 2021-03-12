@@ -575,7 +575,7 @@ func (b *Brain) Marry(ctx context.Context, channel, uid string, when time.Time) 
 
 // Marriage gets the current marriage info for a channel.
 func (b *Brain) Marriage(ctx context.Context, channel string) (uid string, when time.Time, score int64, err error) {
-	r := b.db.QueryRowContext(ctx, `SELECT marriages.userid, marriages.time, scores.score FROM (marriages JOIN scores USING (userid)) WHERE marriages.chan=?`, channel)
+	r := b.db.QueryRowContext(ctx, `SELECT marriages.userid, marriages.time, scores.score FROM (marriages JOIN scores USING (chan, userid)) WHERE marriages.chan=?`, channel)
 	if err = r.Scan(&uid, &when, &score); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = nil
