@@ -190,11 +190,18 @@ func multigen(ctx context.Context, call *call) {
 	if n > 5 {
 		n = 5
 	}
+	ch := make(chan string, n)
 	for i := 0; i < n; i++ {
-		m := br.TalkIn(ctx, call.msg.To(), nil)
-		if i == 4 {
-			m = uwuRep.Replace(m)
-		}
+		go func(i int) {
+			m := br.TalkIn(ctx, call.msg.To(), nil)
+			if i == 4 {
+				m = uwuRep.Replace(m)
+			}
+			ch <- m
+		}(i)
+	}
+	for i := 0; i < n; i++ {
+		m := <-ch
 		selsend(ctx, br, call.send, call.msg.Reply("%s", m))
 	}
 }
