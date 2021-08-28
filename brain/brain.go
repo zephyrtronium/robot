@@ -258,6 +258,11 @@ func (b *Brain) Name() string {
 	return b.me
 }
 
+// Order returns the chain order associated with the brain.
+func (b *Brain) Order() int {
+	return b.order
+}
+
 // SetFallbackWait sets the hard rate limits for messages for which there is
 // no channel config. This primarily applies to whispers. The default hard rate
 // limits correspond to one message per third of a second and 100 messages per
@@ -493,6 +498,11 @@ func (b *Brain) Query(ctx context.Context, query string, args ...interface{}) (*
 // most one resulting row.
 func (b *Brain) QueryRow(ctx context.Context, query string, args ...interface{}) *sql.Row {
 	return b.db.QueryRowContext(ctx, query, args...)
+}
+
+// Tx returns a transaction for the brain's database.
+func (b *Brain) Tx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	return b.db.BeginTx(ctx, opts)
 }
 
 // Audit records a priviliged command activation for audit.
