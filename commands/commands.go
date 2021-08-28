@@ -459,6 +459,13 @@ func init() {
 			f:    chuu,
 			help: `["*smooch*"] *smooch*`,
 		},
+		{
+			admin: true, regular: true,
+			name: "self",
+			re:   regexp.MustCompile(`(?i)^[¿¡]*\s*(?:who\s+a?re?\s+y?o?u|how\s+do\s+y?o?u\s+w[oe]?rk)\s*[?!¿¡]*`),
+			f:    self,
+			help: `["who are you"] Describe self.`,
+		},
 		// talk-catchall MUST be last
 		{
 			admin: true, regular: true,

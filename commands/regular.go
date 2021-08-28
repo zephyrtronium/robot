@@ -342,3 +342,8 @@ func chuu(ctx context.Context, call *call) {
 	}
 	selsend(ctx, br, call.send, call.msg.Reply(`@%s no that's weird, you're weird %s`, call.msg.DisplayName(), br.EmoteIn(ctx, call.msg.To())))
 }
+
+func self(ctx context.Context, call *call) {
+	br := call.br
+	selsend(ctx, br, call.send, call.msg.Reply(`@%s I'm a Markov chain bot! I learn from things people say in chat, then spew vaguely intelligible memes back. More info at: https://github.com/zephyrtronium/robot#how-robot-works`, call.msg.DisplayName()))
+}
