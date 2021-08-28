@@ -240,7 +240,7 @@ func marry(ctx context.Context, call *call) {
 	}
 	score, err := br.Affection(ctx, call.msg.To(), uid)
 	if err != nil {
-		selsend(ctx, br, call.send, call.msg.Reply(`@%s there was a problem checking how much I like you: %v`, err))
+		selsend(ctx, br, call.send, call.msg.Reply(`@%s there was a problem checking how much I like you: %v`, call.msg.DisplayName(), err))
 		return
 	}
 	if score < 50 {
@@ -249,6 +249,10 @@ func marry(ctx context.Context, call *call) {
 	}
 	// Marriage is not atomic, but I'm not terribly concerned about it.
 	cur, since, beat, err := br.Marriage(ctx, call.msg.To())
+	if err != nil {
+		selsend(ctx, br, call.send, br.Privmsg(ctx, call.msg.To(), fmt.Sprintf(`@%s there was a generic problem: %v`, call.msg.DisplayName(), err)))
+		return
+	}
 	if cur == "" {
 		if err := br.Marry(ctx, call.msg.To(), uid, call.msg.Time); err != nil {
 			selsend(ctx, br, call.send, call.msg.Reply(`@%s I tried, but couldn't: %v`, call.msg.DisplayName(), err))
@@ -314,4 +318,27 @@ func affection(ctx context.Context, call *call) {
 		return
 	}
 	selsend(ctx, br, call.send, br.Privmsg(ctx, call.msg.To(), fmt.Sprintf(`@%s about %f`, call.msg.DisplayName(), math.Log2(float64(score)))))
+}
+
+func chuu(ctx context.Context, call *call) {
+	br := call.br
+	if err := br.ShouldTalk(ctx, call.msg, false); err != nil {
+		call.lg.Println("won't talk:", err)
+		return
+	}
+	uid, _ := call.msg.Tag("user-id")
+	cur, _, _, err := br.Marriage(ctx, call.msg.To())
+	if err != nil {
+		selsend(ctx, br, call.send, call.msg.Reply(`@%s When I tried to check whether you're being cute or weird, %v`, call.msg.DisplayName(), err))
+		return
+	}
+	if uid == cur {
+		selsend(ctx, br, call.send, call.msg.Reply(`@%s TehePelo %s`, call.msg.DisplayName(), br.EmoteIn(ctx, call.msg.To())))
+		return
+	}
+	if err := br.AddAffection(ctx, call.msg.To(), uid, -10); err != nil {
+		selsend(ctx, br, call.send, call.msg.Reply(`@%s You're lucky a problem occurred, weirdo: %v`, call.msg.DisplayName(), err))
+		return
+	}
+	selsend(ctx, br, call.send, call.msg.Reply(`@%s no that's weird, you're weird %s`, call.msg.DisplayName(), br.EmoteIn(ctx, call.msg.To())))
 }
