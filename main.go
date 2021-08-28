@@ -259,7 +259,13 @@ func privmsg(ctx context.Context, br *brain.Brain, send chan<- irc.Message, msg 
 			lg.Println("won't copypasta:", err)
 			return nil
 		}
-		send <- msg.Reply("%s", msg.Trailing)
+		eff := br.EffectIn(ctx, msg.To())
+		cp := msg.Trailing
+		if eff != "" {
+			lg.Println("applying", eff, "to", msg.Trailing)
+			cp = commands.Effect(eff, msg.Trailing)
+		}
+		send <- msg.Reply("%s", cp)
 		if err := br.AddAffection(ctx, msg.To(), uid, 20); err != nil {
 			lg.Println("couldn't add copypasta affection:", err)
 		}
