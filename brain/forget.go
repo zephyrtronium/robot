@@ -57,6 +57,32 @@ func (b *Brain) ClearMsg(ctx context.Context, msgid string) error {
 	return nil
 }
 
+// ClearText unlearns the tuples in an arbitrary string.
+func (b *Brain) ClearText(ctx context.Context, channel, text string) error {
+	tx, err := b.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("couldn't open transaction: %w", err)
+	}
+	cfg := b.config(channel)
+	if cfg == nil {
+		return fmt.Errorf("couldn't clear text from %q: no such channel", channel)
+	}
+	cfg.mu.Lock()
+	tag := cfg.send
+	cfg.mu.Unlock()
+	if !tag.Valid {
+		return fmt.Errorf("couldn't clear text from %s: channel has no send tag", channel)
+	}
+	if err := b.forget(ctx, tx.StmtContext(ctx, b.stmts.forget), tag.String, text); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("error committing transaction: %w", err)
+	}
+	return nil
+}
+
 // ClearChat unlearns all recent messages from a given user in a channel.
 func (b *Brain) ClearChat(ctx context.Context, channel, user string) error {
 	tx, err := b.db.BeginTx(ctx, nil)
