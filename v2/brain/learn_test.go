@@ -1,6 +1,7 @@
 package brain_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -45,4 +46,113 @@ func TestTokens(t *testing.T) {
 			}
 		})
 	}
+}
+
+type testLearner struct {
+	order   int
+	learned []brain.Tuple
+	err     error
+}
+
+func (t *testLearner) Order() int {
+	return t.order
+}
+
+func (t *testLearner) Learn(ctx context.Context, tuples []brain.Tuple) error {
+	t.learned = append(t.learned, tuples...)
+	return t.err
+}
+
+func TestLearn(t *testing.T) {
+	s := func(x ...string) []string { return x }
+	cases := []struct {
+		name  string
+		msg   []string
+		order int
+		want  []brain.Tuple
+	}{
+		{
+			name:  "single-1",
+			msg:   s("word"),
+			order: 1,
+			want: []brain.Tuple{
+				{Prefix: s(""), Suffix: "word"},
+				{Prefix: s("word"), Suffix: ""},
+			},
+		},
+		{
+			name:  "single-3",
+			msg:   s("word"),
+			order: 3,
+			want: []brain.Tuple{
+				{Prefix: s("", "", ""), Suffix: "word"},
+				{Prefix: s("", "", "word"), Suffix: ""},
+			},
+		},
+		{
+			name:  "many-1",
+			msg:   s("many", "words", "in", "this", "message"),
+			order: 1,
+			want: []brain.Tuple{
+				{Prefix: s(""), Suffix: "many"},
+				{Prefix: s("many"), Suffix: "words"},
+				{Prefix: s("words"), Suffix: "in"},
+				{Prefix: s("in"), Suffix: "this"},
+				{Prefix: s("this"), Suffix: "message"},
+				{Prefix: s("message"), Suffix: ""},
+			},
+		},
+		{
+			name:  "many-3",
+			msg:   s("many", "words", "in", "this", "message"),
+			order: 3,
+			want: []brain.Tuple{
+				{Prefix: s("", "", ""), Suffix: "many"},
+				{Prefix: s("", "", "many"), Suffix: "words"},
+				{Prefix: s("", "many", "words"), Suffix: "in"},
+				{Prefix: s("many", "words", "in"), Suffix: "this"},
+				{Prefix: s("words", "in", "this"), Suffix: "message"},
+				{Prefix: s("in", "this", "message"), Suffix: ""},
+			},
+		},
+		{
+			name:  "entropy",
+			msg:   s("A"),
+			order: 1,
+			want: []brain.Tuple{
+				{Prefix: s(""), Suffix: "A"},
+				{Prefix: s("a"), Suffix: ""},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			l := testLearner{order: c.order}
+			err := brain.Learn(context.Background(), &l, c.msg)
+			if err != nil {
+				t.Error(err)
+			}
+			// Check lengths of prefixes against the order we put down rather
+			// than leaving it to cmp, because I have been known to typo a test
+			// case or two when writing them at 5 AM.
+			for _, p := range l.learned {
+				if len(p.Prefix) != c.order {
+					t.Errorf("wrong prefix size: want %d, got %d", c.order, len(p.Prefix))
+				}
+			}
+			if diff := cmp.Diff(c.want, l.learned); diff != "" {
+				t.Errorf("learned the wrong things from %q:\n%s", c.msg, diff)
+			}
+		})
+	}
+}
+
+func TestMinimumOrder(t *testing.T) {
+	defer func() {
+		err := recover()
+		if err == nil {
+			t.Error("no panic")
+		}
+	}()
+	brain.Learn(context.Background(), new(testLearner), []string{"word"})
 }
