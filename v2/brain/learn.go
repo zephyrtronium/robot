@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -12,6 +13,19 @@ import (
 type Tuple struct {
 	Prefix []string
 	Suffix string
+}
+
+// MessageMeta holds metadata about a message.
+type MessageMeta struct {
+	// Time is the time at which the message was sent.
+	Time time.Time
+	// ID is a unique ID for the message.
+	ID string
+	// Tag is a tag that should be associated with the message data.
+	Tag string
+	// User is an identifier for the user. It is obfuscated such that the user
+	// cannot be identified and is not correlated between rooms.
+	User [32]byte
 }
 
 // Learner records Markov chain tuples.
@@ -25,11 +39,11 @@ type Learner interface {
 	// denote the start of the message and end with one empty suffix to denote
 	// the end; all other tokens are non-empty. Each tuple's prefix has entropy
 	// reduction transformations applied.
-	Learn(ctx context.Context, tuples []Tuple) error
+	Learn(ctx context.Context, meta *MessageMeta, tuples []Tuple) error
 }
 
 // Learn records tokens into a Learner.
-func Learn(ctx context.Context, l Learner, toks []string) error {
+func Learn(ctx context.Context, l Learner, meta *MessageMeta, toks []string) error {
 	n := l.Order()
 	if n < 1 {
 		panic(fmt.Errorf("order must be at least 1, got %d from %#v", n, l))
@@ -47,7 +61,7 @@ func Learn(ctx context.Context, l Learner, toks []string) error {
 	copy(q.Prefix, p.Prefix[1:])
 	q.Prefix[n-1] = strings.ToLower(p.Suffix)
 	tt = append(tt, q)
-	return l.Learn(ctx, tt)
+	return l.Learn(ctx, meta, tt)
 }
 
 // Tokens converts a message into a list of its words appended to dst.

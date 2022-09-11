@@ -58,7 +58,7 @@ func (t *testLearner) Order() int {
 	return t.order
 }
 
-func (t *testLearner) Learn(ctx context.Context, tuples []brain.Tuple) error {
+func (t *testLearner) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []brain.Tuple) error {
 	t.learned = append(t.learned, tuples...)
 	return t.err
 }
@@ -128,7 +128,7 @@ func TestLearn(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			l := testLearner{order: c.order}
-			err := brain.Learn(context.Background(), &l, c.msg)
+			err := brain.Learn(context.Background(), &l, nil, c.msg)
 			if err != nil {
 				t.Error(err)
 			}
@@ -154,5 +154,5 @@ func TestMinimumOrder(t *testing.T) {
 			t.Error("no panic")
 		}
 	}()
-	brain.Learn(context.Background(), new(testLearner), []string{"word"})
+	brain.Learn(context.Background(), new(testLearner), nil, []string{"word"})
 }
