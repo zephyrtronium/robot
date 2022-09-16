@@ -17,15 +17,15 @@ type Tuple struct {
 
 // MessageMeta holds metadata about a message.
 type MessageMeta struct {
-	// Time is the time at which the message was sent.
-	Time time.Time
 	// ID is a unique ID for the message.
-	ID string
-	// Tag is a tag that should be associated with the message data.
-	Tag string
+	ID [16]byte
 	// User is an identifier for the user. It is obfuscated such that the user
 	// cannot be identified and is not correlated between rooms.
 	User [32]byte
+	// Tag is a tag that should be associated with the message data.
+	Tag string
+	// Time is the time at which the message was sent.
+	Time time.Time
 }
 
 // Learner records Markov chain tuples.
