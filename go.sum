@@ -1,11 +1,11 @@
 github.com/google/go-cmp v0.5.7 h1:81/ik6ipDQS2aGcBfIN5dHDB36BwrStyeAQquSYCV4o=
 github.com/google/go-cmp v0.5.7/go.mod h1:n+brtR0CgQNWTVd5ZUFpTBC8YFBDLK/h/bpaJ8/DtOE=
-github.com/mattn/go-sqlite3 v1.14.8 h1:gDp86IdQsN/xWjIEmr9MF6o9mpksUgh0fu+9ByFxzIU=
-github.com/mattn/go-sqlite3 v1.14.8/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
 github.com/mattn/go-sqlite3 v1.14.15 h1:vfoHhTN1af61xCRSWzFIWzx2YskyMTwHLrExkBOjvxI=
 github.com/mattn/go-sqlite3 v1.14.15/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
 github.com/zephyrtronium/crazy v0.0.0-20191212030909-211cdf2ffde5 h1:asgg11Ien+5nzHwMDH5Iry/UWEkN33X6MBVtaR27/I8=
 github.com/zephyrtronium/crazy v0.0.0-20191212030909-211cdf2ffde5/go.mod h1:6edrsMVDX4Dg5y7q77duwwsmIwd4yihyMHNPIvXzUdo=
+gitlab.com/zephyrtronium/sq v1.0.1 h1:adEgr3pNIrpeUTn8pf4l5bzCZU3P+lZ71shhQpTtU3k=
+gitlab.com/zephyrtronium/sq v1.0.1/go.mod h1:1PixOalEEwM8B2bR0JHkH0kqE4eaqG47DRFn4mWOtaQ=
 gitlab.com/zephyrtronium/tmi v0.0.0-20220313232153-eb9e5ec8d752 h1:FPe8gApU0aj32ngalN3igvQe/wyMa0lu4nESeJB3ouE=
 gitlab.com/zephyrtronium/tmi v0.0.0-20220313232153-eb9e5ec8d752/go.mod h1:OnGsPoEWvq0Kh20CPT2Aoa9bxmzX5imtWpZ+9Qiltik=
 golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac h1:7zkz7BUtwNFFqcowJ+RIgu2MaV/MapERkDIy+mwPyjs=

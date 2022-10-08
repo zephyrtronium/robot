@@ -10,3 +10,5 @@ require (
 )
 
 require gitlab.com/zephyrtronium/tmi v0.0.0-20220313232153-eb9e5ec8d752
+
+require gitlab.com/zephyrtronium/sq v1.0.1

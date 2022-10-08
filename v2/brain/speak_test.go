@@ -19,11 +19,11 @@ func (t *testSpeaker) Order() int {
 	return t.order
 }
 
-func (t *testSpeaker) New(ctx context.Context) ([]string, error) {
+func (t *testSpeaker) New(ctx context.Context, tag string) ([]string, error) {
 	return t.new, nil
 }
 
-func (t *testSpeaker) Speak(ctx context.Context, prompt []string) ([]string, error) {
+func (t *testSpeaker) Speak(ctx context.Context, tag string, prompt []string) ([]string, error) {
 	t.prompt = prompt
 	return prompt, nil
 }
@@ -72,7 +72,7 @@ func TestSpeak(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			s := testSpeaker{order: c.order, new: c.new}
-			r, err := brain.Speak(context.Background(), &s, c.prompt)
+			r, err := brain.Speak(context.Background(), &s, "", c.prompt)
 			if err != nil {
 				t.Error(err)
 			}

@@ -14,23 +14,26 @@ type Speaker interface {
 	// generated with no prompt, the result from New is passed directly to
 	// Speak; it is the speaker's responsibility to ensure it meets
 	// requirements with regard to entropy reduction and matchable content.
-	New(ctx context.Context) ([]string, error)
+	// Only data originally learned with the given tag should be used to
+	// generate a prompt.
+	New(ctx context.Context, tag string) ([]string, error)
 	// Speak generates a full message from the given prompt. The prompt is
 	// guaranteed to have length equal to the value returned from Order, unless
 	// it is a prompt returned from New. If the number of tokens in the prompt
 	// is smaller than Order, the difference is made up by prepending empty
 	// strings to the prompt. Empty strings at the start and end of the result
-	// will be trimmed.
-	Speak(ctx context.Context, prompt []string) ([]string, error)
+	// will be trimmed. Only data originally learned with the given tag should
+	// be used to generate a message.
+	Speak(ctx context.Context, tag string, prompt []string) ([]string, error)
 }
 
 // Speak produces a new message from the given prompt.
-func Speak(ctx context.Context, s Speaker, prompt string) (string, error) {
+func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, error) {
 	toks := Tokens(nil, prompt)
 	if len(toks) == 0 {
 		// No prompt; get one from the speaker instead.
 		var err error
-		toks, err = s.New(ctx)
+		toks, err = s.New(ctx, tag)
 		if err != nil {
 			return "", fmt.Errorf("couldn't get a new prompt: %w", err)
 		}
@@ -47,7 +50,7 @@ func Speak(ctx context.Context, s Speaker, prompt string) (string, error) {
 			toks = toks[:n]
 		}
 	}
-	r, err := s.Speak(ctx, toks)
+	r, err := s.Speak(ctx, tag, toks)
 	if err != nil {
 		return "", fmt.Errorf("couldn't speak: %w", err)
 	}

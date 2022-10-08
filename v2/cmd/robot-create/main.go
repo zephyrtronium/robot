@@ -2,24 +2,16 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"embed"
 	"flag"
-	"io/fs"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
-	"text/template"
 
 	"github.com/zephyrtronium/robot/v2/brain/sqlbrain"
+	"gitlab.com/zephyrtronium/sq"
 
 	_ "github.com/mattn/go-sqlite3" // driver
 )
-
-//go:embed *.sql
-var templateFiles embed.FS
-var templates = template.Must(template.ParseFS(templateFiles, "*.sql"))
 
 func main() {
 	log.SetFlags(log.Ltime | log.Lshortfile)
@@ -36,29 +28,6 @@ func main() {
 		log.Fatal("order is required")
 	}
 
-	data := struct {
-		Driver  string
-		N, NM1  int
-		Version int
-		Iter    []struct{}
-	}{
-		Driver: driver,
-		N:      order, NM1: order - 1,
-		Version: sqlbrain.SchemaVersion,
-		Iter:    make([]struct{}, order),
-	}
-	var query strings.Builder
-	files, err := fs.ReadDir(templateFiles, ".")
-	if err != nil {
-		panic(err)
-	}
-	for _, file := range files {
-		err := templates.ExecuteTemplate(&query, file.Name(), &data)
-		if err != nil {
-			log.Fatalf("couldn't interpret %s: %v", file.Name(), err)
-		}
-	}
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	go func() {
 		// Make the second ^C always kill the program by restoring default
@@ -67,22 +36,15 @@ func main() {
 		cancel()
 	}()
 
-	db, err := sql.Open(driver, connect)
+	db, err := sq.Open(driver, connect)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	if err := db.PingContext(ctx); err != nil {
+	if err := db.Ping(ctx); err != nil {
 		log.Fatal(err)
 	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
+	if err := sqlbrain.Create(ctx, db, order); err != nil {
 		log.Fatal(err)
-	}
-	if _, err := tx.ExecContext(ctx, query.String()); err != nil {
-		log.Fatalf("couldn't exec: %v", err)
-	}
-	if err := tx.Commit(); err != nil {
-		log.Fatalf("couldn't commit: %v", err)
 	}
 }

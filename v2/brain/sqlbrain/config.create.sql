@@ -1,4 +1,3 @@
-
 -- Config holds global config for the Markov chain data.
 CREATE TABLE Config (
     option TEXT NOT NULL,
