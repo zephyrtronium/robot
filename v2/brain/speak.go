@@ -13,22 +13,25 @@ type Speaker interface {
 	// New finds a prompt to begin a random message. When a message is
 	// generated with no prompt, the result from New is passed directly to
 	// Speak; it is the speaker's responsibility to ensure it meets
-	// requirements with regard to entropy reduction and matchable content.
-	// Only data originally learned with the given tag should be used to
-	// generate a prompt.
+	// requirements with regard to length and matchable content. Only data
+	// originally learned with the given tag should be used to generate a
+	// prompt.
 	New(ctx context.Context, tag string) ([]string, error)
 	// Speak generates a full message from the given prompt. The prompt is
 	// guaranteed to have length equal to the value returned from Order, unless
 	// it is a prompt returned from New. If the number of tokens in the prompt
 	// is smaller than Order, the difference is made up by prepending empty
-	// strings to the prompt. Empty strings at the start and end of the result
-	// will be trimmed. Only data originally learned with the given tag should
-	// be used to generate a message.
-	Speak(ctx context.Context, tag string, prompt []string) ([]string, error)
+	// strings to the prompt. The speaker should use the given reduce function
+	// on all tokens, including those in the prompt, when generating a message.
+	// Empty strings at the start and end of the result will be trimmed. Only
+	// data originally learned with the given tag should be used to generate a
+	// message.
+	Speak(ctx context.Context, reduce func(string) string, tag string, prompt []string) ([]string, error)
 }
 
 // Speak produces a new message from the given prompt.
 func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, error) {
+	// FIXME(zeph): we lose early tokens in long prompts
 	toks := Tokens(nil, prompt)
 	if len(toks) == 0 {
 		// No prompt; get one from the speaker instead.
@@ -50,7 +53,7 @@ func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, error) {
 			toks = toks[:n]
 		}
 	}
-	r, err := s.Speak(ctx, tag, toks)
+	r, err := s.Speak(ctx, ReduceEntropy, tag, toks)
 	if err != nil {
 		return "", fmt.Errorf("couldn't speak: %w", err)
 	}

@@ -15,7 +15,15 @@ import (
 type Brain struct {
 	db    DB
 	tpl   *template.Template
+	stmts statements
 	order int
+}
+
+type statements struct {
+	// selectTuple selects a tuple with a given tag and current state.
+	selectTuple *sq.Stmt
+	// newTuple selects a single starting term with a given tag.
+	newTuple *sq.Stmt
 }
 
 // DB encapsulates database methods a Brain requires to allow use of a DB or a
@@ -25,6 +33,7 @@ type DB interface {
 	Query(ctx context.Context, query string, args ...any) (*sq.Rows, error)
 	QueryRow(ctx context.Context, query string, args ...any) *sq.Row
 	Begin(ctx context.Context, opts *sq.TxOptions) (*sq.Tx, error)
+	Prepare(ctx context.Context, query string) (*sq.Stmt, error)
 }
 
 var _, _ DB = (*sq.DB)(nil), (*sq.Conn)(nil)
@@ -41,7 +50,61 @@ func Open(ctx context.Context, db DB) (*Brain, error) {
 		return nil, fmt.Errorf("couldn't get order from database (not a brain?): %w", err)
 	}
 	// Parse templates.
+	// tuple.insert.sql is special because it is executed independently for
+	// every call instead of being executed once and prepared.
 	template.Must(br.tpl.New("tuple.insert.sql").Parse(insertTuple))
+	type tupleData struct {
+		Fibonacci []int
+		NM1       int
+		MinScore  int
+	}
+	fib := make([]int, br.order-1)
+	a, b := 1, 1
+	for i := range fib {
+		a, b = b, a+b
+		fib[i] = b
+	}
+	if br.order == 1 {
+		// Special case for the minimum order. In this case, the minimum score
+		// must be 0, because the score of every match is 0, since there is
+		// nothing additional in the prefix to contribute score.
+		a = 0
+	}
+	tpls := []struct {
+		name string
+		text string
+		data any
+		out  **sq.Stmt
+	}{
+		{
+			name: "tuple.new.sql",
+			text: newTuple,
+			data: tupleData{NM1: br.order - 1},
+			out:  &br.stmts.newTuple,
+		},
+		{
+			name: "tuple.select.sql",
+			text: selectTuple,
+			data: tupleData{Fibonacci: fib, NM1: br.order - 1, MinScore: a},
+			out:  &br.stmts.selectTuple,
+		},
+	}
+	var buf strings.Builder
+	for _, tpl := range tpls {
+		tp, err := template.New(tpl.name).Parse(tpl.text)
+		if err != nil {
+			panic(fmt.Errorf("couldn't parse template %s: %w", tpl.name, err))
+		}
+		buf.Reset()
+		if err := tp.Execute(&buf, tpl.data); err != nil {
+			panic(fmt.Errorf("couldn't execute template %s: %w", tpl.name, err))
+		}
+		s, err := br.db.Prepare(ctx, buf.String())
+		if err != nil {
+			panic(fmt.Errorf("couldn't prepare statement from %s: %w\n%s", tpl.name, err, buf.String()))
+		}
+		*tpl.out = s
+	}
 
 	return &br, nil
 }
@@ -92,7 +155,7 @@ func Create(ctx context.Context, db DB, order int) error {
 		return fmt.Errorf("couldn't open transaction: %w", err)
 	}
 	if _, err := tx.Exec(ctx, query.String()); err != nil {
-		return fmt.Errorf("couldn't exec: %w", err)
+		return fmt.Errorf("couldn't exec %s\n%w", query.String(), err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("couldn't commit: %w", err)

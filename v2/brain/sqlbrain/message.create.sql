@@ -24,3 +24,17 @@ CREATE TABLE Tuple (
 
 CREATE INDEX IdxTupleMsg ON Tuple(msg);
 CREATE INDEX IdxTuplePN ON Tuple(p{{ $.NM1 }});
+
+-- MessageTuple contains exactly those tuples which should be considered for
+-- generating messages.
+CREATE VIEW MessageTuple AS
+    SELECT
+        Message.tag AS tag,
+        {{- range $i, $_ := $.Iter }}
+        Tuple.p{{$i}} AS p{{$i}},
+        {{- end }}
+        Tuple.suffix AS suffix
+    FROM Message
+        INNER JOIN Tuple ON Message.id = Tuple.msg
+    WHERE
+        LIKELY(Message.deleted IS NULL);

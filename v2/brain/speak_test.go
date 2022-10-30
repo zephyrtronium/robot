@@ -23,7 +23,8 @@ func (t *testSpeaker) New(ctx context.Context, tag string) ([]string, error) {
 	return t.new, nil
 }
 
-func (t *testSpeaker) Speak(ctx context.Context, tag string, prompt []string) ([]string, error) {
+func (t *testSpeaker) Speak(ctx context.Context, red func(string) string, tag string, prompt []string) ([]string, error) {
+	// TODO(zeph): use reducer
 	t.prompt = prompt
 	return prompt, nil
 }
@@ -68,6 +69,7 @@ func TestSpeak(t *testing.T) {
 			order:  2,
 			want:   []string{"homura", "anime"},
 		},
+		// TODO(zeph): cases testing entropy reduction
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
