@@ -19,7 +19,7 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 	// slice of all of them. Using pointers to the strings instead of the
 	// strings directly avoids extra allocations.
 	p := make([]any, 1, 1+len(tuples)*br.order)
-	p[0] = meta.ID[:]
+	p[0] = &meta.ID
 	for i := range tuples {
 		tuple := &tuples[i]
 		for i := range tuple.Prefix {
@@ -37,7 +37,7 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 	// The INSERT returns the delete reason, which is probably but not
 	// certainly NULL.
 	var deleted sql.NullString
-	id := meta.ID[:]
+	id := &meta.ID
 	user := meta.User[:]
 	err = tx.QueryRow(ctx, insertMessage, id, user, meta.Tag, meta.Time.UnixMilli()).Scan(&deleted)
 	if err != nil {

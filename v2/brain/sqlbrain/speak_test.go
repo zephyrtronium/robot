@@ -2,13 +2,12 @@ package sqlbrain_test
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/zephyrtronium/robot/v2/brain"
 	"github.com/zephyrtronium/robot/v2/brain/sqlbrain"
 	"gitlab.com/zephyrtronium/sq"
@@ -375,7 +374,7 @@ func addTuples(ctx context.Context, t *testing.T, db sqlbrain.DB, tag string, tu
 		panic(err)
 	}
 	defer tx.Rollback()
-	uu := nextuu()
+	uu := uuid.New()
 	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag) VALUES (?, x'', ?)", uu, tag)
 	if err != nil {
 		return fmt.Errorf("couldn't add message: %v", err)
@@ -426,15 +425,6 @@ func trim(r []string) []string {
 		}
 	}
 	return nil
-}
-
-var uuctr atomic.Uint64
-
-func nextuu() []byte {
-	var r [16]byte
-	x := uuctr.Add(1)
-	binary.LittleEndian.PutUint64(r[:], x)
-	return r[:]
 }
 
 func dumpdb(ctx context.Context, t *testing.T, db sqlbrain.DB) {

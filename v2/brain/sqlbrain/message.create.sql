@@ -3,7 +3,7 @@
 
 -- Message holds message metadata.
 CREATE TABLE Message (
-    id      BLOB PRIMARY KEY, -- Message UUID.
+    id      TEXT PRIMARY KEY, -- Message UUID.
     user    BLOB NOT NULL, -- Obfuscated user hash.
     tag     TEXT, -- Tag used to learn the message.
     time    INTEGER, -- Message send timestamp. Can be null for migrated data.
@@ -15,7 +15,7 @@ CREATE INDEX IdxMessageTags ON Message(tag);
 
 -- Tuple holds actual Markov chain tuples.
 CREATE TABLE Tuple (
-    msg BLOB REFERENCES Message(id),
+    msg TEXT REFERENCES Message(id),
     {{- range $i, $_ := $.Iter }}
     p{{$i}} TEXT,
     {{- end }}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Tuple is a single Markov chain tuple.
@@ -14,8 +16,8 @@ type Tuple struct {
 
 // MessageMeta holds metadata about a message.
 type MessageMeta struct {
-	// ID is a unique ID for the message.
-	ID [16]byte
+	// ID is a UUID for the message.
+	ID uuid.UUID
 	// User is an identifier for the user. It is obfuscated such that the user
 	// cannot be identified and is not correlated between rooms.
 	User [32]byte
@@ -37,7 +39,6 @@ type Learner interface {
 	// the end; all other tokens are non-empty. Each tuple's prefix has entropy
 	// reduction transformations applied.
 	Learn(ctx context.Context, meta *MessageMeta, tuples []Tuple) error
-	// TODO(zeph): forgetting
 }
 
 // Learn records tokens into a Learner.

@@ -8,13 +8,14 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
 	"github.com/zephyrtronium/robot/v2/brain"
 	"github.com/zephyrtronium/robot/v2/brain/sqlbrain"
 )
 
 func TestLearn(t *testing.T) {
 	type row struct {
-		ID   [16]byte
+		ID   uuid.UUID
 		User [32]byte
 		Tag  string
 		Ts   int64
@@ -32,7 +33,7 @@ func TestLearn(t *testing.T) {
 			name:  "2x1",
 			order: 2,
 			msg: brain.MessageMeta{
-				ID:   [16]byte{0: 1},
+				ID:   uuid.UUID([16]byte{0: 1}),
 				User: [32]byte{1: 2},
 				Tag:  "tag",
 				Time: time.UnixMilli(3),
@@ -42,7 +43,7 @@ func TestLearn(t *testing.T) {
 			},
 			want: []row{
 				{
-					ID:   [16]byte{0: 1},
+					ID:   uuid.UUID([16]byte{0: 1}),
 					User: [32]byte{1: 2},
 					Tag:  "tag",
 					Ts:   3,
@@ -55,7 +56,7 @@ func TestLearn(t *testing.T) {
 			name:  "2x2",
 			order: 2,
 			msg: brain.MessageMeta{
-				ID:   [16]byte{1: 1},
+				ID:   uuid.UUID([16]byte{1: 1}),
 				User: [32]byte{2: 2},
 				Tag:  "tag",
 				Time: time.UnixMilli(4),
@@ -66,7 +67,7 @@ func TestLearn(t *testing.T) {
 			},
 			want: []row{
 				{
-					ID:   [16]byte{1: 1},
+					ID:   uuid.UUID([16]byte{1: 1}),
 					User: [32]byte{2: 2},
 					Tag:  "tag",
 					Ts:   4,
@@ -74,7 +75,7 @@ func TestLearn(t *testing.T) {
 					Suf:  "w",
 				},
 				{
-					ID:   [16]byte{1: 1},
+					ID:   uuid.UUID([16]byte{1: 1}),
 					User: [32]byte{2: 2},
 					Tag:  "tag",
 					Ts:   4,
@@ -87,7 +88,7 @@ func TestLearn(t *testing.T) {
 			name:  "4x1",
 			order: 4,
 			msg: brain.MessageMeta{
-				ID:   [16]byte{2: 1},
+				ID:   uuid.UUID([16]byte{2: 1}),
 				User: [32]byte{3: 2},
 				Tag:  "tag",
 				Time: time.UnixMilli(5),
@@ -97,7 +98,7 @@ func TestLearn(t *testing.T) {
 			},
 			want: []row{
 				{
-					ID:   [16]byte{2: 1},
+					ID:   uuid.UUID([16]byte{2: 1}),
 					User: [32]byte{3: 2},
 					Tag:  "tag",
 					Ts:   5,
@@ -110,7 +111,7 @@ func TestLearn(t *testing.T) {
 			name:  "4x2",
 			order: 4,
 			msg: brain.MessageMeta{
-				ID:   [16]byte{3: 1},
+				ID:   uuid.UUID([16]byte{3: 1}),
 				User: [32]byte{4: 2},
 				Tag:  "tag",
 				Time: time.UnixMilli(6),
@@ -121,7 +122,7 @@ func TestLearn(t *testing.T) {
 			},
 			want: []row{
 				{
-					ID:   [16]byte{3: 1},
+					ID:   uuid.UUID([16]byte{3: 1}),
 					User: [32]byte{4: 2},
 					Tag:  "tag",
 					Ts:   6,
@@ -129,7 +130,7 @@ func TestLearn(t *testing.T) {
 					Suf:  "y",
 				},
 				{
-					ID:   [16]byte{3: 1},
+					ID:   uuid.UUID([16]byte{3: 1}),
 					User: [32]byte{4: 2},
 					Tag:  "tag",
 					Ts:   6,
@@ -159,8 +160,8 @@ func TestLearn(t *testing.T) {
 			}
 			for i := 0; rows.Next(); i++ {
 				got := row{Pn: make([]string, c.order)}
-				var id, user []byte
-				dst := []any{&id, &user, &got.Tag, &got.Ts}
+				var user []byte
+				dst := []any{&got.ID, &user, &got.Tag, &got.Ts}
 				for i := range got.Pn {
 					dst = append(dst, &got.Pn[i])
 				}
@@ -172,7 +173,6 @@ func TestLearn(t *testing.T) {
 					t.Errorf("too many rows: got %+v", got)
 					continue
 				}
-				copy(got.ID[:], id)
 				copy(got.User[:], user)
 				if diff := cmp.Diff(c.want[i], got); diff != "" {
 					t.Errorf("got wrong row #%d: %s", i, diff)
