@@ -332,6 +332,29 @@ func TestSpeak(t *testing.T) {
 				{"a", "b"},
 			},
 		},
+		{
+			name:  "long",
+			order: 4,
+			insert: []insert{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"", "", "", ""}, Suffix: "a"},
+						{Prefix: []string{"", "", "", "a"}, Suffix: "b"},
+						{Prefix: []string{"", "", "a", "b"}, Suffix: "c"},
+						{Prefix: []string{"", "a", "b", "c"}, Suffix: "d"},
+						{Prefix: []string{"a", "b", "c", "d"}, Suffix: "e"},
+						{Prefix: []string{"b", "c", "d", "e"}, Suffix: "f"},
+						{Prefix: []string{"c", "d", "e", "f"}, Suffix: ""},
+					},
+				},
+			},
+			tag:    "madoka",
+			prompt: []string{"", "", "", ""},
+			want: [][]string{
+				{"a", "b", "c", "d", "e", "f"},
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
