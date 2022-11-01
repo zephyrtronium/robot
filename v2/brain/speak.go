@@ -21,12 +21,12 @@ type Speaker interface {
 	// guaranteed to have length equal to the value returned from Order, unless
 	// it is a prompt returned from New. If the number of tokens in the prompt
 	// is smaller than Order, the difference is made up by prepending empty
-	// strings to the prompt. The speaker should use the given reduce function
-	// on all tokens, including those in the prompt, when generating a message.
+	// strings to the prompt. The speaker should use ReduceEntropy on all
+	// tokens, including those in the prompt, when generating a message.
 	// Empty strings at the start and end of the result will be trimmed. Only
 	// data originally learned with the given tag should be used to generate a
 	// message.
-	Speak(ctx context.Context, reduce func(string) string, tag string, prompt []string) ([]string, error)
+	Speak(ctx context.Context, tag string, prompt []string) ([]string, error)
 }
 
 // Speak produces a new message from the given prompt.
@@ -54,7 +54,7 @@ func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, error) {
 			toks, p = toks[:k], toks[k:]
 		}
 	}
-	r, err := s.Speak(ctx, ReduceEntropy, tag, p)
+	r, err := s.Speak(ctx, tag, p)
 	if err != nil {
 		return "", fmt.Errorf("couldn't speak: %w", err)
 	}

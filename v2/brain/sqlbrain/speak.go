@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/zephyrtronium/robot/v2/brain"
 	"gitlab.com/zephyrtronium/sq"
 )
 
@@ -23,14 +24,14 @@ func (br *Brain) New(ctx context.Context, tag string) ([]string, error) {
 }
 
 // Speak creates a message from a prompt.
-func (br *Brain) Speak(ctx context.Context, red func(string) string, tag string, prompt []string) ([]string, error) {
+func (br *Brain) Speak(ctx context.Context, tag string, prompt []string) ([]string, error) {
 	names := make([]sq.NamedArg, 1+len(prompt))
 	names[0] = sql.Named("tag", tag)
 	terms := make([]sq.NullString, len(prompt))
 	nn := 0
 	for i, w := range prompt {
 		nn += len(w) + 1
-		terms[i] = sq.NullString{String: red(w), Valid: w != ""}
+		terms[i] = sq.NullString{String: brain.ReduceEntropy(w), Valid: w != ""}
 		names[i+1] = sql.Named("p"+strconv.Itoa(i), &terms[i])
 	}
 	p := make([]any, len(names))

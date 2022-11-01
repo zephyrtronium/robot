@@ -372,7 +372,7 @@ func TestSpeak(t *testing.T) {
 			}
 			var got [][]string
 			for i := 0; i < 100; i++ {
-				msg, err := br.Speak(ctx, brain.ReduceEntropy, c.tag, c.prompt)
+				msg, err := br.Speak(ctx, c.tag, c.prompt)
 				if err != nil {
 					t.Errorf("err from speak: %v", err)
 				}

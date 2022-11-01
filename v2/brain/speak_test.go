@@ -23,8 +23,8 @@ func (t *testSpeaker) New(ctx context.Context, tag string) ([]string, error) {
 	return t.new, nil
 }
 
-func (t *testSpeaker) Speak(ctx context.Context, red func(string) string, tag string, prompt []string) ([]string, error) {
-	// TODO(zeph): use reducer
+func (t *testSpeaker) Speak(ctx context.Context, tag string, prompt []string) ([]string, error) {
+	// TODO(zeph): use ReduceEntropy
 	t.prompt = prompt
 	return prompt, nil
 }
