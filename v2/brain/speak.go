@@ -31,12 +31,12 @@ type Speaker interface {
 
 // Speak produces a new message from the given prompt.
 func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, error) {
-	// FIXME(zeph): we lose early tokens in long prompts
 	toks := Tokens(nil, prompt)
+	var p []string
 	if len(toks) == 0 {
 		// No prompt; get one from the speaker instead.
 		var err error
-		toks, err = s.New(ctx, tag)
+		p, err = s.New(ctx, tag)
 		if err != nil {
 			return "", fmt.Errorf("couldn't get a new prompt: %w", err)
 		}
@@ -46,18 +46,19 @@ func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, error) {
 		n := s.Order()
 		switch {
 		case len(toks) < n:
-			u := make([]string, n-len(toks), n)
-			toks = append(u, toks...)
-		case len(toks) > n:
-			copy(toks, toks[len(toks)-n:])
-			toks = toks[:n]
+			p = make([]string, n-len(toks), n)
+			p = append(p, toks...)
+			toks = toks[:0]
+		case len(toks) >= n:
+			k := len(toks) - n
+			toks, p = toks[:k], toks[k:]
 		}
 	}
-	r, err := s.Speak(ctx, ReduceEntropy, tag, toks)
+	r, err := s.Speak(ctx, ReduceEntropy, tag, p)
 	if err != nil {
 		return "", fmt.Errorf("couldn't speak: %w", err)
 	}
-	return strings.Join(trim(r), " "), nil
+	return strings.Join(append(toks, trim(r)...), " "), nil
 }
 
 // trim removes empty strings from the start and end of r.

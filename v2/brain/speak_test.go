@@ -98,3 +98,32 @@ func TestSpeak(t *testing.T) {
 		})
 	}
 }
+
+func TestSpeakResult(t *testing.T) {
+	cases := []struct {
+		name   string
+		prompt string
+		order  int
+		new    []string
+		want   string
+	}{
+		{
+			name:   "long-prompt",
+			prompt: "madoka homura sayaka mami",
+			order:  1,
+			want:   "madoka homura sayaka mami",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := testSpeaker{order: c.order, new: c.new}
+			r, err := brain.Speak(context.Background(), &s, "", c.prompt)
+			if err != nil {
+				t.Error(err)
+			}
+			if r != c.want {
+				t.Errorf("wrong result: wanted %q, got %q", c.want, r)
+			}
+		})
+	}
+}
