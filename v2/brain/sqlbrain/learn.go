@@ -44,7 +44,7 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 		return fmt.Errorf("couldn't insert message: %w", err)
 	}
 	if deleted.Valid {
-		return fmt.Errorf("message %x was already deleted: %s", meta.ID, deleted.String)
+		return fmt.Errorf("message %v was already deleted: %s", meta.ID, deleted.String)
 	}
 	// Now insert tuples.
 	_, err = tx.Exec(ctx, s, p...)
