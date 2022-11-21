@@ -24,6 +24,8 @@ type statements struct {
 	selectTuple *sq.Stmt
 	// newTuple selects a single starting term with a given tag.
 	newTuple *sq.Stmt
+	// deleteTuple removes a single tuple with a given tag.
+	deleteTuple *sq.Stmt
 }
 
 // DB encapsulates database methods a Brain requires to allow use of a DB or a
@@ -54,6 +56,7 @@ func Open(ctx context.Context, db DB) (*Brain, error) {
 	// every call instead of being executed once and prepared.
 	template.Must(br.tpl.New("tuple.insert.sql").Parse(insertTuple))
 	type tupleData struct {
+		Iter      []struct{}
 		Fibonacci []int
 		NM1       int
 		MinScore  int
@@ -87,6 +90,12 @@ func Open(ctx context.Context, db DB) (*Brain, error) {
 			text: selectTuple,
 			data: tupleData{Fibonacci: fib, NM1: br.order - 1, MinScore: a},
 			out:  &br.stmts.selectTuple,
+		},
+		{
+			name: "tuple.delete.sql",
+			text: deleteTuple,
+			data: tupleData{Iter: make([]struct{}, br.order)},
+			out:  &br.stmts.deleteTuple,
 		},
 	}
 	var buf strings.Builder

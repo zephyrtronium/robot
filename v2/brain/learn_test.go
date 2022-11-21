@@ -51,6 +51,7 @@ func TestTokens(t *testing.T) {
 type testLearner struct {
 	order   int
 	learned []brain.Tuple
+	forgot  []brain.Tuple
 	err     error
 }
 
@@ -61,6 +62,11 @@ func (t *testLearner) Order() int {
 func (t *testLearner) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []brain.Tuple) error {
 	t.learned = append(t.learned, tuples...)
 	return t.err
+}
+
+func (t *testLearner) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
+	t.forgot = tuples
+	return nil
 }
 
 func TestLearn(t *testing.T) {
@@ -142,6 +148,87 @@ func TestLearn(t *testing.T) {
 			}
 			if diff := cmp.Diff(c.want, l.learned); diff != "" {
 				t.Errorf("learned the wrong things from %q:\n%s", c.msg, diff)
+			}
+		})
+	}
+}
+
+func TestForget(t *testing.T) {
+	s := func(x ...string) []string { return x }
+	cases := []struct {
+		name  string
+		msg   []string
+		order int
+		want  []brain.Tuple
+	}{
+		{
+			name:  "single-1",
+			msg:   s("word"),
+			order: 1,
+			want: []brain.Tuple{
+				{Prefix: s(""), Suffix: "word"},
+				{Prefix: s("word"), Suffix: ""},
+			},
+		},
+		{
+			name:  "single-3",
+			msg:   s("word"),
+			order: 3,
+			want: []brain.Tuple{
+				{Prefix: s("", "", ""), Suffix: "word"},
+				{Prefix: s("", "", "word"), Suffix: ""},
+			},
+		},
+		{
+			name:  "many-1",
+			msg:   s("many", "words", "in", "this", "message"),
+			order: 1,
+			want: []brain.Tuple{
+				{Prefix: s(""), Suffix: "many"},
+				{Prefix: s("many"), Suffix: "words"},
+				{Prefix: s("words"), Suffix: "in"},
+				{Prefix: s("in"), Suffix: "this"},
+				{Prefix: s("this"), Suffix: "message"},
+				{Prefix: s("message"), Suffix: ""},
+			},
+		},
+		{
+			name:  "many-3",
+			msg:   s("many", "words", "in", "this", "message"),
+			order: 3,
+			want: []brain.Tuple{
+				{Prefix: s("", "", ""), Suffix: "many"},
+				{Prefix: s("", "", "many"), Suffix: "words"},
+				{Prefix: s("", "many", "words"), Suffix: "in"},
+				{Prefix: s("many", "words", "in"), Suffix: "this"},
+				{Prefix: s("words", "in", "this"), Suffix: "message"},
+				{Prefix: s("in", "this", "message"), Suffix: ""},
+			},
+		},
+		{
+			name:  "entropy",
+			msg:   s("A"),
+			order: 1,
+			want: []brain.Tuple{
+				{Prefix: s(""), Suffix: "A"},
+				{Prefix: s("a"), Suffix: ""},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			l := testLearner{order: c.order}
+			err := brain.Forget(context.Background(), &l, "", c.msg)
+			if err != nil {
+				t.Error(err)
+			}
+			for _, p := range l.forgot {
+				if len(p.Prefix) != c.order {
+					t.Errorf("wrong prefix size: want %d, got %d", c.order, len(p.Prefix))
+				}
+			}
+			if diff := cmp.Diff(c.want, l.forgot); diff != "" {
+				t.Errorf("forgot the wrong things from %q:\n%s", c.msg, diff)
 			}
 		})
 	}
