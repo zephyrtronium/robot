@@ -1,6 +1,7 @@
 package sqlbrain
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"fmt"
@@ -24,8 +25,10 @@ type statements struct {
 	selectTuple *sq.Stmt
 	// newTuple selects a single starting term with a given tag.
 	newTuple *sq.Stmt
-	// deleteTuple removes a single tuple with a given tag.
-	deleteTuple *sq.Stmt
+	// deleteTuple is a sequence of statements to remove a single tuple with a
+	// given tag. It is strings instead of prepared statements because the
+	// sqlite3 driver actively resists my attempts to do horrible things.
+	deleteTuple []string
 }
 
 // DB encapsulates database methods a Brain requires to allow use of a DB or a
@@ -55,12 +58,16 @@ func Open(ctx context.Context, db DB) (*Brain, error) {
 	// tuple.insert.sql is special because it is executed independently for
 	// every call instead of being executed once and prepared.
 	template.Must(br.tpl.New("tuple.insert.sql").Parse(insertTuple))
-	type tupleData struct {
-		Iter      []struct{}
-		Fibonacci []int
-		NM1       int
-		MinScore  int
-	}
+	br.stmts.newTuple = br.initTpStmt(ctx, "tuple.new.sql", newTuple)
+	br.stmts.selectTuple = br.initTpStmt(ctx, "tuple.select.sql", selectTuple)
+	br.initDelete(ctx)
+
+	return &br, nil
+}
+
+// initTpStmt initializes a SQL statement that requires ahead-of-time template
+// initialization. Panics on any error.
+func (br *Brain) initTpStmt(ctx context.Context, name, text string) *sq.Stmt {
 	fib := make([]int, br.order-1)
 	a, b := 1, 1
 	for i := range fib {
@@ -73,49 +80,33 @@ func Open(ctx context.Context, db DB) (*Brain, error) {
 		// nothing additional in the prefix to contribute score.
 		a = 0
 	}
-	tpls := []struct {
-		name string
-		text string
-		data any
-		out  **sq.Stmt
-	}{
-		{
-			name: "tuple.new.sql",
-			text: newTuple,
-			data: tupleData{NM1: br.order - 1},
-			out:  &br.stmts.newTuple,
-		},
-		{
-			name: "tuple.select.sql",
-			text: selectTuple,
-			data: tupleData{Fibonacci: fib, NM1: br.order - 1, MinScore: a},
-			out:  &br.stmts.selectTuple,
-		},
-		{
-			name: "tuple.delete.sql",
-			text: deleteTuple,
-			data: tupleData{Iter: make([]struct{}, br.order)},
-			out:  &br.stmts.deleteTuple,
-		},
-	}
-	var buf strings.Builder
-	for _, tpl := range tpls {
-		tp, err := template.New(tpl.name).Parse(tpl.text)
-		if err != nil {
-			panic(fmt.Errorf("couldn't parse template %s: %w", tpl.name, err))
-		}
-		buf.Reset()
-		if err := tp.Execute(&buf, tpl.data); err != nil {
-			panic(fmt.Errorf("couldn't execute template %s: %w", tpl.name, err))
-		}
-		s, err := br.db.Prepare(ctx, buf.String())
-		if err != nil {
-			panic(fmt.Errorf("couldn't prepare statement from %s: %w\n%s", tpl.name, err, buf.String()))
-		}
-		*tpl.out = s
-	}
 
-	return &br, nil
+	data := struct {
+		Iter      []struct{}
+		Fibonacci []int
+		NM1       int
+		MinScore  int
+	}{
+		Iter:      make([]struct{}, br.order),
+		Fibonacci: fib,
+		NM1:       br.order - 1,
+		MinScore:  a,
+	}
+	buf := make([]byte, 0, 2048)
+	w := bytes.NewBuffer(buf)
+
+	tp, err := br.tpl.New(name).Parse(text)
+	if err != nil {
+		panic(fmt.Errorf("couldn't parse template %s: %w", name, err))
+	}
+	if err := tp.Execute(w, &data); err != nil {
+		panic(fmt.Errorf("couldn't execute template %s: %w", name, err))
+	}
+	s, err := br.db.Prepare(ctx, w.String())
+	if err != nil {
+		panic(fmt.Errorf("couldn't prepare statement from %s: %w", name, err))
+	}
+	return s
 }
 
 // Order returns the brain's configured Markov chain order.

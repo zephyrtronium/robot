@@ -5,9 +5,12 @@
 {{- /* tuples, and insert all but one back. Any other solution would seem */ -}}
 {{- /* to require having a PK, which we want to avoid. */ -}}
 
-ATTACH DATABASE '' AS aux;
+{{- /* We also define this as a sequence of templates each containing one */ -}}
+{{- /* statement, because SQLite3 doesn't support preparing multiple */ -}}
+{{- /* statements at a time, and the SQL parameters in each differ. */ -}}
 
-CREATE TEMPORARY TABLE aux.hold (
+{{- define "tuple.delete.0" -}}
+CREATE TEMPORARY TABLE delete_hold (
     id INTEGER PRIMARY KEY,
     msg BLOB,
     {{- range $i, $_ := $.Iter}}
@@ -15,8 +18,10 @@ CREATE TEMPORARY TABLE aux.hold (
     {{- end}}
     suffix TEXT
 );
+{{- end -}}
 
-INSERT INTO aux.hold (
+{{- define "tuple.delete.1" -}}
+INSERT INTO delete_hold (
     msg,
     {{- range $i, $_ := $.Iter}}
     p{{$i}},
@@ -36,14 +41,18 @@ WHERE tag = :tag
     {{- end}}
     AND suffix IS :suffix
     AND LIKELY(deleted IS NULL);
+{{- end -}}
 
+{{- define "tuple.delete.2" -}}
 DELETE FROM main.Tuple
-WHERE msg IN (SELECT msg FROM aux.hold)
+WHERE msg IN (SELECT msg FROM delete_hold)
     {{- range $i, $_ := $.Iter}}
     AND p{{$i}} IS :p{{$i}}
     {{- end}}
     AND suffix IS :suffix;
+{{- end -}}
 
+{{- define "tuple.delete.3" -}}
 INSERT INTO main.Tuple (
     msg,
     {{- range $i, $_ := $.Iter}}
@@ -56,8 +65,10 @@ INSERT INTO main.Tuple (
     p{{$i}},
     {{- end}}
     suffix
-FROM aux.hold
-WHERE id != (SELECT id FROM aux.hold LIMIT 1);
+FROM delete_hold
+WHERE id != (SELECT id FROM delete_hold LIMIT 1);
+{{- end -}}
 
-DROP TABLE aux.hold;
-DETACH DATABASE aux;
+{{- define "tuple.delete.4" -}}
+DROP TABLE delete_hold;
+{{- end -}}
