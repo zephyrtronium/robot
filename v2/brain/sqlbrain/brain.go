@@ -121,9 +121,9 @@ func (br *Brain) Tx(ctx context.Context, opts *sq.TxOptions) (*sq.Tx, error) {
 	return br.db.Begin(ctx, opts)
 }
 
-//go:embed *.create.sql *.pragma.sql
+//go:embed templates/*.create.sql templates/*.pragma.sql
 var createFiles embed.FS
-var createTemplates = template.Must(template.ParseFS(createFiles, "*.sql"))
+var createTemplates = template.Must(template.ParseFS(createFiles, "templates/*.sql"))
 
 // Create initializes a new brain with the given order within a database.
 func Create(ctx context.Context, db DB, order int) error {
@@ -138,7 +138,7 @@ func Create(ctx context.Context, db DB, order int) error {
 		Iter:    make([]struct{}, order),
 	}
 	var query strings.Builder
-	files, err := fs.ReadDir(createFiles, ".")
+	files, err := fs.ReadDir(createFiles, "templates")
 	if err != nil {
 		panic(err)
 	}

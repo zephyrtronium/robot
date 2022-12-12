@@ -76,8 +76,8 @@ func (br *Brain) tupleInsert(tuples []brain.Tuple) string {
 	return b.String()
 }
 
-//go:embed message.insert.sql
+//go:embed templates/message.insert.sql
 var insertMessage string
 
-//go:embed tuple.insert.sql
+//go:embed templates/tuple.insert.sql
 var insertTuple string

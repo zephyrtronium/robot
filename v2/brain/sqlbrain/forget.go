@@ -107,5 +107,5 @@ func (br *Brain) initDelete(ctx context.Context) {
 	}
 }
 
-//go:embed tuple.delete.sql
+//go:embed templates/tuple.delete.sql
 var deleteTuple string

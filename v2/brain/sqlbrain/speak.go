@@ -57,8 +57,8 @@ func (br *Brain) Speak(ctx context.Context, tag string, prompt []string) ([]stri
 	return prompt, nil
 }
 
-//go:embed tuple.new.sql
+//go:embed templates/tuple.new.sql
 var newTuple string
 
-//go:embed tuple.select.sql
+//go:embed templates/tuple.select.sql
 var selectTuple string
