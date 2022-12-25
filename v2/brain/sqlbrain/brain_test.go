@@ -2,6 +2,8 @@ package sqlbrain_test
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"github.com/zephyrtronium/robot/v2/brain"
@@ -11,23 +13,22 @@ import (
 	_ "github.com/mattn/go-sqlite3" // driver for tests
 )
 
+var testdbCounter atomic.Uint64
+
 func testDB(order int) sqlbrain.DB {
 	ctx := context.Background()
-	db, err := sq.Open("sqlite3", ":memory:")
+	k := testdbCounter.Add(1)
+	db, err := sq.Open("sqlite3", fmt.Sprintf("file:%d.db?cache=shared&mode=memory", k))
 	if err != nil {
 		panic(err)
 	}
 	if err := db.Ping(ctx); err != nil {
 		panic(err)
 	}
-	conn, err := db.Conn(ctx)
-	if err != nil {
+	if err := sqlbrain.Create(ctx, db, order); err != nil {
 		panic(err)
 	}
-	if err := sqlbrain.Create(ctx, conn, order); err != nil {
-		panic(err)
-	}
-	return conn
+	return db
 }
 
 func TestOpen(t *testing.T) {

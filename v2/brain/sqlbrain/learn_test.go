@@ -141,7 +141,9 @@ func TestLearn(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
+		c := c
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 			db := testDB(c.order)
 			br, err := sqlbrain.Open(ctx, db)

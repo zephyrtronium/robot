@@ -474,7 +474,9 @@ func TestForget(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
+		c := c
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 			db := testDB(c.order)
 			br, err := sqlbrain.Open(ctx, db)
@@ -528,8 +530,6 @@ func TestForget(t *testing.T) {
 		})
 	}
 }
-
-// TODO(zeph): test with a :memory:?cache=shared db instead of testdb()
 
 func TestForgetMessage(t *testing.T) {
 	type insert struct {
@@ -665,7 +665,9 @@ func TestForgetMessage(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
+		c := c
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 			db := testDB(c.order)
 			br, err := sqlbrain.Open(ctx, db)
