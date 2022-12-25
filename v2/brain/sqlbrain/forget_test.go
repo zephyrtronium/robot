@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/uuid"
 	"github.com/zephyrtronium/robot/v2/brain"
 	"github.com/zephyrtronium/robot/v2/brain/sqlbrain"
 	"gitlab.com/zephyrtronium/sq"
@@ -481,13 +482,13 @@ func TestForget(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, v := range c.insert {
-				err := addTuples(ctx, t, db, v.tag, v.tuples)
+				err := addTuples(ctx, db, tagged(v.tag), v.tuples)
 				if err != nil {
 					t.Fatal(err)
 				}
 				// Double-check that the tuples are in.
 				// This is largely testing that tuples() works as advertised.
-				tups, err := tuples(ctx, t, db, v.tag, c.order)
+				tups, err := tuples(ctx, db, v.tag, c.order)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -504,7 +505,7 @@ func TestForget(t *testing.T) {
 			var wantTags []string
 			for _, left := range c.left {
 				wantTags = append(wantTags, left.tag)
-				tups, err := tuples(ctx, t, db, left.tag, c.order)
+				tups, err := tuples(ctx, db, left.tag, c.order)
 				if err != nil {
 					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
 					continue
@@ -521,15 +522,213 @@ func TestForget(t *testing.T) {
 			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
 				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
 			}
+			if t.Failed() {
+				dumpdb(ctx, t, db)
+			}
+		})
+	}
+}
+
+// TODO(zeph): test with a :memory:?cache=shared db instead of testdb()
+
+func TestForgetMessage(t *testing.T) {
+	type insert struct {
+		id     uuid.UUID
+		tag    string
+		tuples []brain.Tuple
+	}
+	type remain struct {
+		tag    string
+		tuples []brain.Tuple
+	}
+	uuids := []uuid.UUID{
+		uuid.New(),
+		uuid.New(),
+	}
+	cases := []struct {
+		name   string
+		order  int
+		insert []insert
+		forget []uuid.UUID
+		left   []remain
+		errs   bool
+	}{
+		{
+			name:  "single-1",
+			order: 1,
+			insert: []insert{
+				{
+					id:  uuids[0],
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			forget: []uuid.UUID{uuids[0]},
+			left:   nil,
+		},
+		{
+			name:  "multi-1",
+			order: 1,
+			insert: []insert{
+				{
+					id:  uuids[0],
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+						{Prefix: []string{"b"}, Suffix: "c"},
+						{Prefix: []string{"c"}, Suffix: "d"},
+					},
+				},
+			},
+			forget: []uuid.UUID{uuids[0]},
+			left:   nil,
+		},
+		{
+			name:  "unmatched-1",
+			order: 1,
+			insert: []insert{
+				{
+					id:  uuids[0],
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			forget: []uuid.UUID{uuids[1]},
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			errs: true,
+		},
+		{
+			name:  "single-2",
+			order: 2,
+			insert: []insert{
+				{
+					id:  uuids[0],
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			forget: []uuid.UUID{uuids[0]},
+			left:   nil,
+		},
+		{
+			name:  "multi-2",
+			order: 2,
+			insert: []insert{
+				{
+					id:  uuids[0],
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+						{Prefix: []string{"b", "c"}, Suffix: "d"},
+						{Prefix: []string{"c", "d"}, Suffix: "e"},
+					},
+				},
+			},
+			forget: []uuid.UUID{uuids[0]},
+			left:   nil,
+		},
+		{
+			name:  "unmatched-2",
+			order: 2,
+			insert: []insert{
+				{
+					id:  uuids[0],
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			forget: []uuid.UUID{uuids[1]},
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			errs: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+			db := testDB(c.order)
+			br, err := sqlbrain.Open(ctx, db)
+			if err != nil {
+				t.Fatalf("couldn't open brain: %v", err)
+			}
+			for _, v := range c.insert {
+				md := brain.MessageMeta{
+					ID:  v.id,
+					Tag: v.tag,
+				}
+				err := addTuples(ctx, db, md, v.tuples)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Double-check that the tuples are in.
+				tups, err := tuples(ctx, db, v.tag, c.order)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if diff := cmp.Diff(v.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
+					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
+				}
+			}
+			for _, id := range c.forget {
+				err := br.ForgetMessage(ctx, id)
+				if err != nil && !c.errs {
+					t.Errorf("couldn't forget message %v: %v", id, err)
+				} else if err == nil && c.errs {
+					t.Error("expected forget to fail")
+				}
+			}
+			var wantTags []string
+			for _, left := range c.left {
+				wantTags = append(wantTags, left.tag)
+				tups, err := tuples(ctx, db, left.tag, c.order)
+				if err != nil {
+					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
+					continue
+				}
+				if diff := cmp.Diff(left.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
+					t.Errorf("wrong tuples left with tag %s (+got/-want):\n%s", left.tag, diff)
+				}
+			}
+			sort.Strings(wantTags)
+			gotTags, err := tags(ctx, t, db)
+			if err != nil {
+				t.Errorf("couldn't get tags list: %v", err)
+			}
+			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
+				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
+			}
+			if t.Failed() {
+				dumpdb(ctx, t, db)
+			}
 		})
 	}
 }
 
 // tuples gets all tuples in db with the given tag. The returned tuples are in
 // lexicographically ascending order.
-func tuples(ctx context.Context, t *testing.T, db sqlbrain.DB, tag string, order int) ([]brain.Tuple, error) {
-	t.Helper()
-	rows, err := db.Query(ctx, "SELECT Tuple.* FROM Tuple JOIN Message AS m ON m.id = Tuple.msg WHERE m.tag = ?", tag)
+func tuples(ctx context.Context, db sqlbrain.DB, tag string, order int) ([]brain.Tuple, error) {
+	rows, err := db.Query(ctx, "SELECT Tuple.* FROM Tuple JOIN Message AS m ON m.id = Tuple.msg WHERE m.tag = ? AND m.deleted IS NULL", tag)
 	if err != nil {
 		panic(err)
 	}
@@ -572,7 +771,7 @@ func tuples(ctx context.Context, t *testing.T, db sqlbrain.DB, tag string, order
 // tags gets all tags with any associated tuples in db in ascending order.
 func tags(ctx context.Context, t *testing.T, db sqlbrain.DB) ([]string, error) {
 	t.Helper()
-	rows, err := db.Query(ctx, `SELECT DISTINCT m.tag FROM Message AS m INNER JOIN Tuple ON m.id = Tuple.msg ORDER BY tag`)
+	rows, err := db.Query(ctx, `SELECT DISTINCT m.tag FROM Message AS m INNER JOIN Tuple ON m.id = Tuple.msg WHERE m.deleted IS NULL ORDER BY tag`)
 	if err != nil {
 		panic(err)
 	}

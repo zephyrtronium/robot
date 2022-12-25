@@ -160,7 +160,7 @@ func TestNew(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, v := range c.insert {
-				err := addTuples(ctx, t, db, v.tag, v.tuples)
+				err := addTuples(ctx, db, tagged(v.tag), v.tuples)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -365,7 +365,7 @@ func TestSpeak(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, v := range c.insert {
-				err := addTuples(ctx, t, db, v.tag, v.tuples)
+				err := addTuples(ctx, db, tagged(v.tag), v.tuples)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -388,17 +388,16 @@ func TestSpeak(t *testing.T) {
 	}
 }
 
-// addTuples inserts tuples into a test db with a unique message UUID.
-func addTuples(ctx context.Context, t *testing.T, db sqlbrain.DB, tag string, tuples []brain.Tuple) error {
-	t.Helper()
+// addTuples inserts tuples into a test db.
+// TODO(zeph): use user & time metadata
+func addTuples(ctx context.Context, db sqlbrain.DB, msg brain.MessageMeta, tuples []brain.Tuple) error {
 	order := len(tuples[0].Prefix)
 	tx, err := db.Begin(ctx, nil)
 	if err != nil {
 		panic(err)
 	}
 	defer tx.Rollback()
-	uu := uuid.New()
-	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag) VALUES (?, x'', ?)", uu, tag)
+	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag) VALUES (?, x'', ?)", msg.ID, msg.Tag)
 	if err != nil {
 		return fmt.Errorf("couldn't add message: %v", err)
 	}
@@ -412,7 +411,7 @@ func addTuples(ctx context.Context, t *testing.T, db sqlbrain.DB, tag string, tu
 		b.WriteString(", suffix) VALUES (?, ?")
 		b.WriteString(strings.Repeat(", ?", order))
 		b.WriteByte(')')
-		args := []any{uu}
+		args := []any{msg.ID}
 		for _, w := range tup.Prefix {
 			args = append(args, sq.NullString{String: w, Valid: w != ""})
 		}
@@ -423,6 +422,15 @@ func addTuples(ctx context.Context, t *testing.T, db sqlbrain.DB, tag string, tu
 		}
 	}
 	return tx.Commit()
+}
+
+// tagged is a shortcut to create message metadata holding only a given tag
+// and a random UUID.
+func tagged(tag string) brain.MessageMeta {
+	return brain.MessageMeta{
+		ID:  uuid.New(),
+		Tag: tag,
+	}
 }
 
 // lexset adds a []string to a [][]string such that the latter remains in

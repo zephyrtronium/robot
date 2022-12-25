@@ -69,7 +69,20 @@ func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) e
 // ForgetMessage removes tuples associated with a message from the database.
 // The delete reason is set to "CLEARMSG".
 func (br *Brain) ForgetMessage(ctx context.Context, msg uuid.UUID) error {
-	panic("unimplemented")
+	res, err := br.db.Exec(ctx, `UPDATE Message SET deleted='CLEARMSG' WHERE id = ?`, msg)
+	if err != nil {
+		return fmt.Errorf("couldn't delete message %v: %w", msg, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		// Since the query succeeded, an error here is probably from the driver
+		// not supporting RowsAffected (although those we use do). Don't care.
+		return nil
+	}
+	if n == 0 {
+		return fmt.Errorf("no message with id %v", msg)
+	}
+	return nil
 }
 
 // ForgetDuring removes tuples associated with messages learned in the given
