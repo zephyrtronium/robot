@@ -88,7 +88,12 @@ func (br *Brain) ForgetMessage(ctx context.Context, msg uuid.UUID) error {
 // ForgetDuring removes tuples associated with messages learned in the given
 // time span. The delete reason is set to "TIMED".
 func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before time.Time) error {
-	panic("unimplemented")
+	a, b := since.UnixMilli(), before.UnixMilli()
+	_, err := br.db.Exec(ctx, `UPDATE Message SET deleted='TIMED' WHERE tag = ? AND time BETWEEN ? AND ?`, tag, a, b)
+	if err != nil {
+		return fmt.Errorf("couldn't delete messages between %v and %v: %w", since, before, err)
+	}
+	return nil
 }
 
 // ForgetUserSince removes tuples learned from the given user hash since a

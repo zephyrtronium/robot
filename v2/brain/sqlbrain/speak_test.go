@@ -401,7 +401,7 @@ func addTuples(ctx context.Context, db sqlbrain.DB, msg brain.MessageMeta, tuple
 		panic(err)
 	}
 	defer tx.Rollback()
-	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag) VALUES (?, x'', ?)", msg.ID, msg.Tag)
+	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag, time) VALUES (?, x'', ?, ?)", msg.ID, msg.Tag, msg.Time.UnixMilli())
 	if err != nil {
 		return fmt.Errorf("couldn't add message: %v", err)
 	}

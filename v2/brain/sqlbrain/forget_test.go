@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -699,6 +700,243 @@ func TestForgetMessage(t *testing.T) {
 				} else if err == nil && c.errs {
 					t.Error("expected forget to fail")
 				}
+			}
+			var wantTags []string
+			for _, left := range c.left {
+				wantTags = append(wantTags, left.tag)
+				tups, err := tuples(ctx, db, left.tag, c.order)
+				if err != nil {
+					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
+					continue
+				}
+				if diff := cmp.Diff(left.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
+					t.Errorf("wrong tuples left with tag %s (+got/-want):\n%s", left.tag, diff)
+				}
+			}
+			sort.Strings(wantTags)
+			gotTags, err := tags(ctx, t, db)
+			if err != nil {
+				t.Errorf("couldn't get tags list: %v", err)
+			}
+			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
+				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
+			}
+			if t.Failed() {
+				dumpdb(ctx, t, db)
+			}
+		})
+	}
+}
+
+func TestForgetDuring(t *testing.T) {
+	type insert struct {
+		tag    string
+		time   int64
+		tuples []brain.Tuple
+	}
+	type remain struct {
+		tag    string
+		tuples []brain.Tuple
+	}
+	cases := []struct {
+		name   string
+		order  int
+		insert []insert
+		tag    string
+		forget [2]int64
+		left   []remain
+	}{
+		{
+			name:  "single-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			tag:    "madoka",
+			forget: [2]int64{1, 3},
+			left:   nil,
+		},
+		{
+			name:  "multiple-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+						{Prefix: []string{"b"}, Suffix: "c"},
+					},
+				},
+			},
+			tag:    "madoka",
+			forget: [2]int64{1, 3},
+			left:   nil,
+		},
+		{
+			name:  "outside-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 4,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			tag:    "madoka",
+			forget: [2]int64{1, 3},
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+		},
+		{
+			name:  "tagged-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			tag:    "homura",
+			forget: [2]int64{1, 3},
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+		},
+		{
+			name:  "single-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			tag:    "madoka",
+			forget: [2]int64{1, 3},
+			left:   nil,
+		},
+		{
+			name:  "multiple-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+						{Prefix: []string{"b", "c"}, Suffix: "d"},
+					},
+				},
+			},
+			tag:    "madoka",
+			forget: [2]int64{1, 3},
+			left:   nil,
+		},
+		{
+			name:  "outside-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 4,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			tag:    "madoka",
+			forget: [2]int64{1, 3},
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+		},
+		{
+			name:  "tagged-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			tag:    "homura",
+			forget: [2]int64{1, 3},
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db := testDB(c.order)
+			br, err := sqlbrain.Open(ctx, db)
+			if err != nil {
+				t.Fatalf("couldn't open brain: %v", err)
+			}
+			for _, v := range c.insert {
+				md := brain.MessageMeta{
+					ID:   uuid.New(),
+					Time: time.UnixMilli(v.time),
+					Tag:  v.tag,
+				}
+				err := addTuples(ctx, db, md, v.tuples)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Double-check that the tuples are in.
+				tups, err := tuples(ctx, db, v.tag, c.order)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if diff := cmp.Diff(v.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
+					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
+				}
+			}
+			a, b := time.UnixMilli(c.forget[0]), time.UnixMilli(c.forget[1])
+			if err := br.ForgetDuring(ctx, c.tag, a, b); err != nil {
+				t.Errorf("could't forget: %v", err)
 			}
 			var wantTags []string
 			for _, left := range c.left {
