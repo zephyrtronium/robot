@@ -965,6 +965,252 @@ func TestForgetDuring(t *testing.T) {
 	}
 }
 
+func TestForgetUserSince(t *testing.T) {
+	type insert struct {
+		tag    string
+		user   [32]byte
+		time   int64
+		tuples []brain.Tuple
+	}
+	type remain struct {
+		tag    string
+		tuples []brain.Tuple
+	}
+	cases := []struct {
+		name   string
+		order  int
+		insert []insert
+		user   [32]byte
+		since  int64
+		left   []remain
+	}{
+		{
+			name:  "single-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			user:  [32]byte{0: 1},
+			since: 1,
+			left:  nil,
+		},
+		{
+			name:  "multiple-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+						{Prefix: []string{"b"}, Suffix: "c"},
+					},
+				},
+			},
+			user:  [32]byte{0: 1},
+			since: 1,
+			left:  nil,
+		},
+		{
+			name:  "user-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			user:  [32]byte{0: 2},
+			since: 1,
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+		},
+		{
+			name:  "time-1",
+			order: 1,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+			user:  [32]byte{0: 1},
+			since: 3,
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a"}, Suffix: "b"},
+					},
+				},
+			},
+		},
+		{
+			name:  "single-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			user:  [32]byte{0: 1},
+			since: 1,
+			left:  nil,
+		},
+		{
+			name:  "multiple-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+						{Prefix: []string{"b", "c"}, Suffix: "d"},
+					},
+				},
+			},
+			user:  [32]byte{0: 1},
+			since: 1,
+			left:  nil,
+		},
+		{
+			name:  "user-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			user:  [32]byte{0: 2},
+			since: 1,
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+		},
+		{
+			name:  "time-2",
+			order: 2,
+			insert: []insert{
+				{
+					tag:  "madoka",
+					user: [32]byte{0: 1},
+					time: 2,
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+			user:  [32]byte{0: 1},
+			since: 3,
+			left: []remain{
+				{
+					tag: "madoka",
+					tuples: []brain.Tuple{
+						{Prefix: []string{"a", "b"}, Suffix: "c"},
+					},
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db := testDB(c.order)
+			br, err := sqlbrain.Open(ctx, db)
+			if err != nil {
+				t.Fatalf("couldn't open brain: %v", err)
+			}
+			for _, v := range c.insert {
+				md := brain.MessageMeta{
+					ID:   uuid.New(),
+					User: v.user,
+					Tag:  v.tag,
+					Time: time.UnixMilli(v.time),
+				}
+				err := addTuples(ctx, db, md, v.tuples)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Double-check that the tuples are in.
+				tups, err := tuples(ctx, db, v.tag, c.order)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if diff := cmp.Diff(v.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
+					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
+				}
+			}
+			if err := br.ForgetUserSince(ctx, c.user, time.UnixMilli(c.since)); err != nil {
+				t.Errorf("couldn't forget: %v", err)
+			}
+			var wantTags []string
+			for _, left := range c.left {
+				wantTags = append(wantTags, left.tag)
+				tups, err := tuples(ctx, db, left.tag, c.order)
+				if err != nil {
+					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
+					continue
+				}
+				if diff := cmp.Diff(left.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
+					t.Errorf("wrong tuples left with tag %s (+got/-want):\n%s", left.tag, diff)
+				}
+			}
+			sort.Strings(wantTags)
+			gotTags, err := tags(ctx, t, db)
+			if err != nil {
+				t.Errorf("couldn't get tags list: %v", err)
+			}
+			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
+				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
+			}
+			if t.Failed() {
+				dumpdb(ctx, t, db)
+			}
+		})
+	}
+}
+
 // tuples gets all tuples in db with the given tag. The returned tuples are in
 // lexicographically ascending order.
 func tuples(ctx context.Context, db sqlbrain.DB, tag string, order int) ([]brain.Tuple, error) {

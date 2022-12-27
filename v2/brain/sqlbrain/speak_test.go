@@ -393,7 +393,6 @@ func TestSpeak(t *testing.T) {
 }
 
 // addTuples inserts tuples into a test db.
-// TODO(zeph): use user & time metadata
 func addTuples(ctx context.Context, db sqlbrain.DB, msg brain.MessageMeta, tuples []brain.Tuple) error {
 	order := len(tuples[0].Prefix)
 	tx, err := db.Begin(ctx, nil)
@@ -401,7 +400,7 @@ func addTuples(ctx context.Context, db sqlbrain.DB, msg brain.MessageMeta, tuple
 		panic(err)
 	}
 	defer tx.Rollback()
-	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag, time) VALUES (?, x'', ?, ?)", msg.ID, msg.Tag, msg.Time.UnixMilli())
+	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag, time) VALUES (?, ?, ?, ?)", msg.ID, msg.User[:], msg.Tag, msg.Time.UnixMilli())
 	if err != nil {
 		return fmt.Errorf("couldn't add message: %v", err)
 	}

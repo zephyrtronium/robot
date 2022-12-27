@@ -99,7 +99,11 @@ func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before tim
 // ForgetUserSince removes tuples learned from the given user hash since a
 // given time. The delete reason is set to "CLEARCHAT".
 func (br *Brain) ForgetUserSince(ctx context.Context, user [32]byte, since time.Time) error {
-	panic("unimplemented")
+	_, err := br.db.Exec(ctx, `UPDATE Message SET deleted='CLEARCHAT' WHERE user = ? AND time >= ?`, user[:], since.UnixMilli())
+	if err != nil {
+		return fmt.Errorf("couldn't forget messages from %x since %v: %w", user, since, err)
+	}
+	return nil
 }
 
 func (br *Brain) initDelete(ctx context.Context) {
