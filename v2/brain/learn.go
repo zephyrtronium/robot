@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/zephyrtronium/robot/v2/brain/userhash"
 )
 
 // Tuple is a single Markov chain tuple.
@@ -20,7 +22,7 @@ type MessageMeta struct {
 	ID uuid.UUID
 	// User is an identifier for the user. It is obfuscated such that the user
 	// cannot be identified and is not correlated between rooms.
-	User [32]byte
+	User userhash.Hash
 	// Tag is a tag that should be associated with the message data.
 	Tag string
 	// Time is the time at which the message was sent.
