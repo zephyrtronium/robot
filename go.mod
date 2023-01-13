@@ -12,3 +12,8 @@ require (
 	golang.org/x/exp v0.0.0-20221026153819-32f3d567a233
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 )
+
+require (
+	golang.org/x/crypto v0.4.0
+	golang.org/x/sys v0.3.0 // indirect
+)

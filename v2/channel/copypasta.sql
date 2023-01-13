@@ -1,0 +1,12 @@
+CREATE TABLE Message (
+	time INTEGER NOT NULL,
+	user TEXT NOT NULL,
+	msg TEXT NOT NULL
+) STRICT;
+CREATE INDEX MessageTime ON Message (time);
+
+CREATE TABLE Meme (
+	time INTEGER NOT NULL,
+	msg TEXT UNIQUE NOT NULL
+) STRICT;
+CREATE INDEX MemeTime ON Meme (time);
