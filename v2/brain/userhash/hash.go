@@ -12,16 +12,17 @@ package userhash
 
 import (
 	"crypto/hmac"
-	"crypto/sha256"
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
 	"hash"
 	"time"
+
+	"golang.org/x/crypto/sha3"
 )
 
 // Size is the size of a userhash in bytes.
-const Size = sha256.Size224
+const Size = 28
 
 // TimeQuantum is the duration for which hashing a user and location gives the
 // same result.
@@ -67,7 +68,7 @@ type Hasher struct {
 // New creates a Hasher.
 func New(prk []byte) Hasher {
 	return Hasher{
-		mac: hmac.New(sha256.New224, prk),
+		mac: hmac.New(sha3.New224, prk),
 	}
 }
 
