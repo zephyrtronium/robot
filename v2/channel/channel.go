@@ -4,6 +4,8 @@ import (
 	"regexp"
 
 	"golang.org/x/time/rate"
+
+	"github.com/zephyrtronium/robot/v2/distro"
 )
 
 type Channel struct {
@@ -22,9 +24,38 @@ type Channel struct {
 	Rate *rate.Limiter
 	// Memery is the meme detector for the channel.
 	Memery *MemeDetector
-	// EmoteWeight is the cdf of emotes for the channel.
-	EmoteWeight []uint64
-	// Emotes is the list of emotes, such that the cdf of Emotes[i] is
-	// EmoteWeight[i].
-	Emotes []string
+	// Emotes is the distribution of emotes.
+	Emotes *distro.Dist[string]
+	// Effects is the distribution of effects.
+	Effects *distro.Dist[string]
+}
+
+// SetEmotes forms the emote cdf from the union of the given emote maps.
+func (c *Channel) SetEmotes(ms ...map[string]int) *Channel {
+	if len(ms) == 0 {
+		return c
+	}
+	u := make(map[string]int)
+	for _, m := range ms {
+		for k, v := range m {
+			u[k] += v
+		}
+	}
+	c.Emotes = distro.New(distro.FromMap(u))
+	return c
+}
+
+// SetEffects forms the effect cdf from the union of the given effect maps.
+func (c *Channel) SetEffects(ms ...map[string]int) *Channel {
+	if len(ms) == 0 {
+		return c
+	}
+	u := make(map[string]int)
+	for _, m := range ms {
+		for k, v := range m {
+			u[k] += v
+		}
+	}
+	c.Emotes = distro.New(distro.FromMap(u))
+	return c
 }
