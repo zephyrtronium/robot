@@ -1,0 +1,70 @@
+# This is an example configuration file for Robot.
+# Most options that have string values have environment variables interpolated.
+# This example uses that interpolation to integrate with systemd's encrypted
+# credentials protocol, by referring to secrets under $CREDENTIALS_DIRECTORY.
+
+# secret is the path to a file containing the secret key used to encrypt
+# Robot's durable secrets, such as OAuth2 refresh tokens, as well as to
+# generate user hashes for identity obfuscation. The entire content of the file
+# is the key. It should be a securely generated random blob.
+secret = '$CREDENTIALS_DIRECTORY/key'
+
+# global includes chat settings that apply to all channels.
+[global]
+# block is a regex that blocks messages from being learned in any channel.
+block = '(?i)bad\s+stuff'
+
+# global.emotes is a table of emotes to use in every channel along with their
+# relative weights.
+[global.emotes]
+'' = 4
+';)' = 1
+
+[owner]
+# name is the name of the owner, used for certain self-description commands.
+# It does not need to be a username.
+name = 'zephyrtronium'
+# contact is a description of how to contact the owner.
+contact = '/w zephyrtronium'
+
+[tmi]
+# user is the Twitch username (not display name) of the bot.
+user = 'robotisbroken'
+# cid is the Twitch app's client ID.
+cid = 'hof5gwx0su6owfnys0nyan9c87zr6t'
+# secret is the path to a file containing the Twitch app's client secret.
+secret = '$CREDENTIALS_DIRECTORY/twitch_client_secret'
+# token is the file in which to persist the OAuth2 refresh token. If the file
+# exists, it should have permissions 0600. It is encrypted with a key derived
+# from the key given in the top-level secret.
+token = '/var/robot/tmi_refresh'
+# owner is the user ID of the owner.
+owner = '51421897'
+
+[brain]
+# db is the connection string for the Markov chain database.
+db = 'file:$ROBOT_SQLITE'
+
+# Each channel on Twitch is a separate table under the twitch table.
+[twitch.abc]
+# channels is the list of channels using this configuration. It is an array to
+# support future integrations.
+channels = ['#abc']
+# learn is the tag used to learn Markov chain data from this channel.
+learn = 'abc'
+# send is the tag used to generate messages.
+send = 'abc'
+# block is a regex that blocks messages from being learned in this channel. Any
+# message containing text matching this or the global block regex is not used
+# for learning.
+block = '(?i)cucumber'
+# responses is the probability of generating a random message when a
+# non-command message is received.
+responses = 0.02
+# rate is the rate limit parameters for interactions in this channel.
+rate = { every = 10.1, num = 2 }
+# copypasta is the configuration of copypastaing.
+copypasta = { need = 2, within = 30 }
+
+[twitch.abc.emotes]
+'btw make sure to stretch, hydrate, and take care of yourself <3' = 1
