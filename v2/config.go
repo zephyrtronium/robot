@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -82,6 +83,23 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 			return nil, fmt.Errorf("bad global or channel block expression for twitch.%s: %w", nm, err)
 		}
 		emotes := distro.New(distro.FromMap(mergemaps(cfg.Global.Emotes, ch.Emotes)))
+		var ign, mod map[string]bool
+		for u, p := range ch.Privileges {
+			// TODO(zeph): Users may be listed in the TOML as usernames or as
+			// user IDs, but the maps we give back should be only IDs.
+			switch {
+			case strings.EqualFold(p, "ignore"):
+				if ign == nil {
+					ign = make(map[string]bool)
+				}
+				ign[u] = true
+			case strings.EqualFold(p, "moderator"):
+				if mod == nil {
+					mod = make(map[string]bool)
+				}
+				mod[u] = true
+			}
+		}
 		for _, p := range ch.Channels {
 			v := channel.Channel{
 				Name:      p,
@@ -90,6 +108,8 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 				Block:     blk,
 				Responses: ch.Responses,
 				Rate:      rate.NewLimiter(rate.Every(fseconds(ch.Rate.Every)), ch.Rate.Num),
+				Ignore:    ign,
+				Mod:       mod,
 				Memery:    channel.NewMemeDetector(ch.Copypasta.Need, fseconds(ch.Copypasta.Within)),
 				Emotes:    emotes,
 			}
@@ -102,6 +122,8 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 
 	return &robo, nil
 }
+
+// TODO(zeph): init dbs
 
 func loadDBs(ctx context.Context, cfg DBCfg) (brain, priv *sq.DB, err error) {
 	bp := os.ExpandEnv(cfg.Brain)
@@ -252,6 +274,8 @@ type ChannelCfg struct {
 	Copypasta Copypasta `toml:"copypasta"`
 	// Emotes is the emotes and their weights for the channel.
 	Emotes map[string]int `toml:"emotes"`
+	// Privileges is the user access controls for the channel.
+	Privileges map[string]string `toml:"privileges"`
 }
 
 // Global is the configuration for globally applied options.

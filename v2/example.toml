@@ -44,7 +44,8 @@ secret = '$CREDENTIALS_DIRECTORY/twitch_client_secret'
 # exists, it should have permissions 0600. It is encrypted with a key derived
 # from the key given in the top-level secret.
 token = '/var/robot/tmi_refresh'
-# owner is the user ID of the owner.
+# owner is the user ID of the owner. This user can use special commands for
+# administrating the bot.
 owner = '51421897'
 # db is the connection string for the user privileges and privacy database.
 # It may be the same as brain.db.
@@ -73,3 +74,10 @@ copypasta = { need = 2, within = 30 }
 
 [twitch.abc.emotes]
 'btw make sure to stretch, hydrate, and take care of yourself <3' = 1
+
+# Access levels for users. Each key may be a (login) username or a user ID. The
+# valid values are 'ignore' to disable use of all commands including prompting
+# or 'moderator' to add use of moderation commands. Note that on Twitch, the
+# broadcaster and channel moderators always have moderator privileges.
+[twitch.abc.privileges]
+'zephyrtronium' = 'moderator'

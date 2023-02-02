@@ -22,6 +22,10 @@ type Channel struct {
 	// Rate is the rate limiter for messages. Attempts to speak in excess of
 	// the rate limit are dropped.
 	Rate *rate.Limiter
+	// Ignore is the set of ignored user IDs.
+	Ignore map[string]bool
+	// Mod is the set of designated moderators' user IDs.
+	Mod map[string]bool
 	// Memery is the meme detector for the channel.
 	Memery *MemeDetector
 	// Emotes is the distribution of emotes.
