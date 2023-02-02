@@ -20,12 +20,15 @@ import (
 	"github.com/zephyrtronium/robot/v2/brain/userhash"
 	"github.com/zephyrtronium/robot/v2/channel"
 	"github.com/zephyrtronium/robot/v2/distro"
+	"github.com/zephyrtronium/robot/v2/privacy"
 )
 
 // Robot is the overall configuration for the bot.
 type Robot struct {
 	// brain is the brain.
 	brain *sqlbrain.Brain
+	// privacy is the privacy.
+	privacy *privacy.DBList
 	// channels are the channels.
 	channels map[string]*channel.Channel
 	// secrets are the bot's keys.
@@ -53,13 +56,17 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 		return nil, fmt.Errorf("couldn't read keys: %w", err)
 	}
 
-	db, err := sq.Open("sqlite3", os.ExpandEnv(cfg.Brain.DB))
+	br, pr, err := loadDBs(ctx, cfg.DB)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't open database: %w", err)
+		return nil, err
 	}
-	robo.brain, err = sqlbrain.Open(ctx, db)
+	robo.brain, err = sqlbrain.Open(ctx, br)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't connect to database: %w", err)
+		return nil, fmt.Errorf("couldn't open brain: %w", err)
+	}
+	robo.privacy, err = privacy.Open(ctx, pr)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't open privacy list: %w", err)
 	}
 
 	if md.IsDefined("tmi") {
@@ -94,6 +101,34 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 	robo.ownerContact = cfg.Owner.Contact
 
 	return &robo, nil
+}
+
+func loadDBs(ctx context.Context, cfg DBCfg) (brain, priv *sq.DB, err error) {
+	bp := os.ExpandEnv(cfg.Brain)
+	pp := os.ExpandEnv(cfg.Privacy)
+
+	brain, err = sq.Open("sqlite3", bp)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't open brain db: %w", err)
+	}
+	if err := brain.Ping(ctx); err != nil {
+		return nil, nil, fmt.Errorf("couldn't connect to brain db: %w", err)
+	}
+
+	if pp == bp {
+		priv = brain
+		return brain, priv, nil
+	}
+
+	priv, err = sq.Open("sqlite3", pp)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
+	}
+	if err := priv.Ping(ctx); err != nil {
+		return nil, nil, fmt.Errorf("couldn't connect to privacy db: %w", err)
+	}
+
+	return brain, priv, nil
 }
 
 func mergemaps(ms ...map[string]int) map[string]int {
@@ -185,12 +220,12 @@ type Config struct {
 	// durable secrets like OAuth2 refresh tokens as well as to create
 	// userhashes.
 	SecretFile string `toml:"secret"`
-	// Global is the table of global settings.
-	Global Global `toml:"global"`
 	// Owner is the table of metadata about the owner.
 	Owner Owner `toml:"owner"`
-	// Brain is the configuration for the brain database.
-	Brain BrainCfg `toml:"brain"`
+	// DB is the table of database connection strings.
+	DB DBCfg `toml:"db"`
+	// Global is the table of global settings.
+	Global Global `toml:"global"`
 	// TMI is the configuration for connecting to Twitch chat.
 	TMI ClientCfg `toml:"tmi"`
 	// Twitch is the set of channel configurations for twitch. Each key
@@ -253,10 +288,10 @@ type ClientCfg struct {
 	Owner string `toml:"owner"`
 }
 
-// BrainCfg is the configuration for the brain database.
-type BrainCfg struct {
-	// DB is the connection string for the brain database.
-	DB string `toml:"db"`
+// DBCfg is the configuration of databases.
+type DBCfg struct {
+	Brain   string `toml:"brain"`
+	Privacy string `toml:"privacy"`
 }
 
 // Rate is a rate limit configuration.

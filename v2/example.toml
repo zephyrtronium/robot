@@ -9,6 +9,19 @@
 # is the key. It should be a securely generated random blob.
 secret = '$CREDENTIALS_DIRECTORY/key'
 
+[owner]
+# name is the name of the owner, used for certain self-description commands.
+# It does not need to be a username.
+name = 'zephyrtronium'
+# contact is a description of how to contact the owner.
+contact = '/w zephyrtronium'
+
+# db is a table of databases used by the bot. Each one may be the same as or
+# different from any other. Each value is a connection string for SQLite3.
+[db]
+brain = 'file:$ROBOT_SQLITE'
+privacy = 'file:$ROBOT_SQLITE'
+
 # global includes chat settings that apply to all channels.
 [global]
 # block is a regex that blocks messages from being learned in any channel.
@@ -19,13 +32,6 @@ block = '(?i)bad\s+stuff'
 [global.emotes]
 '' = 4
 ';)' = 1
-
-[owner]
-# name is the name of the owner, used for certain self-description commands.
-# It does not need to be a username.
-name = 'zephyrtronium'
-# contact is a description of how to contact the owner.
-contact = '/w zephyrtronium'
 
 [tmi]
 # user is the Twitch username (not display name) of the bot.
@@ -40,9 +46,8 @@ secret = '$CREDENTIALS_DIRECTORY/twitch_client_secret'
 token = '/var/robot/tmi_refresh'
 # owner is the user ID of the owner.
 owner = '51421897'
-
-[brain]
-# db is the connection string for the Markov chain database.
+# db is the connection string for the user privileges and privacy database.
+# It may be the same as brain.db.
 db = 'file:$ROBOT_SQLITE'
 
 # Each channel on Twitch is a separate table under the twitch table.
