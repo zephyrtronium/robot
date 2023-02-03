@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/cipher"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -123,7 +124,31 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 	return &robo, nil
 }
 
-// TODO(zeph): init dbs
+// Init initializes the databases in a Robot TOML configuration.
+func Init(ctx context.Context, r io.Reader, order int) error {
+	if order <= 0 {
+		return errors.New("order must be positive")
+	}
+	var cfg Config
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return fmt.Errorf("couldn't read config: %w", err)
+	}
+	if err := toml.Unmarshal(b, &cfg); err != nil {
+		return fmt.Errorf("couldn't unmarshal config: %w", err)
+	}
+	brain, priv, err := loadDBs(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	if err := sqlbrain.Create(ctx, brain, order); err != nil {
+		return fmt.Errorf("couldn't initialize brain: %w", err)
+	}
+	if err := privacy.Init(ctx, priv); err != nil {
+		return fmt.Errorf("couldn't initialize privacy list: %w", err)
+	}
+	return nil
+}
 
 func loadDBs(ctx context.Context, cfg DBCfg) (brain, priv *sq.DB, err error) {
 	bp := os.ExpandEnv(cfg.Brain)
