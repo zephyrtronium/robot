@@ -2,22 +2,25 @@ package main
 
 import (
 	"context"
-	"crypto/cipher"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/go-chi/chi/v5"
 	"gitlab.com/zephyrtronium/sq"
-	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/sha3"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/twitch"
 	"golang.org/x/time/rate"
 
+	"github.com/zephyrtronium/robot/v2/auth"
 	"github.com/zephyrtronium/robot/v2/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/v2/brain/userhash"
 	"github.com/zephyrtronium/robot/v2/channel"
@@ -39,6 +42,8 @@ type Robot struct {
 	owner string
 	// ownerContact describes contact information for the owner.
 	ownerContact string
+	// http is the bot's HTTP server configuration.
+	http http.Server
 	// tmi contains the bot's Twitch OAuth2 settings. It may be nil if there is
 	// no Twitch configuration.
 	tmi *client
@@ -71,11 +76,26 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 		return nil, fmt.Errorf("couldn't open privacy list: %w", err)
 	}
 
+	// TODO(zeph): real url
+	baseURL := "http://" + cfg.HTTP.Address
+	rtr := chi.NewRouter()
+	// TODO(zeph): other routes
+
 	if md.IsDefined("tmi") {
-		robo.tmi, err = loadClient(cfg.TMI)
+		cfg.TMI.endpoint = twitch.Endpoint
+		cfg.TMI.redir = baseURL + "/login/twitch/callback"
+		cfg.TMI.landing = baseURL
+		robo.tmi, err = loadClient(ctx, cfg.TMI, *robo.secrets.twitch)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't load TMI config: %w", err)
 		}
+		rtr.Get("/login/twitch", robo.tmi.token.Login)
+		rtr.Get("/login/twitch/callback", robo.tmi.token.Callback)
+	}
+	robo.http = http.Server{
+		Addr:              cfg.HTTP.Address,
+		Handler:           rtr,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	for nm, ch := range cfg.Twitch {
@@ -199,36 +219,49 @@ type client struct {
 	// owner is the user ID of the owner. The interpretation of this is
 	// domain-specific.
 	owner string
-	// refresh is the OAuth2 refresh token file.
-	refresh string
-	// client is the application client ID.
-	client string
-	// secret is the application client secret.
-	secret string
+	// token is the OAuth2 token.
+	token *auth.Token
 }
 
 // loadClient loads client configuration from unmarshaled TOML.
-func loadClient(t ClientCfg) (*client, error) {
+func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte) (*client, error) {
 	secret, err := os.ReadFile(os.ExpandEnv(t.SecretFile))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read client secret: %w", err)
 	}
+	fp := os.ExpandEnv(t.TokenFile)
+	stor, err := auth.NewFileAt(fp, key)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't use refresh token storage: %w", err)
+	}
+	cfg := auth.Config{
+		App: oauth2.Config{
+			ClientID:     t.CID,
+			ClientSecret: string(secret),
+			Endpoint:     t.endpoint,
+			RedirectURL:  t.redir,
+		},
+		Client: http.Client{
+			Timeout: 30 * time.Second,
+		},
+		Landing: t.landing,
+	}
+	tok, err := auth.New(ctx, stor, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't create token: %w", err)
+	}
 	return &client{
-		me:      t.User,
-		owner:   t.Owner,
-		refresh: os.ExpandEnv(t.TokenFile),
-		client:  t.CID,
-		secret:  string(secret),
+		me:    t.User,
+		owner: t.Owner,
+		token: tok,
 	}, nil
 }
 
 type keys struct {
 	// userhash is the hasher for userhashes.
 	userhash userhash.Hasher
-	// oauth is the encrypter for OAuth2 refresh tokens.
-	// TODO(zeph): this should probably move to a separate package to
-	// handle all the oauth stuff, especially nonce
-	oauth cipher.AEAD
+	// twitch is the key for Twitch OAuth2 token storage.
+	twitch *[auth.KeySize]byte
 }
 
 // readkeys creates keys for userhashes and encryption from the base key at a
@@ -238,27 +271,23 @@ func readkeys(file string) (*keys, error) {
 	if err != nil {
 		return nil, err
 	}
-	var keys keys
-	{
-		kr := hkdf.Expand(sha3.New224, k, []byte("userhash"))
-		p := make([]byte, 64)
-		if _, err := kr.Read(p); err != nil {
-			return nil, err
-		}
-		keys.userhash = userhash.New(p)
-	}
-	{
-		kr := hkdf.Expand(sha3.New224, k, []byte("oauth"))
-		p := make([]byte, chacha20poly1305.KeySize)
-		if _, err := kr.Read(p); err != nil {
-			return nil, err
-		}
-		keys.oauth, err = chacha20poly1305.New(p)
-		if err != nil {
-			return nil, err
-		}
+	uk := domainkey(make([]byte, 64), k, []byte("userhash"))
+	tk := domainkey(make([]byte, auth.KeySize), k, []byte("oauth2.twitch"))
+	keys := keys{
+		userhash: userhash.New(uk),
+		twitch:   (*[32]byte)(tk),
 	}
 	return &keys, nil
+}
+
+// domainkey fills o with a key derived from k for the given domain. Panics if
+// a key cannot be expanded.
+func domainkey(o, k, domain []byte) []byte {
+	kr := hkdf.Expand(sha3.New224, k, []byte(domain))
+	if _, err := kr.Read(o); err != nil {
+		panic(err)
+	}
+	return o
 }
 
 // Config is the marshaled structure of Robot's configuration.
@@ -267,6 +296,8 @@ type Config struct {
 	// durable secrets like OAuth2 refresh tokens as well as to create
 	// userhashes.
 	SecretFile string `toml:"secret"`
+	// HTTP is the table of HTTP server settings.
+	HTTP HTTPCfg `toml:"http"`
 	// Owner is the table of metadata about the owner.
 	Owner Owner `toml:"owner"`
 	// DB is the table of database connection strings.
@@ -278,6 +309,13 @@ type Config struct {
 	// Twitch is the set of channel configurations for twitch. Each key
 	// represents a group of one or more channels sharing a config.
 	Twitch map[string]ChannelCfg `toml:"twitch"`
+}
+
+// HTTPCfg is the configuration for the bot's HTTP server.
+type HTTPCfg struct {
+	// Address is the domain and port at which to bind the server.
+	Address string `toml:"address"`
+	// TODO(zeph): HTTPS support
 }
 
 // ChannelCfg is the configuration for a channel.
@@ -335,6 +373,10 @@ type ClientCfg struct {
 	// Owner is the user ID of the owner. The interpretation of this is
 	// domain-specific.
 	Owner string `toml:"owner"`
+
+	endpoint oauth2.Endpoint `toml:"-"`
+	redir    string          `toml:"-"`
+	landing  string          `toml:"-"`
 }
 
 // DBCfg is the configuration of databases.

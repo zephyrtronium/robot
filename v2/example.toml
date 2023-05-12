@@ -9,6 +9,11 @@
 # is the key. It should be a securely generated random blob.
 secret = '$CREDENTIALS_DIRECTORY/key'
 
+[http]
+# address is the domain and port to which to bind the HTTP server.
+address = ':80'
+# TODO(zeph): https support
+
 [owner]
 # name is the name of the owner, used for certain self-description commands.
 # It does not need to be a username.
