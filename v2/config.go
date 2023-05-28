@@ -57,8 +57,9 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode config: %w", err)
 	}
+	expandcfg(&cfg, os.ExpandEnv)
 
-	robo.secrets, err = readkeys(os.ExpandEnv(cfg.SecretFile))
+	robo.secrets, err = readkeys(cfg.SecretFile)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read keys: %w", err)
 	}
@@ -171,10 +172,7 @@ func Init(ctx context.Context, r io.Reader, order int) error {
 }
 
 func loadDBs(ctx context.Context, cfg DBCfg) (brain, priv *sq.DB, err error) {
-	bp := os.ExpandEnv(cfg.Brain)
-	pp := os.ExpandEnv(cfg.Privacy)
-
-	brain, err = sq.Open("sqlite3", bp)
+	brain, err = sq.Open("sqlite3", cfg.Brain)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't open brain db: %w", err)
 	}
@@ -182,12 +180,12 @@ func loadDBs(ctx context.Context, cfg DBCfg) (brain, priv *sq.DB, err error) {
 		return nil, nil, fmt.Errorf("couldn't connect to brain db: %w", err)
 	}
 
-	if pp == bp {
+	if cfg.Privacy == cfg.Brain {
 		priv = brain
 		return brain, priv, nil
 	}
 
-	priv, err = sq.Open("sqlite3", pp)
+	priv, err = sq.Open("sqlite3", cfg.Privacy)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
 	}
@@ -225,12 +223,11 @@ type client struct {
 
 // loadClient loads client configuration from unmarshaled TOML.
 func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte) (*client, error) {
-	secret, err := os.ReadFile(os.ExpandEnv(t.SecretFile))
+	secret, err := os.ReadFile(t.SecretFile)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read client secret: %w", err)
 	}
-	fp := os.ExpandEnv(t.TokenFile)
-	stor, err := auth.NewFileAt(fp, key)
+	stor, err := auth.NewFileAt(t.TokenFile, key)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't use refresh token storage: %w", err)
 	}
@@ -308,7 +305,7 @@ type Config struct {
 	TMI ClientCfg `toml:"tmi"`
 	// Twitch is the set of channel configurations for twitch. Each key
 	// represents a group of one or more channels sharing a config.
-	Twitch map[string]ChannelCfg `toml:"twitch"`
+	Twitch map[string]*ChannelCfg `toml:"twitch"`
 }
 
 // HTTPCfg is the configuration for the bot's HTTP server.
@@ -395,4 +392,30 @@ type Rate struct {
 type Copypasta struct {
 	Need   int     `toml:"need"`
 	Within float64 `toml:"within"`
+}
+
+func expandcfg(cfg *Config, expand func(s string) string) {
+	fields := []*string{
+		&cfg.SecretFile,
+		&cfg.HTTP.Address,
+		&cfg.Owner.Name,
+		&cfg.Owner.Contact,
+		&cfg.DB.Brain,
+		&cfg.DB.Privacy,
+		&cfg.TMI.User,
+		&cfg.TMI.CID,
+		&cfg.TMI.SecretFile,
+		&cfg.TMI.TokenFile,
+		&cfg.TMI.Owner,
+	}
+	for _, f := range fields {
+		*f = os.Expand(*f, expand)
+	}
+	for _, v := range cfg.Twitch {
+		for i, s := range v.Channels {
+			v.Channels[i] = os.Expand(s, expand)
+		}
+		v.Learn = os.Expand(v.Learn, expand)
+		v.Send = os.Expand(v.Send, expand)
+	}
 }
