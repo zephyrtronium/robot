@@ -148,6 +148,7 @@ func (t *Token) refreshLocked(ctx context.Context) (string, error) {
 		RefreshToken string   `json:"refresh_token"`
 		Scope        []string `json:"scope"`
 		TokenType    string   `json:"token_type"`
+		ExpiresIn    int      `json:"expires_in"`
 		// Error fields
 		Error   string `json:"error"`
 		Status  int    `json:"status"`
@@ -198,10 +199,11 @@ func (t *Token) Login(w http.ResponseWriter, r *http.Request) {
 	c := http.Cookie{
 		Name:  t.cookieName(),
 		Value: state,
+		Path:  "/",
 		// We don't set Secure because we generally expect to serve HTTP over
 		// an isolated network rather than serving HTTPS.
 		HttpOnly: true,
-		SameSite: http.SameSiteStrictMode,
+		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &c)
 	http.Redirect(w, r, t.app.AuthCodeURL(state), http.StatusTemporaryRedirect)
@@ -232,14 +234,12 @@ func (t *Token) Callback(w http.ResponseWriter, r *http.Request) {
 		case <-t.ch:
 		default:
 		}
-		select {
-		case <-ctx.Done():
-		case t.ch <- r:
-		}
+		t.ch <- r
 	}(token.RefreshToken)
 
 	nc := http.Cookie{
 		Name:     t.cookieName(),
+		Path:     "/",
 		MaxAge:   -1, // delete immediately
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
@@ -250,8 +250,11 @@ func (t *Token) Callback(w http.ResponseWriter, r *http.Request) {
 
 func (t *Token) checkstate(r *http.Request) error {
 	c, err := r.Cookie(t.cookieName())
-	if err != nil || c.Value == "" {
+	if err == http.ErrNoCookie || c.Value == "" {
 		return errors.New("client is not currently expecting an authorization code")
+	}
+	if err != nil {
+		return err
 	}
 	want := c.Value
 	got := r.FormValue("state")

@@ -47,8 +47,8 @@ func TestAuth(t *testing.T) {
 			secret: "nijika",
 		},
 	}
-	for _, c := range cases {
-		c := c
+	for i := range cases {
+		c := &cases[i]
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
