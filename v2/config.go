@@ -28,27 +28,6 @@ import (
 	"github.com/zephyrtronium/robot/v2/privacy"
 )
 
-// Robot is the overall configuration for the bot.
-type Robot struct {
-	// brain is the brain.
-	brain *sqlbrain.Brain
-	// privacy is the privacy.
-	privacy *privacy.DBList
-	// channels are the channels.
-	channels map[string]*channel.Channel
-	// secrets are the bot's keys.
-	secrets *keys
-	// owner is the username of the owner.
-	owner string
-	// ownerContact describes contact information for the owner.
-	ownerContact string
-	// http is the bot's HTTP server configuration.
-	http http.Server
-	// tmi contains the bot's Twitch OAuth2 settings. It may be nil if there is
-	// no Twitch configuration.
-	tmi *client
-}
-
 // Load loads Robot from a TOML configuration.
 func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 	var cfg Config
@@ -57,7 +36,7 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode config: %w", err)
 	}
-	expandcfg(&cfg, os.ExpandEnv)
+	expandcfg(&cfg, os.Getenv)
 
 	robo.secrets, err = readkeys(cfg.SecretFile)
 	if err != nil {
@@ -79,6 +58,9 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 
 	// TODO(zeph): real url
 	baseURL := "http://" + cfg.HTTP.Address
+	if strings.HasPrefix(cfg.HTTP.Address, ":") {
+		baseURL = "http://localhost" + cfg.HTTP.Address
+	}
 	rtr := chi.NewRouter()
 	// TODO(zeph): other routes
 
@@ -86,7 +68,7 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 		cfg.TMI.endpoint = twitch.Endpoint
 		cfg.TMI.redir = baseURL + "/login/twitch/callback"
 		cfg.TMI.landing = baseURL
-		robo.tmi, err = loadClient(ctx, cfg.TMI, *robo.secrets.twitch)
+		robo.tmi, err = loadClient(ctx, cfg.TMI, *robo.secrets.twitch, "chat:read", "chat:edit")
 		if err != nil {
 			return nil, fmt.Errorf("couldn't load TMI config: %w", err)
 		}
@@ -99,6 +81,7 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
+	robo.channels = make(map[string]*channel.Channel)
 	for nm, ch := range cfg.Twitch {
 		blk, err := regexp.Compile("(" + cfg.Global.Block + ")|(" + ch.Block + ")")
 		if err != nil {
@@ -158,6 +141,7 @@ func Init(ctx context.Context, r io.Reader, order int) error {
 	if err := toml.Unmarshal(b, &cfg); err != nil {
 		return fmt.Errorf("couldn't unmarshal config: %w", err)
 	}
+	expandcfg(&cfg, os.Getenv)
 	brain, priv, err := loadDBs(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -222,7 +206,7 @@ type client struct {
 }
 
 // loadClient loads client configuration from unmarshaled TOML.
-func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte) (*client, error) {
+func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte, scopes ...string) (*client, error) {
 	secret, err := os.ReadFile(t.SecretFile)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read client secret: %w", err)
@@ -237,6 +221,7 @@ func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte) (*clie
 			ClientSecret: string(secret),
 			Endpoint:     t.endpoint,
 			RedirectURL:  t.redir,
+			Scopes:       scopes,
 		},
 		Client: http.Client{
 			Timeout: 30 * time.Second,

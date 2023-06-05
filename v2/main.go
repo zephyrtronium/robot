@@ -14,6 +14,7 @@ var app = cli.App{
 	Name:  "robot",
 	Usage: "Markov chain chat bot",
 
+	DefaultCommand: "run",
 	Commands: []*cli.Command{
 		{
 			Name:  "init",
@@ -52,6 +53,38 @@ var app = cli.App{
 					Action: func(ctx *cli.Context, i int) error {
 						if i <= 0 {
 							return errors.New("order must be positive")
+						}
+						return nil
+					},
+				},
+			},
+		},
+		{
+			Name:  "run",
+			Usage: "Connect to configured chat services",
+			Action: func(ctx *cli.Context) error {
+				cfg, err := os.Open(ctx.String("config"))
+				if err != nil {
+					return fmt.Errorf("couldn't open config file: %w", err)
+				}
+				robo, err := Load(ctx.Context, cfg)
+				if err != nil {
+					return fmt.Errorf("couldn't load config: %w", err)
+				}
+				return robo.Run(ctx.Context)
+			},
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "config",
+					Required: true,
+					Usage:    "TOML config file",
+					Action: func(ctx *cli.Context, s string) error {
+						i, err := os.Stat(s)
+						if err != nil {
+							return err
+						}
+						if !i.Mode().IsRegular() {
+							return errors.New("config must be a regular file")
 						}
 						return nil
 					},
