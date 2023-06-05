@@ -53,9 +53,6 @@ token = '/var/robot/tmi_refresh'
 # owner is the user ID of the owner. This user can use special commands for
 # administrating the bot.
 owner = '51421897'
-# db is the connection string for the user privileges and privacy database.
-# It may be the same as brain.db.
-db = 'file:$ROBOT_SQLITE'
 
 # Each channel on Twitch is a separate table under the twitch table.
 [twitch.abc]
