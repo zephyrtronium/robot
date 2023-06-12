@@ -26,6 +26,8 @@ type Robot struct {
 	privacy *privacy.DBList
 	// channels are the channels.
 	channels map[string]*channel.Channel
+	// works is the worker queue.
+	works chan chan func(context.Context)
 	// secrets are the bot's keys.
 	secrets *keys
 	// owner is the username of the owner.
@@ -75,12 +77,12 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 	send := make(chan *tmi.Message, 1)
 	recv := make(chan *tmi.Message, 8) // 8 is enough for on-connect msgs
 	// TODO(zeph): could run several instances of loop
-	go robo.loop(ctx, send, recv)
+	go robo.tmiLoop(ctx, send, recv)
 	tmi.Connect(ctx, cfg, tmi.Log(log.Default(), false), send, recv)
 	return ctx.Err()
 }
 
-func (robo *Robot) loop(ctx context.Context, send chan<- *tmi.Message, recv <-chan *tmi.Message) {
+func (robo *Robot) tmiLoop(ctx context.Context, send chan<- *tmi.Message, recv <-chan *tmi.Message) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -91,7 +93,7 @@ func (robo *Robot) loop(ctx context.Context, send chan<- *tmi.Message, recv <-ch
 			}
 			switch msg.Command {
 			case "PRIVMSG":
-				// TODO(zeph): this
+				robo.tmiMessage(ctx, send, msg)
 			case "WHISPER":
 				// TODO(zeph): this
 			case "NOTICE":

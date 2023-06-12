@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -122,6 +123,7 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 		}
 	}
 
+	robo.works = make(chan chan func(context.Context), runtime.GOMAXPROCS(0))
 	robo.owner = cfg.Owner.Name
 	robo.ownerContact = cfg.Owner.Contact
 
