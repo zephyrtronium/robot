@@ -6,7 +6,7 @@ WITH InitialSet AS (
         suffix
     FROM MessageTuple
     WHERE tag = ?
-        AND p{{$.NM1}} IS NULL
+        AND p{{$.NM1}} = ''
 )
 SELECT suffix
 FROM InitialSet
