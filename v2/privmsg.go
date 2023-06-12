@@ -45,14 +45,12 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			return
 		}
 		robo.learn(ctx, ch, m)
-		// TODO(zeph): rate limit
+		if !ch.Rate.Allow() {
+			return
+		}
 		if err := ch.Memery.Check(m.Time(), from, m.Text()); err == nil {
 			// NOTE(zeph): inverted error check
-			resp := msg.Respond("%s", m.Text())
-			select {
-			case <-ctx.Done():
-			case send <- resp:
-			}
+			robo.sendTMI(ctx, send, ch, m.Text())
 			return
 		} else if err != channel.ErrNotCopypasta {
 			log.Println("copypasta error:", err)
@@ -68,11 +66,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			e := ch.Emotes.Pick(rand.Uint32())
 			s = strings.TrimSpace(s + " " + e)
 			// TODO(zeph): effect
-			resp := msg.Respond("%s", s)
-			select {
-			case <-ctx.Done():
-			case send <- resp:
-			}
+			robo.sendTMI(ctx, send, ch, s)
 		}
 	}
 	robo.enqueue(ctx, work)
@@ -142,6 +136,26 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, msg message.I
 	}
 	if err := brain.Learn(ctx, robo.brain, meta, brain.Tokens(nil, text)); err != nil {
 		// TODO(zeph): log
+	}
+}
+
+// sendTMI sends a message to TMI after waiting for the global rate limit.
+func (robo *Robot) sendTMI(ctx context.Context, send chan<- *tmi.Message, ch *channel.Channel, s string) {
+	if ch.Block.MatchString(s) {
+		return
+	}
+	if err := robo.tmi.rate.Wait(ctx); err != nil {
+		return
+	}
+	resp := &tmi.Message{
+		Command:  "PRIVMSG",
+		Params:   []string{ch.Name},
+		Trailing: s,
+	}
+	select {
+	case <-ctx.Done():
+		return
+	case send <- resp:
 	}
 }
 

@@ -53,6 +53,8 @@ token = '/var/robot/tmi_refresh'
 # owner is the user ID of the owner. This user can use special commands for
 # administrating the bot.
 owner = '51421897'
+# rate is the message rate limit for TMI.
+rate = { every = 30, num = 20 }
 
 # Each channel on Twitch is a separate table under the twitch table.
 [twitch.abc]

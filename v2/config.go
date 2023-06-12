@@ -203,6 +203,8 @@ type client struct {
 	// owner is the user ID of the owner. The interpretation of this is
 	// domain-specific.
 	owner string
+	// rate is the global rate limiter for this client.
+	rate *rate.Limiter
 	// token is the OAuth2 token.
 	token *auth.Token
 }
@@ -237,6 +239,7 @@ func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte, scopes
 	return &client{
 		me:    t.User,
 		owner: t.Owner,
+		rate:  rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
 		token: tok,
 	}, nil
 }
@@ -357,6 +360,8 @@ type ClientCfg struct {
 	// Owner is the user ID of the owner. The interpretation of this is
 	// domain-specific.
 	Owner string `toml:"owner"`
+	// Rate is the global rate limit for this client.
+	Rate Rate `toml:"rate"`
 
 	endpoint oauth2.Endpoint `toml:"-"`
 	redir    string          `toml:"-"`
