@@ -1,20 +1,3 @@
-/*
-Copyright (C) 2020  Branden J Brown
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
-
 package brain
 
 import (
@@ -23,15 +6,15 @@ import (
 	"unicode/utf8"
 )
 
-// Tokens converts a message into a list of its words.
-func Tokens(msg string) []string {
-	var r []string
+// Tokens converts a message into a list of its words appended to dst.
+func Tokens(dst []string, msg string) []string {
 	art := false
 	msg = strings.TrimSpace(msg)
 	for msg != "" {
 		k := strings.IndexFunc(msg, unicode.IsSpace)
 		if k == 0 {
-			msg = msg[1:]
+			_, n := utf8.DecodeRuneInString(msg)
+			msg = msg[n:]
 			continue
 		}
 		if k < 0 {
@@ -45,22 +28,31 @@ func Tokens(msg string) []string {
 		// might be part of D A N K M E M E S, so if the previous word was "a"
 		// and the current one is length 1, then we do not join.
 		if art {
-			if utf8.RuneCountInString(word) != 1 || !strings.EqualFold(r[len(r)-1], "a") {
-				r[len(r)-1] += " " + word
-				art = isArticle(word)
+			if utf8.RuneCountInString(word) != 1 || !strings.EqualFold(dst[len(dst)-1], "a") {
+				dst[len(dst)-1] += " " + word
+				art = false
 				msg = msg[k:]
 				continue
 			}
 		}
-		r = append(r, word)
+		dst = append(dst, word)
 		art = isArticle(word)
-		// Note we only advance to k, not beyond, because if this is the last
-		// word in the message, then msg[k+1:] would panic.
+		// Advance to k and then skip the next rune, since it is whitespace if
+		// it exists. This might be the last word in msg, in which case
+		// DecodeRuneInString will return 0 for the length.
 		msg = msg[k:]
+		_, n := utf8.DecodeRuneInString(msg)
+		msg = msg[n:]
 	}
-	return r
+	return dst
 }
 
 func isArticle(word string) bool {
 	return strings.EqualFold(word, "a") || strings.EqualFold(word, "an") || strings.EqualFold(word, "the")
+}
+
+// ReduceEntropy transforms a term in a way which makes it more likely to
+// equal other terms transformed the same way.
+func ReduceEntropy(w string) string {
+	return strings.ToLower(w)
 }
