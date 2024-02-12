@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
-	"gitlab.com/zephyrtronium/sq"
 )
 
 func TestNew(t *testing.T) {
@@ -416,9 +415,9 @@ func addTuples(ctx context.Context, db sqlbrain.DB, msg brain.MessageMeta, tuple
 		b.WriteByte(')')
 		args := []any{msg.ID}
 		for _, w := range tup.Prefix {
-			args = append(args, sq.NullString{String: w, Valid: w != ""})
+			args = append(args, w)
 		}
-		args = append(args, sq.NullString{String: tup.Suffix, Valid: tup.Suffix != ""})
+		args = append(args, tup.Suffix)
 		_, err := tx.Exec(ctx, b.String(), args...)
 		if err != nil {
 			return fmt.Errorf("couldn't add tuples %q with query %q: %w", tuples, b.String(), err)
