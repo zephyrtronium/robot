@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.22
-	github.com/urfave/cli/v3 v3.0.0-alpha8
+	github.com/urfave/cli/v3 v3.0.0-alpha9
 	gitlab.com/zephyrtronium/pick v1.0.0
 	gitlab.com/zephyrtronium/sq v1.0.1
 	gitlab.com/zephyrtronium/tmi v0.0.0-20220313232153-eb9e5ec8d752
