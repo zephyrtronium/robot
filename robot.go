@@ -23,7 +23,7 @@ type Robot struct {
 	// brain is the brain.
 	brain *sqlbrain.Brain
 	// privacy is the privacy.
-	privacy *privacy.DBList
+	privacy *privacy.List
 	// channels are the channels.
 	channels map[string]*channel.Channel
 	// works is the worker queue.
