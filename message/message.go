@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type Message struct {
+type Received struct {
 	// ID is the unique ID of the message.
 	ID string
 	// To is the destination of the message. This may be the identifier of a
@@ -28,6 +28,6 @@ type Message struct {
 	IsElevated bool
 }
 
-func (m *Message) Time() time.Time {
+func (m *Received) Time() time.Time {
 	return time.UnixMilli(m.Timestamp)
 }

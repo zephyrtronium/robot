@@ -7,12 +7,12 @@ import (
 )
 
 // FromTMI adapts a TMI IRC message.
-func FromTMI(m *tmi.Message) *Message {
+func FromTMI(m *tmi.Message) *Received {
 	id, _ := m.Tag("id")
 	sender, _ := m.Tag("user-id")
 	ts, _ := m.Tag("tmi-sent-ts")
 	u, _ := strconv.ParseInt(ts, 10, 64)
-	r := Message{
+	r := Received{
 		ID:          id,
 		To:          m.To(),
 		Sender:      sender,
