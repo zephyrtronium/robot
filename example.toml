@@ -9,11 +9,6 @@
 # is the key. It should be a securely generated random blob.
 secret = '$CREDENTIALS_DIRECTORY/key'
 
-[http]
-# address is the domain and port to which to bind the HTTP server.
-address = ':80'
-# TODO(zeph): https support
-
 [owner]
 # name is the name of the owner, used for certain self-description commands.
 # It does not need to be a username.
@@ -57,14 +52,14 @@ owner = '51421897'
 rate = { every = 30, num = 20 }
 
 # Each channel on Twitch is a separate table under the twitch table.
-[twitch.abc]
+[twitch.bocchi]
 # channels is the list of channels using this configuration. It is an array to
 # support future integrations.
-channels = ['#abc']
+channels = ['#bocchi']
 # learn is the tag used to learn Markov chain data from this channel.
-learn = 'abc'
+learn = 'bocchi'
 # send is the tag used to generate messages.
-send = 'abc'
+send = 'bocchi'
 # block is a regex that blocks messages from being learned in this channel. Any
 # message containing text matching this or the global block regex is not used
 # for learning. Unlike most string options, it is not expanded with environment
@@ -78,7 +73,7 @@ rate = { every = 10.1, num = 2 }
 # copypasta is the configuration of copypastaing.
 copypasta = { need = 2, within = 30 }
 
-[twitch.abc.emotes]
+[twitch.bocchi.emotes]
 'btw make sure to stretch, hydrate, and take care of yourself <3' = 1
 
 # Access levels for users. Each key may be a (login) username or a user ID. The
@@ -86,5 +81,5 @@ copypasta = { need = 2, within = 30 }
 # or 'moderator' to add use of moderation commands. Note that on Twitch, the
 # broadcaster and channel moderators always have moderator privileges. Unlike
 # most string options, these are not expanded with environment variables.
-[twitch.abc.privileges]
+[twitch.bocchi.privileges]
 'zephyrtronium' = 'moderator'

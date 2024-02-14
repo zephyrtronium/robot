@@ -44,7 +44,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			_ = cmd
 			return
 		}
-		robo.learn(ctx, ch, m)
+		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
 		if !ch.Rate.Allow() {
 			return
 		}
@@ -107,7 +107,7 @@ func worker(ctx context.Context, works chan chan func(context.Context), ch chan 
 }
 
 // learn learns a given message's text if it passes ch's filters.
-func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, msg message.Interface) {
+func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userhash.Hasher, msg message.Interface) {
 	if err := robo.privacy.Check(ctx, msg.Sender()); err != nil {
 		if err == privacy.ErrPrivate {
 			// TODO(zeph): log at a lower priority level
@@ -125,7 +125,7 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, msg message.I
 	// Ignore the error. If we get a bad one, we'll record a zero UUID.
 	// TODO(zeph): log error instead
 	id, _ := uuid.Parse(msg.ID())
-	user := robo.secrets.userhash.Hash(new(userhash.Hash), msg.Sender(), msg.To(), msg.Time())
+	user := hasher.Hash(new(userhash.Hash), msg.Sender(), msg.To(), msg.Time())
 	meta := &brain.MessageMeta{
 		ID:   id,
 		User: *user,

@@ -5,8 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
-	"net"
-	"net/http"
 	"strings"
 	"time"
 
@@ -34,20 +32,23 @@ type Robot struct {
 	owner string
 	// ownerContact describes contact information for the owner.
 	ownerContact string
-	// http is the bot's HTTP server configuration.
-	http http.Server
 	// tmi contains the bot's Twitch OAuth2 settings. It may be nil if there is
 	// no Twitch configuration.
 	tmi *client
 }
 
+// New creates a new robot instance. Use SetOwner, SetSecrets, &c. as needed
+// to initialize the robot.
+func New(poolSize int) *Robot {
+	return &Robot{
+		channels: make(map[string]*channel.Channel),
+		works:    make(chan chan func(context.Context), poolSize),
+	}
+}
+
 func (robo *Robot) Run(ctx context.Context) error {
 	group, ctx := errgroup.WithContext(ctx)
 	// TODO(zeph): stdin?
-	// TODO(zeph): don't like having this here
-	robo.http.BaseContext = func(l net.Listener) context.Context { return ctx }
-	// TODO(zeph): tls
-	go robo.http.ListenAndServe()
 	if robo.tmi != nil {
 		group.Go(func() error { return robo.twitch(ctx, group) })
 	}

@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 
 	"github.com/urfave/cli/v3"
+	"github.com/zephyrtronium/robot/brain/sqlbrain"
+	"github.com/zephyrtronium/robot/privacy"
 )
 
 var app = cli.Command{
@@ -21,12 +24,23 @@ var app = cli.Command{
 			Usage: "Initialize configured databases",
 			Action: func(ctx context.Context, cmd *cli.Command) error {
 				order := int(cmd.Int("order"))
-				cfg, err := os.Open(cmd.String("config"))
+				r, err := os.Open(cmd.String("config"))
 				if err != nil {
 					return fmt.Errorf("couldn't open config file: %w", err)
 				}
-				if err := Init(ctx, cfg, order); err != nil {
+				cfg, _, err := Load(ctx, r)
+				if err != nil {
+					return fmt.Errorf("couldn't load config: %w", err)
+				}
+				brain, priv, err := loadDBs(ctx, cfg.DB)
+				if err != nil {
 					return err
+				}
+				if err := sqlbrain.Create(ctx, brain, order); err != nil {
+					return fmt.Errorf("couldn't initialize brain: %w", err)
+				}
+				if err := privacy.Init(ctx, priv); err != nil {
+					return fmt.Errorf("couldn't initialize privacy list: %w", err)
 				}
 				return nil
 			},
@@ -63,13 +77,34 @@ var app = cli.Command{
 			Name:  "run",
 			Usage: "Connect to configured chat services",
 			Action: func(ctx context.Context, cmd *cli.Command) error {
-				cfg, err := os.Open(cmd.String("config"))
+				r, err := os.Open(cmd.String("config"))
 				if err != nil {
 					return fmt.Errorf("couldn't open config file: %w", err)
 				}
-				robo, err := Load(ctx, cfg)
+				cfg, md, err := Load(ctx, r)
 				if err != nil {
 					return fmt.Errorf("couldn't load config: %w", err)
+				}
+				r.Close()
+				robo := New(runtime.GOMAXPROCS(0))
+				robo.SetOwner(cfg.Owner.Name, cfg.Owner.Contact)
+				if err := robo.SetSecrets(cfg.SecretFile); err != nil {
+					return err
+				}
+				brain, priv, err := loadDBs(ctx, cfg.DB)
+				if err != nil {
+					return err
+				}
+				if err := robo.SetSources(ctx, brain, priv); err != nil {
+					return err
+				}
+				if md.IsDefined("tmi") {
+					if err := robo.SetTMI(ctx, cfg.TMI); err != nil {
+						return err
+					}
+					if err := robo.SetTwitchChannels(ctx, cfg.Global, cfg.Twitch); err != nil {
+						return err
+					}
 				}
 				return robo.Run(ctx)
 			},

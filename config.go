@@ -2,18 +2,15 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/go-chi/chi/v5"
 	"gitlab.com/zephyrtronium/pick"
 	"gitlab.com/zephyrtronium/sq"
 	"golang.org/x/crypto/hkdf"
@@ -26,69 +23,78 @@ import (
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/privacy"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Load loads Robot from a TOML configuration.
-func Load(ctx context.Context, r io.Reader) (*Robot, error) {
+func Load(ctx context.Context, r io.Reader) (*Config, *toml.MetaData, error) {
 	var cfg Config
-	var robo Robot
 	md, err := toml.NewDecoder(r).Decode(&cfg)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't decode config: %w", err)
+		return nil, nil, fmt.Errorf("couldn't decode config: %w", err)
 	}
 	expandcfg(&cfg, os.Getenv)
+	return &cfg, &md, nil
+}
 
-	robo.secrets, err = readkeys(cfg.SecretFile)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't read keys: %w", err)
-	}
+// SetOwner sets owner metadata used in self-description commands.
+func (robo *Robot) SetOwner(ownerName, ownerContact string) {
+	robo.owner = ownerName
+	robo.ownerContact = ownerContact
+}
 
-	br, pr, err := loadDBs(ctx, cfg.DB)
+// SetSecrets loads the robot's fixed secret and initializes derived secrets.
+func (robo *Robot) SetSecrets(file string) error {
+	k, err := os.ReadFile(file)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("couldn't read secret key: %w", err)
 	}
-	robo.brain, err = sqlbrain.Open(ctx, br)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't open brain: %w", err)
+	uk := domainkey(make([]byte, 64), k, []byte("userhash"))
+	tk := domainkey(make([]byte, auth.KeySize), k, []byte("oauth2.twitch"))
+	robo.secrets = &keys{
+		userhash: uk,
+		twitch:   (*[32]byte)(tk),
 	}
-	robo.privacy, err = privacy.Open(ctx, pr)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't open privacy list: %w", err)
-	}
+	return nil
+}
 
-	// TODO(zeph): real url
-	baseURL := "http://" + cfg.HTTP.Address
-	if strings.HasPrefix(cfg.HTTP.Address, ":") {
-		baseURL = "http://localhost" + cfg.HTTP.Address
+// SetSources opens the brain and privacy list wrappers around the respective
+// databases. Use [loadDBs] to open the databases themselves from DSNs.
+func (robo *Robot) SetSources(ctx context.Context, brain, priv *sq.DB) error {
+	var err error
+	robo.brain, err = sqlbrain.Open(ctx, brain)
+	if err != nil {
+		return fmt.Errorf("couldn't open brain: %w", err)
 	}
-	rtr := chi.NewRouter()
-	// TODO(zeph): other routes
+	robo.privacy, err = privacy.Open(ctx, priv)
+	if err != nil {
+		return fmt.Errorf("couldn't open privacy list: %w", err)
+	}
+	return nil
+}
 
-	if md.IsDefined("tmi") {
-		cfg.TMI.endpoint = twitch.Endpoint
-		cfg.TMI.redir = baseURL + "/login/twitch/callback"
-		cfg.TMI.landing = baseURL
-		robo.tmi, err = loadClient(ctx, cfg.TMI, *robo.secrets.twitch, "chat:read", "chat:edit")
+// SetTMI initializes the TMI client and Twitch channel configuration.
+// It must be called after SetSecrets.
+func (robo *Robot) SetTMI(ctx context.Context, cfg ClientCfg) error {
+	cfg.endpoint = twitch.Endpoint
+	tmi, err := loadClient(ctx, cfg, *robo.secrets.twitch, "chat:read", "chat:edit")
+	if err != nil {
+		return fmt.Errorf("couldn't load TMI client: %w", err)
+	}
+	robo.tmi = tmi
+	return nil
+}
+
+// SetTwitchChannels initializes Twitch channel configuration.
+// It must be called after SetTMI.
+func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channels map[string]*ChannelCfg) error {
+	// TODO(zeph): we can convert this to a SetChannels, where it just adds the
+	// channels for any given service
+	for nm, ch := range channels {
+		blk, err := regexp.Compile("(" + global.Block + ")|(" + ch.Block + ")")
 		if err != nil {
-			return nil, fmt.Errorf("couldn't load TMI config: %w", err)
+			return fmt.Errorf("bad global or channel block expression for twitch.%s: %w", nm, err)
 		}
-		rtr.Get("/login/twitch", robo.tmi.token.Login)
-		rtr.Get("/login/twitch/callback", robo.tmi.token.Callback)
-	}
-	robo.http = http.Server{
-		Addr:              cfg.HTTP.Address,
-		Handler:           rtr,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	robo.channels = make(map[string]*channel.Channel)
-	for nm, ch := range cfg.Twitch {
-		blk, err := regexp.Compile("(" + cfg.Global.Block + ")|(" + ch.Block + ")")
-		if err != nil {
-			return nil, fmt.Errorf("bad global or channel block expression for twitch.%s: %w", nm, err)
-		}
-		emotes := pick.New(pick.FromMap(mergemaps(cfg.Global.Emotes, ch.Emotes)))
+		emotes := pick.New(pick.FromMap(mergemaps(global.Emotes, ch.Emotes)))
 		var ign, mod map[string]bool
 		for u, p := range ch.Privileges {
 			// TODO(zeph): Users may be listed in the TOML as usernames or as
@@ -121,38 +127,6 @@ func Load(ctx context.Context, r io.Reader) (*Robot, error) {
 			}
 			robo.channels[p] = &v
 		}
-	}
-
-	robo.works = make(chan chan func(context.Context), runtime.GOMAXPROCS(0))
-	robo.owner = cfg.Owner.Name
-	robo.ownerContact = cfg.Owner.Contact
-
-	return &robo, nil
-}
-
-// Init initializes the databases in a Robot TOML configuration.
-func Init(ctx context.Context, r io.Reader, order int) error {
-	if order <= 0 {
-		return errors.New("order must be positive")
-	}
-	var cfg Config
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return fmt.Errorf("couldn't read config: %w", err)
-	}
-	if err := toml.Unmarshal(b, &cfg); err != nil {
-		return fmt.Errorf("couldn't unmarshal config: %w", err)
-	}
-	expandcfg(&cfg, os.Getenv)
-	brain, priv, err := loadDBs(ctx, cfg.DB)
-	if err != nil {
-		return err
-	}
-	if err := sqlbrain.Create(ctx, brain, order); err != nil {
-		return fmt.Errorf("couldn't initialize brain: %w", err)
-	}
-	if err := privacy.Init(ctx, priv); err != nil {
-		return fmt.Errorf("couldn't initialize privacy list: %w", err)
 	}
 	return nil
 }
@@ -224,13 +198,13 @@ func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte, scopes
 			ClientID:     t.CID,
 			ClientSecret: string(secret),
 			Endpoint:     t.endpoint,
-			RedirectURL:  t.redir,
+			RedirectURL:  "http://localhost:8080", // TODO(zeph): get rid of this
 			Scopes:       scopes,
 		},
 		Client: http.Client{
 			Timeout: 30 * time.Second,
 		},
-		Landing: t.landing,
+		Landing: "http://localhost:8080", // TODO(zeph): get rid of this
 	}
 	tok, err := auth.New(ctx, stor, cfg)
 	if err != nil {
@@ -246,25 +220,9 @@ func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte, scopes
 
 type keys struct {
 	// userhash is the hasher for userhashes.
-	userhash userhash.Hasher
+	userhash []byte
 	// twitch is the key for Twitch OAuth2 token storage.
 	twitch *[auth.KeySize]byte
-}
-
-// readkeys creates keys for userhashes and encryption from the base key at a
-// given file.
-func readkeys(file string) (*keys, error) {
-	k, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-	uk := domainkey(make([]byte, 64), k, []byte("userhash"))
-	tk := domainkey(make([]byte, auth.KeySize), k, []byte("oauth2.twitch"))
-	keys := keys{
-		userhash: userhash.New(uk),
-		twitch:   (*[32]byte)(tk),
-	}
-	return &keys, nil
 }
 
 // domainkey fills o with a key derived from k for the given domain. Panics if
@@ -283,8 +241,6 @@ type Config struct {
 	// durable secrets like OAuth2 refresh tokens as well as to create
 	// userhashes.
 	SecretFile string `toml:"secret"`
-	// HTTP is the table of HTTP server settings.
-	HTTP HTTPCfg `toml:"http"`
 	// Owner is the table of metadata about the owner.
 	Owner Owner `toml:"owner"`
 	// DB is the table of database connection strings.
@@ -296,13 +252,6 @@ type Config struct {
 	// Twitch is the set of channel configurations for twitch. Each key
 	// represents a group of one or more channels sharing a config.
 	Twitch map[string]*ChannelCfg `toml:"twitch"`
-}
-
-// HTTPCfg is the configuration for the bot's HTTP server.
-type HTTPCfg struct {
-	// Address is the domain and port at which to bind the server.
-	Address string `toml:"address"`
-	// TODO(zeph): HTTPS support
 }
 
 // ChannelCfg is the configuration for a channel.
@@ -364,8 +313,6 @@ type ClientCfg struct {
 	Rate Rate `toml:"rate"`
 
 	endpoint oauth2.Endpoint `toml:"-"`
-	redir    string          `toml:"-"`
-	landing  string          `toml:"-"`
 }
 
 // DBCfg is the configuration of databases.
@@ -389,7 +336,6 @@ type Copypasta struct {
 func expandcfg(cfg *Config, expand func(s string) string) {
 	fields := []*string{
 		&cfg.SecretFile,
-		&cfg.HTTP.Address,
 		&cfg.Owner.Name,
 		&cfg.Owner.Contact,
 		&cfg.DB.Brain,
