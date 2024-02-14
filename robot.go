@@ -23,7 +23,7 @@ type Robot struct {
 	// privacy is the privacy.
 	privacy *privacy.List
 	// channels are the channels.
-	channels map[string]*channel.Channel
+	channels map[string]*channel.Channel // TODO(zeph): syncmap[string]channel.Channel
 	// works is the worker queue.
 	works chan chan func(context.Context)
 	// secrets are the bot's keys.

@@ -11,7 +11,7 @@ import (
 // Robot is the bot state as is visible to commands.
 type Robot struct {
 	Log      *slog.Logger
-	Channels map[string]*channel.Channel // TODO(zeph): not pointer?
+	Channels map[string]*channel.Channel // TODO(zeph): syncmap[string]channel.Channel
 	Brain    *sqlbrain.Brain
 	Privacy  *privacy.List
 }

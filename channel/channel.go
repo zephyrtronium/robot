@@ -32,4 +32,6 @@ type Channel struct {
 	Emotes *pick.Dist[string]
 	// Effects is the distribution of effects.
 	Effects *pick.Dist[string]
+	// Enabled indicates whether a channel is allowed to learn messages.
+	Enabled bool
 }

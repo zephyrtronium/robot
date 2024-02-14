@@ -108,6 +108,9 @@ func worker(ctx context.Context, works chan chan func(context.Context), ch chan 
 
 // learn learns a given message's text if it passes ch's filters.
 func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userhash.Hasher, msg *message.Message) {
+	if !ch.Enabled {
+		return
+	}
 	if err := robo.privacy.Check(ctx, msg.Sender); err != nil {
 		if err == privacy.ErrPrivate {
 			// TODO(zeph): log at a lower priority level
