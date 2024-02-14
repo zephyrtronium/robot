@@ -50,3 +50,13 @@ func elevated(m *tmi.Message) bool {
 	// not to mention subject to change.
 	return vip == "1"
 }
+
+// ToTMI creates a message to send to TMI. If reply is not empty, then the
+// result is a reply to the message with that ID.
+func ToTMI(reply, to, text string) *tmi.Message {
+	r := tmi.Privmsg(to, text)
+	if reply != "" {
+		r.Tags = "reply-parent-msg-id=" + reply
+	}
+	return r
+}

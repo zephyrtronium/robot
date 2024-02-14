@@ -4,6 +4,7 @@ import (
 	"time"
 )
 
+// Received is a message received from a service.
 type Received struct {
 	// ID is the unique ID of the message.
 	ID string
@@ -12,11 +13,11 @@ type Received struct {
 	To string
 	// Sender is a unique identifier for the message sender.
 	Sender string
-	// Name is the display name of a message sender.
+	// Name is the display name of the message sender.
 	Name string
-	// Text is the text of a message.
+	// Text is the text of the message.
 	Text string
-	// Timestamp is the timestamp of a message as milliseconds since the
+	// Timestamp is the timestamp of the message as milliseconds since the
 	// Unix epoch.
 	Timestamp int64
 	// IsModerator indicates whether the sender can moderate the room to which
