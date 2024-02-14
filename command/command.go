@@ -9,4 +9,4 @@ import (
 )
 
 // CommandFunc executes a command.
-type CommandFunc func(ctx context.Context, robo *Robot, hasher userhash.Hasher, ch *channel.Channel, send func(message.Interface))
+type CommandFunc func(ctx context.Context, robo *Robot, hasher userhash.Hasher, ch *channel.Channel, send func(*message.Message))

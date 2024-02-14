@@ -29,15 +29,15 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	// Run the rest in a worker so that we don't block the message loop.
 	work := func(ctx context.Context) {
 		m := message.FromTMI(msg)
-		from := m.Sender()
+		from := m.Sender
 		if ch.Ignore[from] {
 			return
 		}
-		if cmd, ok := parseCommand(robo.tmi.me, m.Text()); ok {
+		if cmd, ok := parseCommand(robo.tmi.me, m.Text); ok {
 			if from == robo.tmi.owner {
 				// TODO(zeph): check owner and moderator commands
 			}
-			if ch.Mod[from] || m.IsModerator() {
+			if ch.Mod[from] || m.IsModerator {
 				// TODO(zeph): check moderator commands
 			}
 			// TODO(zeph): check regular commands
@@ -48,9 +48,9 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		if !ch.Rate.Allow() {
 			return
 		}
-		if err := ch.Memery.Check(m.Time(), from, m.Text()); err == nil {
+		if err := ch.Memery.Check(m.Time(), from, m.Text); err == nil {
 			// NOTE(zeph): inverted error check
-			robo.sendTMI(ctx, send, ch, m.Text())
+			robo.sendTMI(ctx, send, ch, m.Text)
 			return
 		} else if err != channel.ErrNotCopypasta {
 			log.Println("copypasta error:", err)
@@ -107,16 +107,15 @@ func worker(ctx context.Context, works chan chan func(context.Context), ch chan 
 }
 
 // learn learns a given message's text if it passes ch's filters.
-func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userhash.Hasher, msg message.Interface) {
-	if err := robo.privacy.Check(ctx, msg.Sender()); err != nil {
+func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userhash.Hasher, msg *message.Message) {
+	if err := robo.privacy.Check(ctx, msg.Sender); err != nil {
 		if err == privacy.ErrPrivate {
 			// TODO(zeph): log at a lower priority level
 		}
 		// TODO(zeph): log
 		return
 	}
-	text := msg.Text()
-	if ch.Block.MatchString(text) {
+	if ch.Block.MatchString(msg.Text) {
 		return
 	}
 	if ch.Learn == "" {
@@ -124,15 +123,15 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 	}
 	// Ignore the error. If we get a bad one, we'll record a zero UUID.
 	// TODO(zeph): log error instead
-	id, _ := uuid.Parse(msg.ID())
-	user := hasher.Hash(new(userhash.Hash), msg.Sender(), msg.To(), msg.Time())
+	id, _ := uuid.Parse(msg.ID)
+	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
 	meta := &brain.MessageMeta{
 		ID:   id,
 		User: *user,
 		Tag:  ch.Learn,
 		Time: msg.Time(),
 	}
-	if err := brain.Learn(ctx, robo.brain, meta, brain.Tokens(nil, text)); err != nil {
+	if err := brain.Learn(ctx, robo.brain, meta, brain.Tokens(nil, msg.Text)); err != nil {
 		// TODO(zeph): log
 	}
 }

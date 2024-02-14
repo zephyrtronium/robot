@@ -68,28 +68,28 @@ func TestFromIRC(t *testing.T) {
 				panic(err)
 			}
 			msg := message.FromTMI(tm)
-			if got := msg.ID(); got != c.id {
+			if got := msg.ID; got != c.id {
 				t.Errorf("wrong id: want %q, got %q", c.id, got)
 			}
-			if got := msg.To(); got != c.to {
+			if got := msg.To; got != c.to {
 				t.Errorf("wrong to: want %q, got %q", c.to, got)
 			}
-			if got := msg.Sender(); got != c.sender {
+			if got := msg.Sender; got != c.sender {
 				t.Errorf("wrong sender: want %q, got %q", c.sender, got)
 			}
-			if got := msg.Name(); got != c.disp {
+			if got := msg.Name; got != c.disp {
 				t.Errorf("wrong display name: want %q, got %q", c.disp, got)
 			}
-			if got := msg.Text(); got != c.text {
+			if got := msg.Text; got != c.text {
 				t.Errorf("wrong text: want %q, got %q", c.text, got)
 			}
 			if got := msg.Time(); !got.Equal(c.time) {
 				t.Errorf("wrong time: want %v, got %v", c.time, got)
 			}
-			if got := msg.IsModerator(); got != c.mod {
+			if got := msg.IsModerator; got != c.mod {
 				t.Errorf("wrong mod: want %t, got %t", c.mod, got)
 			}
-			if got := msg.IsElevated(); got != c.elev {
+			if got := msg.IsElevated; got != c.elev {
 				t.Errorf("wrong elev: want %t, got %t", c.elev, got)
 			}
 		})
