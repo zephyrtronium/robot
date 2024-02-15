@@ -13,6 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"gitlab.com/zephyrtronium/pick"
 	"gitlab.com/zephyrtronium/sq"
+	"gitlab.com/zephyrtronium/tmi"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/oauth2"
@@ -22,6 +23,7 @@ import (
 	"github.com/zephyrtronium/robot/auth"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/channel"
+	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/privacy"
 )
 
@@ -76,7 +78,9 @@ func (robo *Robot) SetSources(ctx context.Context, brain, priv *sq.DB) error {
 // It must be called after SetSecrets.
 func (robo *Robot) SetTMI(ctx context.Context, cfg ClientCfg) error {
 	cfg.endpoint = twitch.Endpoint
-	tmi, err := loadClient(ctx, cfg, *robo.secrets.twitch, "chat:read", "chat:edit")
+	send := make(chan *tmi.Message, 1)
+	recv := make(chan *tmi.Message, 8) // 8 is enough for on-connect msgs
+	tmi, err := loadClient(ctx, cfg, send, recv, *robo.secrets.twitch, "chat:read", "chat:edit")
 	if err != nil {
 		return fmt.Errorf("couldn't load TMI client: %w", err)
 	}
@@ -113,7 +117,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 			}
 		}
 		for _, p := range ch.Channels {
-			v := channel.Channel{
+			v := &channel.Channel{
 				Name:      p,
 				Learn:     ch.Learn,
 				Send:      ch.Send,
@@ -125,7 +129,11 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				Memery:    channel.NewMemeDetector(ch.Copypasta.Need, fseconds(ch.Copypasta.Within)),
 				Emotes:    emotes,
 			}
-			robo.channels[p] = &v
+			v.Message = func(ctx context.Context, reply, text string) {
+				msg := message.Format(reply, v.Name, "%s", text)
+				robo.sendTMI(ctx, robo.tmi.send, msg)
+			}
+			robo.channels[p] = v
 		}
 	}
 	return nil
@@ -171,7 +179,7 @@ func fseconds(s float64) time.Duration {
 }
 
 // loadClient loads client configuration from unmarshaled TOML.
-func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte, scopes ...string) (*client, error) {
+func loadClient[Send, Receive any](ctx context.Context, t ClientCfg, send chan Send, recv chan Receive, key [auth.KeySize]byte, scopes ...string) (*client[Send, Receive], error) {
 	secret, err := os.ReadFile(t.SecretFile)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read client secret: %w", err)
@@ -197,7 +205,9 @@ func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte, scopes
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create token: %w", err)
 	}
-	return &client{
+	return &client[Send, Receive]{
+		send:  send,
+		recv:  recv,
 		me:    t.User,
 		owner: t.Owner,
 		rate:  rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),

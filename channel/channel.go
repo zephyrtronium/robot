@@ -1,16 +1,18 @@
 package channel
 
 import (
+	"context"
 	"regexp"
 
-	"golang.org/x/time/rate"
-
 	"gitlab.com/zephyrtronium/pick"
+	"golang.org/x/time/rate"
 )
 
 type Channel struct {
 	// Name is the name of the channel.
 	Name string
+	// Message sends a message to the channel with an optional reply message ID.
+	Message func(ctx context.Context, reply, text string)
 	// Learn and Send are the channel tags.
 	Learn, Send string
 	// Block is a regex that matches messages which should not be used for

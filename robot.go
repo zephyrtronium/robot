@@ -36,11 +36,16 @@ type Robot struct {
 	ownerContact string
 	// tmi contains the bot's Twitch OAuth2 settings. It may be nil if there is
 	// no Twitch configuration.
-	tmi *client
+	tmi *client[*tmi.Message, *tmi.Message]
 }
 
 // client is the settings for OAuth2 and related elements.
-type client struct {
+// The type parameter is the type of messages sent TO the service.
+type client[Send, Receive any] struct {
+	// send is the channel on which messages are sent.
+	send chan Send
+	// recv is the channel on which received messages are communicated.
+	recv chan Receive
 	// me is the bot's username. The interpretation of this is domain-specific.
 	me string
 	// owner is the user ID of the owner. The interpretation of this is
@@ -90,11 +95,9 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 		Capabilities: []string{"twitch.tv/commands", "twitch.tv/tags"},
 		Timeout:      300 * time.Second,
 	}
-	send := make(chan *tmi.Message, 1)
-	recv := make(chan *tmi.Message, 8) // 8 is enough for on-connect msgs
 	// TODO(zeph): could run several instances of loop
-	go robo.tmiLoop(ctx, send, recv)
-	tmi.Connect(ctx, cfg, tmi.Log(log.Default(), false), send, recv)
+	go robo.tmiLoop(ctx, robo.tmi.send, robo.tmi.recv)
+	tmi.Connect(ctx, cfg, tmi.Log(log.Default(), false), robo.tmi.send, robo.tmi.recv)
 	return ctx.Err()
 }
 
