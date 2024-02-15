@@ -10,7 +10,9 @@ import (
 
 	"gitlab.com/zephyrtronium/tmi"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/time/rate"
 
+	"github.com/zephyrtronium/robot/auth"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/privacy"
@@ -35,6 +37,19 @@ type Robot struct {
 	// tmi contains the bot's Twitch OAuth2 settings. It may be nil if there is
 	// no Twitch configuration.
 	tmi *client
+}
+
+// client is the settings for OAuth2 and related elements.
+type client struct {
+	// me is the bot's username. The interpretation of this is domain-specific.
+	me string
+	// owner is the user ID of the owner. The interpretation of this is
+	// domain-specific.
+	owner string
+	// rate is the global rate limiter for this client.
+	rate *rate.Limiter
+	// token is the OAuth2 token.
+	token *auth.Token
 }
 
 // New creates a new robot instance. Use SetOwner, SetSecrets, &c. as needed

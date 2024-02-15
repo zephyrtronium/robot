@@ -170,19 +170,6 @@ func fseconds(s float64) time.Duration {
 	return time.Duration(s * float64(time.Second))
 }
 
-// client is the settings for OAuth2 and related elements.
-type client struct {
-	// me is the bot's username. The interpretation of this is domain-specific.
-	me string
-	// owner is the user ID of the owner. The interpretation of this is
-	// domain-specific.
-	owner string
-	// rate is the global rate limiter for this client.
-	rate *rate.Limiter
-	// token is the OAuth2 token.
-	token *auth.Token
-}
-
 // loadClient loads client configuration from unmarshaled TOML.
 func loadClient(ctx context.Context, t ClientCfg, key [auth.KeySize]byte, scopes ...string) (*client, error) {
 	secret, err := os.ReadFile(t.SecretFile)

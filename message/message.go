@@ -1,6 +1,8 @@
 package message
 
 import (
+	"fmt"
+	"strings"
 	"time"
 )
 
@@ -31,4 +33,28 @@ type Received struct {
 
 func (m *Received) Time() time.Time {
 	return time.UnixMilli(m.Timestamp)
+}
+
+// Sent is a message to be sent to a service.
+type Sent struct {
+	// Reply is a message to reply to. If empty, the message is not interpreted
+	// as a reply.
+	Reply string
+	// To is the channel to whom the message is sent.
+	To string
+	// Text is the message text.
+	Text string
+}
+
+// formatString is a type to prevent misuse of format strings passed to [Format].
+type formatString string
+
+// Format constructs a message to send from a format string literal and
+// formatting arguments.
+func Format(reply, to string, f formatString, args ...any) Sent {
+	return Sent{
+		Reply: reply,
+		To:    to,
+		Text:  strings.TrimSpace(fmt.Sprintf(string(f), args...)),
+	}
 }

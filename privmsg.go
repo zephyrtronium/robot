@@ -33,6 +33,9 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		if ch.Ignore[from] {
 			return
 		}
+		if ch.Block.MatchString(m.Text) {
+			return
+		}
 		if cmd, ok := parseCommand(robo.tmi.me, m.Text); ok {
 			if from == robo.tmi.owner {
 				// TODO(zeph): check owner and moderator commands
@@ -45,15 +48,21 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			return
 		}
 		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
+		// TODO(zeph): this should be asking for a reservation
 		if !ch.Rate.Allow() {
 			return
 		}
-		if err := ch.Memery.Check(m.Time(), from, m.Text); err == nil {
-			// NOTE(zeph): inverted error check
-			robo.sendTMI(ctx, send, ch, m.Text)
+		switch err := ch.Memery.Check(m.Time(), from, m.Text); err {
+		case channel.ErrNotCopypasta: // do nothing
+		case nil:
+			// Meme detected. Copypasta.
+			text := m.Text
+			// TODO(zeph): effects; once we apply them, we also need to check block
+			msg := message.Format("", ch.Name, "%s", text)
+			robo.sendTMI(ctx, send, msg)
 			return
-		} else if err != channel.ErrNotCopypasta {
-			log.Println("copypasta error:", err)
+		default:
+			log.Println("copypasta check error:", err)
 		}
 		if rand.Float64() < ch.Responses {
 			s, err := brain.Speak(ctx, robo.brain, ch.Send, "")
@@ -64,7 +73,13 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			e := ch.Emotes.Pick(rand.Uint32())
 			s = strings.TrimSpace(s + " " + e)
 			// TODO(zeph): effect
-			robo.sendTMI(ctx, send, ch, s)
+			if ch.Block.MatchString(s) {
+				// Don't send messages we wouldn't learn from.
+				// TODO(zeph): log?
+				return
+			}
+			msg := message.Format("", ch.Name, "%s", s)
+			robo.sendTMI(ctx, send, msg)
 		}
 	}
 	robo.enqueue(ctx, work)
@@ -140,18 +155,12 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 }
 
 // sendTMI sends a message to TMI after waiting for the global rate limit.
-func (robo *Robot) sendTMI(ctx context.Context, send chan<- *tmi.Message, ch *channel.Channel, s string) {
-	if ch.Block.MatchString(s) {
-		return
-	}
+// The caller should verify that it is safe to send the message.
+func (robo *Robot) sendTMI(ctx context.Context, send chan<- *tmi.Message, msg message.Sent) {
 	if err := robo.tmi.rate.Wait(ctx); err != nil {
 		return
 	}
-	resp := &tmi.Message{
-		Command:  "PRIVMSG",
-		Params:   []string{ch.Name},
-		Trailing: s,
-	}
+	resp := message.ToTMI(msg)
 	select {
 	case <-ctx.Done():
 		return
