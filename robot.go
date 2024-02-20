@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -97,7 +97,7 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 	}
 	// TODO(zeph): could run several instances of loop
 	go robo.tmiLoop(ctx, robo.tmi.send, robo.tmi.recv)
-	tmi.Connect(ctx, cfg, tmi.Log(log.Default(), false), robo.tmi.send, robo.tmi.recv)
+	tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
 	return ctx.Err()
 }
 
@@ -164,4 +164,16 @@ func (robo *Robot) join(ctx context.Context, send chan<- *tmi.Message) {
 			time.Sleep(11 * time.Second)
 		}
 	}
+}
+
+type tmiSlog struct {
+	l *slog.Logger
+}
+
+func (l *tmiSlog) Error(err error) { l.l.Error("TMI error", slog.String("err", err.Error())) }
+func (l *tmiSlog) Status(s string) { l.l.Info("TMI status", slog.String("message", s)) }
+func (l *tmiSlog) Send(s string)   { l.l.Debug("TMI send", slog.String("message", s)) }
+func (l *tmiSlog) Recv(s string)   { l.l.Debug("TMI recv", slog.String("message", s)) }
+func (l *tmiSlog) Ping(s string) {
+	l.l.Log(context.Background(), slog.LevelDebug-1, "TMI ping", slog.String("message", s))
 }

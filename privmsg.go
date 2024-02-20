@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"math/rand/v2"
 	"regexp"
@@ -34,9 +33,11 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		m := message.FromTMI(msg)
 		from := m.Sender
 		if ch.Ignore[from] {
+			slog.DebugContext(ctx, "message from ignored user", slog.String("in", ch.Name))
 			return
 		}
 		if ch.Block.MatchString(m.Text) {
+			slog.InfoContext(ctx, "blocked message", slog.String("in", ch.Name))
 			return
 		}
 		if cmd, ok := parseCommand(robo.tmi.me, m.Text); ok {
@@ -50,11 +51,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			if c == nil {
 				return
 			}
-			slog.InfoContext(ctx, "command",
-				slog.String("kind", "regular"),
-				slog.String("name", c.name),
-				slog.Any("args", args),
-			)
+			slog.InfoContext(ctx, "regular command", slog.String("name", c.name), slog.Any("args", args))
 			r := command.Robot{
 				Log:      slog.Default(),
 				Channels: robo.channels,
@@ -85,25 +82,26 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			robo.sendTMI(ctx, send, msg)
 			return
 		default:
-			log.Println("copypasta check error:", err)
+			slog.ErrorContext(ctx, "failed copypasta check", slog.String("err", err.Error()), slog.Any("message", m))
+			// Continue on.
 		}
-		if rand.Float64() < ch.Responses {
-			s, err := brain.Speak(ctx, robo.brain, ch.Send, "")
-			if err != nil {
-				log.Println("speak error:", err)
-				return
-			}
-			e := ch.Emotes.Pick(rand.Uint32())
-			s = strings.TrimSpace(s + " " + e)
-			// TODO(zeph): effect
-			if ch.Block.MatchString(s) {
-				// Don't send messages we wouldn't learn from.
-				// TODO(zeph): log?
-				return
-			}
-			msg := message.Format("", ch.Name, "%s", s)
-			robo.sendTMI(ctx, send, msg)
+		if rand.Float64() > ch.Responses {
+			return
 		}
+		s, err := brain.Speak(ctx, robo.brain, ch.Send, "")
+		if err != nil {
+			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
+			return
+		}
+		e := ch.Emotes.Pick(rand.Uint32())
+		s = strings.TrimSpace(s + " " + e)
+		// TODO(zeph): effect
+		if ch.Block.MatchString(s) {
+			slog.WarnContext(ctx, "wanted to send blocked message", slog.String("in", ch.Name), slog.String("text", s))
+			return
+		}
+		msg := message.Format("", ch.Name, "%s", s)
+		robo.sendTMI(ctx, send, msg)
 	}
 	robo.enqueue(ctx, work)
 }
@@ -149,22 +147,28 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 	if !ch.Enabled {
 		return
 	}
-	if err := robo.privacy.Check(ctx, msg.Sender); err != nil {
-		if err == privacy.ErrPrivate {
-			// TODO(zeph): log at a lower priority level
-		}
-		// TODO(zeph): log
+	switch err := robo.privacy.Check(ctx, msg.Sender); err {
+	case nil: // do nothing
+	case privacy.ErrPrivate:
+		slog.DebugContext(ctx, "private sender", slog.String("in", ch.Name))
+		return
+	default:
+		slog.ErrorContext(ctx, "failed to check privacy", slog.String("err", err.Error()), slog.String("in", ch.Name))
 		return
 	}
 	if ch.Block.MatchString(msg.Text) {
+		slog.DebugContext(ctx, "blocked message", slog.String("in", ch.Name), slog.String("text", msg.Text))
 		return
 	}
 	if ch.Learn == "" {
+		slog.DebugContext(ctx, "no learn tag", slog.String("in", ch.Name))
 		return
 	}
-	// Ignore the error. If we get a bad one, we'll record a zero UUID.
-	// TODO(zeph): log error instead
-	id, _ := uuid.Parse(msg.ID)
+	id, err := uuid.Parse(msg.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to parse message id", slog.String("err", err.Error()), slog.String("id", msg.ID))
+		// Continue on with a zero UUID.
+	}
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
 	meta := &brain.MessageMeta{
 		ID:   id,
@@ -173,7 +177,7 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 		Time: msg.Time(),
 	}
 	if err := brain.Learn(ctx, robo.brain, meta, brain.Tokens(nil, msg.Text)); err != nil {
-		// TODO(zeph): log
+		slog.ErrorContext(ctx, "failed to learn", slog.String("err", err.Error()))
 	}
 }
 
