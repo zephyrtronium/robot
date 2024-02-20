@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"math/rand/v2"
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
+	"github.com/zephyrtronium/robot/command"
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/userhash"
@@ -43,8 +46,28 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			if ch.Mod[from] || m.IsModerator {
 				// TODO(zeph): check moderator commands
 			}
-			// TODO(zeph): check regular commands
-			_ = cmd
+			c, args := findTwitch(twitchAny, cmd)
+			if c == nil {
+				return
+			}
+			slog.InfoContext(ctx, "command",
+				slog.String("kind", "regular"),
+				slog.String("name", c.name),
+				slog.Any("args", args),
+			)
+			r := command.Robot{
+				Log:      slog.Default(),
+				Channels: robo.channels,
+				Brain:    robo.brain,
+				Privacy:  robo.privacy,
+			}
+			inv := command.Invocation{
+				Channel: ch,
+				Message: m,
+				Args:    args,
+				Hasher:  userhash.New(robo.secrets.userhash),
+			}
+			c.fn(ctx, &r, &inv)
 			return
 		}
 		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
@@ -208,4 +231,39 @@ func parseCommand(name, text string) (string, bool) {
 		return strings.TrimSpace(text[:k]), true
 	}
 	return "", false
+}
+
+type twitchCommand struct {
+	parse *regexp.Regexp
+	fn    command.Func
+	name  string
+}
+
+func findTwitch(cmds []twitchCommand, text string) (*twitchCommand, map[string]string) {
+	for i := range cmds {
+		c := &cmds[i]
+		u := c.parse.FindStringSubmatch(text)
+		switch len(u) {
+		case 0:
+			continue
+		case 1:
+			return c, nil
+		default:
+			m := make(map[string]string, len(u)-1)
+			s := c.parse.SubexpNames()
+			for k, v := range u[1:] {
+				m[s[k+1]] = v
+			}
+			return c, m
+		}
+	}
+	return nil, nil
+}
+
+var twitchAny = []twitchCommand{
+	{
+		parse: regexp.MustCompile(`(?<prompt>.*)`),
+		fn:    command.Speak,
+		name:  "speak",
+	},
 }
