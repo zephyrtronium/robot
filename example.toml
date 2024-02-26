@@ -41,6 +41,10 @@ user = 'robotisbroken'
 cid = 'hof5gwx0su6owfnys0nyan9c87zr6t'
 # secret is the path to a file containing the Twitch app's client secret.
 secret = '$CREDENTIALS_DIRECTORY/twitch_client_secret'
+# redirect is the OAuth2 redirect URL configured for the application.
+# As Robot uses the device code flow for Twitch, the redirect is unused, but
+# the value here must match the configuration in the developer portal.
+redirect = 'http://localhost'
 # token is the file in which to persist the OAuth2 refresh token. If the file
 # exists, it should have permissions 0600. It is encrypted with a key derived
 # from the key given in the top-level secret.

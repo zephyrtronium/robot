@@ -3,12 +3,17 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
 	"gitlab.com/zephyrtronium/tmi"
+	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
@@ -53,8 +58,8 @@ type client[Send, Receive any] struct {
 	owner string
 	// rate is the global rate limiter for this client.
 	rate *rate.Limiter
-	// token is the OAuth2 token.
-	token *auth.Token
+	// tokens is the source of OAuth2 tokens.
+	tokens auth.TokenSource
 }
 
 // New creates a new robot instance. Use SetOwner, SetSecrets, &c. as needed
@@ -82,16 +87,16 @@ func (robo *Robot) Run(ctx context.Context) error {
 }
 
 func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
-	tok, err := robo.tmi.token.Access(ctx)
+	tok, err := twitchToken(ctx, robo.tmi.tokens)
 	if err != nil {
-		return fmt.Errorf("couldn't obtain access token for TMI login: %w", err)
+		return err
 	}
 	// TODO(zeph): resolve usernames in configs to user ids
 	cfg := tmi.ConnectConfig{
 		Dial:         new(tls.Dialer).DialContext,
 		RetryWait:    tmi.RetryList(true, 0, time.Second, time.Minute, 5*time.Minute),
 		Nick:         strings.ToLower(robo.tmi.me),
-		Pass:         "oauth:" + tok,
+		Pass:         "oauth:" + tok.AccessToken,
 		Capabilities: []string{"twitch.tv/commands", "twitch.tv/tags"},
 		Timeout:      300 * time.Second,
 	}
@@ -99,6 +104,73 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 	go robo.tmiLoop(ctx, robo.tmi.send, robo.tmi.recv)
 	tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
 	return ctx.Err()
+}
+
+// twitchToken gets a valid Twitch access token by refreshing until it
+// validates successfully.
+func twitchToken(ctx context.Context, tokens auth.TokenSource) (*oauth2.Token, error) {
+	tok, err := tokens.Token(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't obtain access token for TMI login: %w", err)
+	}
+	for range 5 {
+		err := validateTwitch(ctx, tok)
+		switch {
+		case err == nil:
+			// Current token is good.
+			return tok, nil
+		case errors.Is(err, errNeedRefresh):
+			// Refresh and try again.
+			tok, err = tokens.Refresh(ctx, tok)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf("couldn't refresh Twitch access token: %w", err)
+		}
+	}
+	return nil, fmt.Errorf("giving up on refresh retries")
+}
+
+// validateTwitch validates a Twitch access token. If the returned error Is
+// errNeedRefresh, then the caller should refresh it and try again.
+func validateTwitch(ctx context.Context, tok *oauth2.Token) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://id.twitch.tv/oauth2/validate", nil)
+	if err != nil {
+		return fmt.Errorf("couldn't make validate request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+	client := http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("couldn't validate access token: %w", err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return fmt.Errorf("couldn't read token validation response: %w", err)
+	}
+	var s struct {
+		ClientID  string   `json:"client_id"`
+		Login     string   `json:"login"`
+		Scopes    []string `json:"scopes"`
+		UserID    string   `json:"user_id"`
+		ExpiresIn int      `json:"expires_in"`
+		Message   string   `json:"message"`
+		Status    int      `json:"status"`
+	}
+	if err := json.Unmarshal(body, &s); err != nil {
+		return fmt.Errorf("couldn't unmarshal token validation response: %w", err)
+	}
+	slog.InfoContext(ctx, "token validation", slog.String("token", tok.AccessToken), slog.Any("result", s))
+	if resp.StatusCode == http.StatusUnauthorized {
+		// Token expired or otherwise invalid. We need a refresh.
+		return fmt.Errorf("token validation failed: %s (%w)", s.Message, errNeedRefresh)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("token validation failed: %s (%s)", s.Message, resp.Status)
+	}
+	return nil
 }
 
 func (robo *Robot) tmiLoop(ctx context.Context, send chan<- *tmi.Message, recv <-chan *tmi.Message) {
@@ -127,6 +199,8 @@ func (robo *Robot) tmiLoop(ctx context.Context, send chan<- *tmi.Message, recv <
 				// We used to check our badges and update our hard rate limit
 				// per-channel, but per-channel rate limits only really make
 				// sense for verified bots which have a relaxed global limit.
+			case "GLOBALUSERSTATE":
+				slog.InfoContext(ctx, "connected to TMI", slog.String("GLOBALUSERSTATE", msg.Tags))
 			case "376": // End MOTD
 				go robo.join(ctx, send)
 			}
@@ -166,6 +240,15 @@ func (robo *Robot) join(ctx context.Context, send chan<- *tmi.Message) {
 	}
 }
 
+func deviceCodePrompt(userCode, verURI, verURIComplete string) {
+	fmt.Println("\n---- OAuth2 Device Code Flow ----")
+	if verURIComplete != "" {
+		fmt.Print(verURIComplete, "\n\nOR\n\n")
+	}
+	fmt.Println("Enter code at", verURI)
+	fmt.Printf("\n\t%s\n\n", userCode)
+}
+
 type tmiSlog struct {
 	l *slog.Logger
 }
@@ -177,3 +260,5 @@ func (l *tmiSlog) Recv(s string)   { l.l.Debug("TMI recv", slog.String("message"
 func (l *tmiSlog) Ping(s string) {
 	l.l.Log(context.Background(), slog.LevelDebug-1, "TMI ping", slog.String("message", s))
 }
+
+var errNeedRefresh = errors.New("need refresh")

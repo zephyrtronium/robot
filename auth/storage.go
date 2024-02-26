@@ -5,22 +5,23 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/oauth2"
 )
 
-// Storage is a secure means to store OAuth2 credentials.
+// Storage is a secure means to store OAuth2 tokens.
 type Storage interface {
-	// Load returns the current refresh token. If the result is the empty
-	// string, the authorization code grant flow is triggered.
-	Load(ctx context.Context) (string, error)
-	// Store sets a new refresh token. If rt is the empty string, the storage
-	// should be cleared.
-	Store(ctx context.Context, rt string) error
+	// Load returns the current refresh token. If the result is nil,
+	// the caller should use acquire a new refresh token.
+	Load(ctx context.Context) (*oauth2.Token, error)
+	// Store sets a new token. If tok nil, the storage should be cleared.
+	Store(ctx context.Context, tok *oauth2.Token) error
 }
 
 // file is the interface used by a FileStorage.
@@ -58,18 +59,27 @@ func NewFileAt(p string, key [KeySize]byte) (*FileStorage, error) {
 	return &FileStorage{f: f, enc: enc, rand: rand.Reader}, nil
 }
 
-// Load decrypts the token value. If there is no token, the result is the empty
-// string with a nil error.
-func (f *FileStorage) Load(ctx context.Context) (string, error) {
+// Load decrypts the token value. If there is no saved token, the result
+// is nil, nil.
+func (f *FileStorage) Load(ctx context.Context) (*oauth2.Token, error) {
 	_, p, err := f.parts()
-	return string(p), err
+	if err != nil {
+		return nil, fmt.Errorf("couldn't load saved token: %w", err)
+	}
+	if len(p) == 0 {
+		return nil, nil
+	}
+	var tok oauth2.Token
+	if err := json.Unmarshal(p, &tok); err != nil {
+		return nil, fmt.Errorf("couldn't decode saved token: %w", err)
+	}
+	return &tok, nil
 }
 
 // Store sets a new token value. If the token file contains data that is not a
-// valid token encrypted with the key passed to NewFileAt, Store returns an
-// error.
-func (f *FileStorage) Store(ctx context.Context, rt string) error {
-	if rt == "" {
+// token encrypted with the key passed to NewFileAt, Store returns an error.
+func (f *FileStorage) Store(ctx context.Context, tok *oauth2.Token) error {
+	if tok == nil {
 		// Clear the existing token.
 		err := f.f.Truncate(0)
 		if err != nil {
@@ -77,18 +87,22 @@ func (f *FileStorage) Store(ctx context.Context, rt string) error {
 		}
 		return nil
 	}
+	t, err := json.Marshal(tok)
+	if err != nil {
+		panic("unreachable: error marshalling token")
+	}
 	b, _, err := f.parts()
 	if err != nil {
 		return err
 	}
 	if len(b) == 0 {
 		// File is empty. We'll be initializing it.
-		b = initialNonce(rt, f.rand)
+		b = initialNonce(t, f.rand)
 	}
 	v := binary.LittleEndian.Uint64(b)
 	v++
 	binary.LittleEndian.PutUint64(b, v)
-	r := f.enc.Seal(b, b, []byte(rt), nil)
+	r := f.enc.Seal(b, b, t, nil)
 	if _, err := f.f.WriteAt(r, 0); err != nil {
 		return fmt.Errorf("couldn't save refresh token: %w", err)
 	}
@@ -96,14 +110,13 @@ func (f *FileStorage) Store(ctx context.Context, rt string) error {
 }
 
 func (f *FileStorage) parts() (nonce, ptxt []byte, err error) {
-	b := make([]byte, totalOH+512)
+	b := make([]byte, totalOH+2048)
 	n, err := f.f.ReadAt(b, 0)
 	switch err {
 	case nil:
-		// This might indicate that the refresh token is longer than 512 bytes
-		// (unlikely) or the file has had data appended to it. It might be
-		// worth it to fail now so we can see the problem, but for now just let
-		// AEAD fail.
+		// This might indicate that the token is longer than 2 KiB (unlikely)
+		// or the file has had data appended to it. It might be worth it to
+		// fail now so we can see the problem, but for now just let AEAD fail.
 	case io.EOF:
 		// Expected case. Do nothing.
 	default:
@@ -126,8 +139,8 @@ func (f *FileStorage) parts() (nonce, ptxt []byte, err error) {
 	return nonce, ptxt, nil
 }
 
-func initialNonce(rt string, rand io.Reader) []byte {
-	b := make([]byte, nonceSize, totalOH+len(rt))
+func initialNonce(t []byte, rand io.Reader) []byte {
+	b := make([]byte, nonceSize, totalOH+len(t))
 	pad := b[8:nonceSize]
 	_, err := io.ReadFull(rand, pad)
 	if err != nil {

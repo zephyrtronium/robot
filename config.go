@@ -17,7 +17,6 @@ import (
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/twitch"
 	"golang.org/x/time/rate"
 
 	"github.com/zephyrtronium/robot/auth"
@@ -77,10 +76,24 @@ func (robo *Robot) SetSources(ctx context.Context, brain, priv *sq.DB) error {
 // SetTMI initializes the TMI client and Twitch channel configuration.
 // It must be called after SetSecrets.
 func (robo *Robot) SetTMI(ctx context.Context, cfg ClientCfg) error {
-	cfg.endpoint = twitch.Endpoint
+	cfg.endpoint = oauth2.Endpoint{
+		DeviceAuthURL: "https://id.twitch.tv/oauth2/device",
+		TokenURL:      "https://id.twitch.tv/oauth2/token",
+	}
 	send := make(chan *tmi.Message, 1)
 	recv := make(chan *tmi.Message, 8) // 8 is enough for on-connect msgs
-	tmi, err := loadClient(ctx, cfg, send, recv, *robo.secrets.twitch, "chat:read", "chat:edit")
+	client := &http.Client{Timeout: 30 * time.Second}
+	tmi, err := loadClient(
+		ctx,
+		cfg,
+		send,
+		recv,
+		func(c oauth2.Config, s auth.Storage) auth.TokenSource {
+			return auth.DeviceCodeFlow(c, s, client, deviceCodePrompt)
+		},
+		*robo.secrets.twitch,
+		"chat:read", "chat:edit",
+	)
 	if err != nil {
 		return fmt.Errorf("couldn't load TMI client: %w", err)
 	}
@@ -179,7 +192,15 @@ func fseconds(s float64) time.Duration {
 }
 
 // loadClient loads client configuration from unmarshaled TOML.
-func loadClient[Send, Receive any](ctx context.Context, t ClientCfg, send chan Send, recv chan Receive, key [auth.KeySize]byte, scopes ...string) (*client[Send, Receive], error) {
+func loadClient[Send, Receive any](
+	ctx context.Context,
+	t ClientCfg,
+	send chan Send,
+	recv chan Receive,
+	tokens func(oauth2.Config, auth.Storage) auth.TokenSource,
+	key [auth.KeySize]byte,
+	scopes ...string,
+) (*client[Send, Receive], error) {
 	secret, err := os.ReadFile(t.SecretFile)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read client secret: %w", err)
@@ -188,30 +209,20 @@ func loadClient[Send, Receive any](ctx context.Context, t ClientCfg, send chan S
 	if err != nil {
 		return nil, fmt.Errorf("couldn't use refresh token storage: %w", err)
 	}
-	cfg := auth.Config{
-		App: oauth2.Config{
-			ClientID:     t.CID,
-			ClientSecret: string(secret),
-			Endpoint:     t.endpoint,
-			RedirectURL:  "http://localhost:8080", // TODO(zeph): get rid of this
-			Scopes:       scopes,
-		},
-		Client: http.Client{
-			Timeout: 30 * time.Second,
-		},
-		Landing: "http://localhost:8080", // TODO(zeph): get rid of this
-	}
-	tok, err := auth.New(ctx, stor, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't create token: %w", err)
+	cfg := oauth2.Config{
+		ClientID:     t.CID,
+		ClientSecret: string(secret),
+		Endpoint:     t.endpoint,
+		RedirectURL:  t.RedirectURL,
+		Scopes:       scopes,
 	}
 	return &client[Send, Receive]{
-		send:  send,
-		recv:  recv,
-		me:    t.User,
-		owner: t.Owner,
-		rate:  rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
-		token: tok,
+		send:   send,
+		recv:   recv,
+		me:     t.User,
+		owner:  t.Owner,
+		rate:   rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
+		tokens: tokens(cfg, stor),
 	}, nil
 }
 
@@ -299,6 +310,10 @@ type ClientCfg struct {
 	CID string `toml:"cid"`
 	// SecretFile is the path to a file containing the client secret.
 	SecretFile string `toml:"secret"`
+	// RedirectURL is the redirect URL for OAuth2 flows. For clients that don't
+	// use authorization code grant flow, it may be unused but still must match
+	// the configuration on the platform.
+	RedirectURL string `toml:"redirect"`
 	// TokenFile is the path to a file in which the bot will persist its OAuth2
 	// refresh token. It is encrypted with a key derived from the Config.Secret
 	// key.
