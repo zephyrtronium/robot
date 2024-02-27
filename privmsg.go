@@ -41,30 +41,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 			return
 		}
 		if cmd, ok := parseCommand(robo.tmi.me, m.Text); ok {
-			if from == robo.tmi.owner {
-				// TODO(zeph): check owner and moderator commands
-			}
-			if ch.Mod[from] || m.IsModerator {
-				// TODO(zeph): check moderator commands
-			}
-			c, args := findTwitch(twitchAny, cmd)
-			if c == nil {
-				return
-			}
-			slog.InfoContext(ctx, "regular command", slog.String("name", c.name), slog.Any("args", args))
-			r := command.Robot{
-				Log:      slog.Default(),
-				Channels: robo.channels,
-				Brain:    robo.brain,
-				Privacy:  robo.privacy,
-			}
-			inv := command.Invocation{
-				Channel: ch,
-				Message: m,
-				Args:    args,
-				Hasher:  userhash.New(robo.secrets.userhash),
-			}
-			c.fn(ctx, &r, &inv)
+			robo.command(ctx, ch, m, from, cmd)
 			return
 		}
 		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
@@ -104,6 +81,33 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		robo.sendTMI(ctx, send, msg)
 	}
 	robo.enqueue(ctx, work)
+}
+
+func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.Received, from, cmd string) {
+	if from == robo.tmi.owner {
+		// TODO(zeph): check owner and moderator commands
+	}
+	if ch.Mod[from] || m.IsModerator {
+		// TODO(zeph): check moderator commands
+	}
+	c, args := findTwitch(twitchAny, cmd)
+	if c == nil {
+		return
+	}
+	slog.InfoContext(ctx, "regular command", slog.String("name", c.name), slog.Any("args", args))
+	r := command.Robot{
+		Log:      slog.Default(),
+		Channels: robo.channels,
+		Brain:    robo.brain,
+		Privacy:  robo.privacy,
+	}
+	inv := command.Invocation{
+		Channel: ch,
+		Message: m,
+		Args:    args,
+		Hasher:  userhash.New(robo.secrets.userhash),
+	}
+	c.fn(ctx, &r, &inv)
 }
 
 func (robo *Robot) enqueue(ctx context.Context, work func(context.Context)) {
@@ -266,7 +270,7 @@ func findTwitch(cmds []twitchCommand, text string) (*twitchCommand, map[string]s
 
 var twitchAny = []twitchCommand{
 	{
-		parse: regexp.MustCompile(`(?<prompt>.*)`),
+		parse: regexp.MustCompile(`^(?i:say|generate)?\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s*(?<prompt>.*)`),
 		fn:    command.Speak,
 		name:  "speak",
 	},
