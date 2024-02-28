@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"math/rand/v2"
+	"strings"
+	"unicode"
 
 	"github.com/zephyrtronium/robot/brain"
 )
@@ -49,4 +51,51 @@ func Speak(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, "", u)
 }
 
-var _ Func = Speak
+func OwO(ctx context.Context, robo *Robot, call *Invocation) {
+	u := speakCmd(ctx, robo, call)
+	if u == "" {
+		return
+	}
+	u = owoRep.Replace(u)
+	if len(u) > 450 {
+		r := []rune(u)
+		r = r[:min(450, len(r))]
+		u = string(r)
+	}
+	call.Channel.Message(ctx, "", u)
+}
+
+var owoRep = strings.NewReplacer(
+	"r", "w", "R", "W",
+	"l", "w", "L", "W",
+	"na", "nya", "Na", "Nya", "NA", "NYA",
+	"ni", "nyi", "Ni", "Nyi", "NI", "NYI",
+	"nu", "nyu", "Nu", "Nyu", "NU", "NYU",
+	"ne", "nye", "Ne", "Nye", "NE", "NYE",
+	"no", "nyo", "No", "Nyo", "NO", "NYO",
+)
+
+func AAAAA(ctx context.Context, robo *Robot, call *Invocation) {
+	u := speakCmd(ctx, robo, call)
+	if u == "" {
+		return
+	}
+	u = strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return 'A'
+		}
+		return r
+	}, u)
+	if len(u) > 40 {
+		r := []rune(u)
+		r = r[:min(40, len(r))]
+		u = string(r)
+	}
+	call.Channel.Message(ctx, "", u)
+}
+
+var (
+	_ Func = Speak
+	_ Func = OwO
+	_ Func = AAAAA
+)

@@ -149,7 +149,7 @@ func worker(ctx context.Context, works chan chan func(context.Context), ch chan 
 // learn learns a given message's text if it passes ch's filters.
 func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received) {
 	if !ch.Enabled {
-		return
+		// return
 	}
 	switch err := robo.privacy.Check(ctx, msg.Sender); err {
 	case nil: // do nothing
@@ -270,6 +270,18 @@ func findTwitch(cmds []twitchCommand, text string) (*twitchCommand, map[string]s
 
 var twitchAny = []twitchCommand{
 	{
+		parse: regexp.MustCompile(`^(?i:OwO|uwu)`),
+		fn:    command.OwO,
+		name:  "OwO",
+	},
+	{
+		parse: regexp.MustCompile(`^(?i:how\s*[a']?r?e?\s+y?o?u?)|A(?:A|\s)+`),
+		fn:    command.AAAAA,
+		name:  "AAAAA",
+	},
+	{
+		// NOTE(zeph): This command MUST be last, because it swallows all
+		// invocations for the prompt.
 		parse: regexp.MustCompile(`^(?i:say|generate)?\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s*(?<prompt>.*)`),
 		fn:    command.Speak,
 		name:  "speak",
