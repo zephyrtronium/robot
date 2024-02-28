@@ -236,8 +236,8 @@ type keys struct {
 // domainkey fills o with a key derived from k for the given domain. Panics if
 // a key cannot be expanded.
 func domainkey(o, k, domain []byte) []byte {
-	kr := hkdf.Expand(sha3.New224, k, []byte(domain))
-	if _, err := kr.Read(o); err != nil {
+	kr := hkdf.Expand(sha3.New224, k, domain)
+	if _, err := io.ReadFull(kr, o); err != nil {
 		panic(err)
 	}
 	return o

@@ -100,8 +100,10 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 		Capabilities: []string{"twitch.tv/commands", "twitch.tv/tags"},
 		Timeout:      300 * time.Second,
 	}
-	// TODO(zeph): could run several instances of loop
-	go robo.tmiLoop(ctx, robo.tmi.send, robo.tmi.recv)
+	group.Go(func() error {
+		robo.tmiLoop(ctx, group, robo.tmi.send, robo.tmi.recv)
+		return nil
+	})
 	tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
 	return ctx.Err()
 }
@@ -173,7 +175,7 @@ func validateTwitch(ctx context.Context, tok *oauth2.Token) error {
 	return nil
 }
 
-func (robo *Robot) tmiLoop(ctx context.Context, send chan<- *tmi.Message, recv <-chan *tmi.Message) {
+func (robo *Robot) tmiLoop(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, recv <-chan *tmi.Message) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -184,7 +186,7 @@ func (robo *Robot) tmiLoop(ctx context.Context, send chan<- *tmi.Message, recv <
 			}
 			switch msg.Command {
 			case "PRIVMSG":
-				robo.tmiMessage(ctx, send, msg)
+				robo.tmiMessage(ctx, group, send, msg)
 			case "WHISPER":
 				// TODO(zeph): this
 			case "NOTICE":

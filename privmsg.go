@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"gitlab.com/zephyrtronium/tmi"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
@@ -21,7 +22,7 @@ import (
 )
 
 // tmiMessage processes a PRIVMSG from TMI.
-func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg *tmi.Message) {
+func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, msg *tmi.Message) {
 	ch := robo.channels[msg.To()]
 	if ch == nil {
 		// TMI gives a WHISPER for a direct message, so this is a message to a
@@ -80,7 +81,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		msg := message.Format("", ch.Name, "%s", s)
 		robo.sendTMI(ctx, send, msg)
 	}
-	robo.enqueue(ctx, work)
+	robo.enqueue(ctx, group, work)
 }
 
 func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.Received, from, cmd string) {
@@ -110,14 +111,17 @@ func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.
 	c.fn(ctx, &r, &inv)
 }
 
-func (robo *Robot) enqueue(ctx context.Context, work func(context.Context)) {
+func (robo *Robot) enqueue(ctx context.Context, group *errgroup.Group, work func(context.Context)) {
 	var w chan func(context.Context)
 	// Get a worker if one exists. Otherwise, spawn a new one.
 	select {
 	case w = <-robo.works:
 	default:
 		w = make(chan func(context.Context), 1)
-		go worker(ctx, robo.works, w)
+		group.Go(func() error {
+			worker(ctx, robo.works, w)
+			return nil
+		})
 	}
 	// Send it work.
 	select {
