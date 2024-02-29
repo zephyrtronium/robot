@@ -22,7 +22,42 @@ type Interface interface {
 //
 // If a brain cannot be created without error, new should call t.Fatal.
 func Test(ctx context.Context, t *testing.T, new func(context.Context) Interface) {
+	t.Run("forgetful", testForgetful(ctx, new(ctx)))
 	t.Run("combinatoric", testCombinatoric(ctx, new(ctx)))
+}
+
+// testForgetful tests that a brain forgets what it forgets.
+func testForgetful(ctx context.Context, br Interface) func(t *testing.T) {
+	return func(t *testing.T) {
+		id := uuid.UUID{1}
+		tag := "bocchi"
+		msg := brain.MessageMeta{
+			ID:   id,
+			User: userhash.Hash{2},
+			Tag:  tag,
+			Time: time.Unix(0, 0),
+		}
+		text := "bocchi ryou nijika kita"
+		if err := brain.Learn(ctx, br, &msg, brain.Tokens(nil, text)); err != nil {
+			t.Errorf("failed to learn: %v", err)
+		}
+		s, err := brain.Speak(ctx, br, tag, "")
+		if err != nil {
+			t.Errorf("failed to speak: %v", err)
+		}
+		if s != text {
+			t.Errorf("surprise thought: %q", s)
+		}
+		if err := brain.Forget(ctx, br, tag, brain.Tokens(nil, text)); err != nil {
+			t.Errorf("failed to forget: %v", err)
+		}
+		// We don't really care about an error here, since the brain is empty.
+		// All we care about is no thoughts.
+		s, _ = brain.Speak(ctx, br, tag, "")
+		if s != "" {
+			t.Errorf("remembered that which must be forgotten: %v", err)
+		}
+	}
 }
 
 // testCombinatoric tests that chains can generate even with substantial
