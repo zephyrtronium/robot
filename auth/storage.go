@@ -104,7 +104,10 @@ func (f *FileStorage) Store(ctx context.Context, tok *oauth2.Token) error {
 	binary.LittleEndian.PutUint64(b, v)
 	r := f.enc.Seal(b, b, t, nil)
 	if _, err := f.f.WriteAt(r, 0); err != nil {
-		return fmt.Errorf("couldn't save refresh token: %w", err)
+		return fmt.Errorf("couldn't save token: %w", err)
+	}
+	if err := f.f.Truncate(int64(len(r))); err != nil {
+		return fmt.Errorf("couldn't truncate token file: %w", err)
 	}
 	return nil
 }

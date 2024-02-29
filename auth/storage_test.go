@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,6 +29,12 @@ func TestInitialNonce(t *testing.T) {
 func TestFileStorage(t *testing.T) {
 	if testing.Short() {
 		t.Skip("don't use filesystem in short testing")
+	}
+	{
+		// Disable slog for this test.
+		d := slog.Default()
+		slog.SetDefault(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.Level(1e9)})))
+		t.Cleanup(func() { slog.SetDefault(d) })
 	}
 	d, err := os.MkdirTemp("", "robot-auth-file-storage-test")
 	if err != nil {
@@ -58,8 +66,19 @@ func TestFileStorage(t *testing.T) {
 	if err != nil {
 		t.Errorf("couldn't load bocchi: %v", err)
 	}
-	if *r != *tok {
+	if !Equal(r, tok) {
 		t.Errorf("didn't load bocchi, instead %#v", r)
+	}
+	tok.AccessToken = "kita" // shorter than before
+	if err := s.Store(ctx, tok); err != nil {
+		t.Errorf("couldn't store kita: %v", err)
+	}
+	r, err = s.Load(ctx)
+	if err != nil {
+		t.Errorf("couldn't load kita: %v", err)
+	}
+	if !Equal(r, tok) {
+		t.Errorf("didn't load kita, instead %#v", r)
 	}
 	if err := s.Store(ctx, nil); err != nil {
 		t.Errorf("couldn't clear: %v", err)
