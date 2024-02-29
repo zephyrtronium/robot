@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 
 	"github.com/urfave/cli/v3"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
@@ -37,6 +39,10 @@ var app = cli.Command{
 			},
 		},
 	},
+	Flags: []cli.Flag{
+		&flagLog,
+		&flagLogFormat,
+	},
 
 	Authors: []any{
 		"Branden J Brown  @zephyrtronium",
@@ -57,6 +63,7 @@ func main() {
 }
 
 func cliInit(ctx context.Context, cmd *cli.Command) error {
+	slog.SetDefault(loggerFromFlags(cmd))
 	order := int(cmd.Int("order"))
 	r, err := os.Open(cmd.String("config"))
 	if err != nil {
@@ -80,6 +87,7 @@ func cliInit(ctx context.Context, cmd *cli.Command) error {
 }
 
 func cliRun(ctx context.Context, cmd *cli.Command) error {
+	slog.SetDefault(loggerFromFlags(cmd))
 	r, err := os.Open(cmd.String("config"))
 	if err != nil {
 		return fmt.Errorf("couldn't open config file: %w", err)
@@ -129,6 +137,32 @@ var (
 		},
 	}
 
+	flagLog = cli.StringFlag{
+		Name:       "log",
+		Usage:      "Logging level, one of debug, info, warn, error",
+		Value:      "info",
+		Persistent: true,
+		Action: func(ctx context.Context, c *cli.Command, s string) error {
+			var l slog.Level
+			return l.UnmarshalText([]byte(s))
+		},
+	}
+
+	flagLogFormat = cli.StringFlag{
+		Name:       "log-format",
+		Usage:      "Logging format, either text or json",
+		Value:      "text",
+		Persistent: true,
+		Action: func(ctx context.Context, c *cli.Command, s string) error {
+			switch strings.ToLower(s) {
+			case "text", "json":
+				return nil
+			default:
+				return errors.New("unknown logging format")
+			}
+		},
+	}
+
 	flagOrder = cli.IntFlag{
 		Name:     "order",
 		Required: true,
@@ -141,3 +175,18 @@ var (
 		},
 	}
 )
+
+func loggerFromFlags(cmd *cli.Command) *slog.Logger {
+	var l slog.Level
+	if err := l.UnmarshalText([]byte(cmd.String("log"))); err != nil {
+		panic(err)
+	}
+	var h slog.Handler
+	switch strings.ToLower(cmd.String("log-format")) {
+	case "text":
+		h = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: l})
+	case "json":
+		h = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: l})
+	}
+	return slog.New(h)
+}
