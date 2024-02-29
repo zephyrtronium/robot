@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"gitlab.com/zephyrtronium/sq"
 
@@ -44,3 +45,17 @@ func TestOpen(t *testing.T) {
 
 var _ brain.Learner = (*sqlbrain.Brain)(nil)
 var _ brain.Speaker = (*sqlbrain.Brain)(nil)
+
+func TestIntegrated(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	new := func(ctx context.Context) braintest.Interface {
+		db := testDB(2)
+		br, err := sqlbrain.Open(ctx, db)
+		if err != nil {
+			t.Fatalf("couldn't open brain: %v", err)
+		}
+		return br
+	}
+	braintest.Test(ctx, t, new)
+}
