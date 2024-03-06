@@ -2,6 +2,9 @@ package sqlbrain_test
 
 import (
 	"context"
+	"fmt"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"text/template"
@@ -9,8 +12,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
+	"gitlab.com/zephyrtronium/sq"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/userhash"
 )
@@ -180,6 +185,45 @@ func TestLearn(t *testing.T) {
 					t.Errorf("got wrong row #%d: %s", i, diff)
 				}
 			}
+		})
+	}
+}
+
+func BenchmarkLearn(b *testing.B) {
+	dir := filepath.ToSlash(b.TempDir())
+	for _, order := range []int{2, 4, 6, 16} {
+		b.Run(strconv.Itoa(order), func(b *testing.B) {
+			new := func(ctx context.Context, b *testing.B) brain.Learner {
+				dsn := fmt.Sprintf("file:%s/benchmark_learn_%d.db?_journal=WAL&_mutex=full", dir, order)
+				db, err := sq.Open("sqlite3", dsn)
+				if err != nil {
+					b.Fatal(err)
+				}
+				// The benchmark function will run this multiple times to
+				// estimate iteration count, so we need to drop tables and
+				// views if they exist.
+				stmts := []string{
+					`DROP VIEW IF EXISTS MessageTuple`,
+					`DROP TABLE IF EXISTS Tuple`,
+					`DROP TABLE IF EXISTS Message`,
+					`DROP TABLE IF EXISTS Config`,
+				}
+				for _, s := range stmts {
+					_, err := db.Exec(context.Background(), s)
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+				if err := sqlbrain.Create(context.Background(), db, order); err != nil {
+					b.Fatal(err)
+				}
+				br, err := sqlbrain.Open(ctx, db)
+				if err != nil {
+					b.Fatalf("couldn't open brain: %v", err)
+				}
+				return br
+			}
+			braintest.BenchLearn(context.Background(), b, new, func(l brain.Learner) { l.(*sqlbrain.Brain).Close() })
 		})
 	}
 }

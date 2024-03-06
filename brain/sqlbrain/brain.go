@@ -39,6 +39,7 @@ type DB interface {
 	QueryRow(ctx context.Context, query string, args ...any) *sq.Row
 	Begin(ctx context.Context, opts *sq.TxOptions) (*sq.Tx, error)
 	Prepare(ctx context.Context, query string) (*sq.Stmt, error)
+	Close() error
 }
 
 var _, _ DB = (*sq.DB)(nil), (*sq.Conn)(nil)
@@ -63,6 +64,11 @@ func Open(ctx context.Context, db DB) (*Brain, error) {
 	br.initDelete(ctx)
 
 	return &br, nil
+}
+
+// Close closes the brain's database.
+func (br *Brain) Close() error {
+	return br.db.Close()
 }
 
 // initTpStmt initializes a SQL statement that requires ahead-of-time template
