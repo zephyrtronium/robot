@@ -108,7 +108,7 @@ func (br *Brain) ForgetUserSince(ctx context.Context, user *userhash.Hash, since
 	return nil
 }
 
-func (br *Brain) initDelete(ctx context.Context) {
+func (br *Brain) initDelete() {
 	tp, err := br.tpl.Parse(deleteTuple)
 	if err != nil {
 		panic(fmt.Errorf("couldn't parse tuple.delete.sql: %w", err))

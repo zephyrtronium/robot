@@ -61,7 +61,7 @@ func Open(ctx context.Context, db DB) (*Brain, error) {
 	template.Must(br.tpl.New("tuple.insert.sql").Parse(insertTuple))
 	br.stmts.newTuple = br.initTpStmt(ctx, "tuple.new.sql", newTuple)
 	br.stmts.selectTuple = br.initTpStmt(ctx, "tuple.select.sql", selectTuple)
-	br.initDelete(ctx)
+	br.initDelete()
 
 	return &br, nil
 }
