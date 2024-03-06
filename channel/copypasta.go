@@ -89,9 +89,6 @@ func (m *MemeDetector) Check(t time.Time, from, msg string) error {
 		return fmt.Errorf("couldn't get memery count: %w", err)
 	}
 	if n < m.need {
-		if err != nil {
-			return fmt.Errorf("it wasn't a meme anyway, but couldn't commit: %w", err)
-		}
 		return ErrNotCopypasta
 	}
 	// Genuine meme. But is it fresh?
