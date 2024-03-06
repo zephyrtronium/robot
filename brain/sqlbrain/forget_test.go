@@ -540,6 +540,10 @@ func TestForgetMessage(t *testing.T) {
 		tag    string
 		tuples []brain.Tuple
 	}
+	type forget struct {
+		id  uuid.UUID
+		tag string
+	}
 	type remain struct {
 		tag    string
 		tuples []brain.Tuple
@@ -552,7 +556,7 @@ func TestForgetMessage(t *testing.T) {
 		name   string
 		order  int
 		insert []insert
-		forget []uuid.UUID
+		forget []forget
 		left   []remain
 		errs   bool
 	}{
@@ -568,8 +572,10 @@ func TestForgetMessage(t *testing.T) {
 					},
 				},
 			},
-			forget: []uuid.UUID{uuids[0]},
-			left:   nil,
+			forget: []forget{
+				{id: uuids[0], tag: "madoka"},
+			},
+			left: nil,
 		},
 		{
 			name:  "multi-1",
@@ -585,8 +591,10 @@ func TestForgetMessage(t *testing.T) {
 					},
 				},
 			},
-			forget: []uuid.UUID{uuids[0]},
-			left:   nil,
+			forget: []forget{
+				{id: uuids[0], tag: "madoka"},
+			},
+			left: nil,
 		},
 		{
 			name:  "unmatched-1",
@@ -600,7 +608,9 @@ func TestForgetMessage(t *testing.T) {
 					},
 				},
 			},
-			forget: []uuid.UUID{uuids[1]},
+			forget: []forget{
+				{id: uuids[1], tag: "madoka"},
+			},
 			left: []remain{
 				{
 					tag: "madoka",
@@ -623,8 +633,10 @@ func TestForgetMessage(t *testing.T) {
 					},
 				},
 			},
-			forget: []uuid.UUID{uuids[0]},
-			left:   nil,
+			forget: []forget{
+				{id: uuids[0], tag: "madoka"},
+			},
+			left: nil,
 		},
 		{
 			name:  "multi-2",
@@ -640,8 +652,10 @@ func TestForgetMessage(t *testing.T) {
 					},
 				},
 			},
-			forget: []uuid.UUID{uuids[0]},
-			left:   nil,
+			forget: []forget{
+				{id: uuids[0], tag: "madoka"},
+			},
+			left: nil,
 		},
 		{
 			name:  "unmatched-2",
@@ -655,7 +669,9 @@ func TestForgetMessage(t *testing.T) {
 					},
 				},
 			},
-			forget: []uuid.UUID{uuids[1]},
+			forget: []forget{
+				{id: uuids[1], tag: "madoka"},
+			},
 			left: []remain{
 				{
 					tag: "madoka",
@@ -695,10 +711,10 @@ func TestForgetMessage(t *testing.T) {
 					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
 				}
 			}
-			for _, id := range c.forget {
-				err := br.ForgetMessage(ctx, id)
+			for _, f := range c.forget {
+				err := br.ForgetMessage(ctx, f.tag, f.id)
 				if err != nil && !c.errs {
-					t.Errorf("couldn't forget message %v: %v", id, err)
+					t.Errorf("couldn't forget message %v: %v", f.id, err)
 				} else if err == nil && c.errs {
 					t.Error("expected forget to fail")
 				}

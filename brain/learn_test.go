@@ -3,9 +3,13 @@ package brain_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/uuid"
+
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/userhash"
 )
 
 func TestTokens(t *testing.T) {
@@ -66,6 +70,18 @@ func (t *testLearner) Learn(ctx context.Context, meta *brain.MessageMeta, tuples
 
 func (t *testLearner) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
 	t.forgot = tuples
+	return nil
+}
+
+func (t *testLearner) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error {
+	return nil
+}
+
+func (t *testLearner) ForgetDuring(ctx context.Context, tag string, since, before time.Time) error {
+	return nil
+}
+
+func (t *testLearner) ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error {
 	return nil
 }
 

@@ -46,6 +46,14 @@ type Learner interface {
 	// should be deleted. If a tuple has not been recorded, it should be
 	// ignored.
 	Forget(ctx context.Context, tag string, tuples []Tuple) error
+	// ForgetMessage forgets everything learned from a single given message.
+	// If nothing has been learned from the message, it should be ignored.
+	ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error
+	// ForgetDuring forgets all messages learned in the given time span.
+	ForgetDuring(ctx context.Context, tag string, since, before time.Time) error
+	// ForgetUserSince forgets all messages learned from a user since a given
+	// time.
+	ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error
 }
 
 // Learn records tokens into a Learner.
