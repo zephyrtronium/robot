@@ -26,13 +26,9 @@ WITH InitialSet AS (
         suffix
     FROM InitialSet
 ), Thresholded AS (
-    SELECT
-        RANDOM() AS ordinal,
-        suffix
+    SELECT suffix
     FROM Scored
     WHERE score >= {{$.MinScore}}
 )
 SELECT suffix
 FROM Thresholded
-ORDER BY ordinal
-LIMIT 1
