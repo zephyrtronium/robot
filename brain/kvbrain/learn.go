@@ -3,6 +3,7 @@ package kvbrain
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"slices"
@@ -33,8 +34,8 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 	for i, t := range tuples {
 		b.Reset()
 		// Write the tag.
-		u := make([]byte, tagBytes)
-		copy(u, meta.Tag)
+		u := make([]byte, 8)
+		binary.LittleEndian.PutUint64(u, hashTag(meta.Tag))
 		b.Write(u)
 		// Write prefixes.
 		k := slices.IndexFunc(t.Prefix, func(s string) bool { return s != "" })

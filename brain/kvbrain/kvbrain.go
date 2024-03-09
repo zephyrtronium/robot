@@ -2,6 +2,8 @@ package kvbrain
 
 import (
 	"context"
+	"hash/fnv"
+	"io"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
@@ -48,9 +50,6 @@ func New(knowledge *badger.DB) *Brain {
 	}
 }
 
-// tagBytes is the number of bytes used to record tags in the KV database.
-const tagBytes = 8 // TODO(zeph): we should just use a hash instead
-
 // Order returns the number of elements in the prefix of a chain. It is
 // called once at the beginning of learning. The returned value must always
 // be at least 1.
@@ -82,4 +81,10 @@ func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before tim
 // time.
 func (br *Brain) ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error {
 	panic("not implemented") // TODO: Implement
+}
+
+func hashTag(tag string) uint64 {
+	h := fnv.New64a()
+	io.WriteString(h, tag)
+	return h.Sum64()
 }

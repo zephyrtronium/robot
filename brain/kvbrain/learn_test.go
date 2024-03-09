@@ -2,6 +2,7 @@ package kvbrain
 
 import (
 	"context"
+	"encoding/binary"
 	"testing"
 	"time"
 
@@ -14,8 +15,8 @@ import (
 
 func TestLearn(t *testing.T) {
 	mkey := func(tag, toks string, id uuid.UUID) string {
-		b := make([]byte, tagBytes, tagBytes+len(toks)+len(id))
-		copy(b, tag)
+		b := make([]byte, 8, 8+len(toks)+len(id))
+		binary.LittleEndian.PutUint64(b, hashTag(tag))
 		b = append(b, toks...)
 		b = append(b, id[:]...)
 		return string(b)
