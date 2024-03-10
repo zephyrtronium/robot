@@ -1,16 +1,13 @@
 package kvbrain
 
 import (
-	"context"
 	"hash/fnv"
 	"io"
-	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/google/uuid"
+	"gopkg.in/typ.v4/sync2"
 
 	"github.com/zephyrtronium/robot/brain"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 /*
@@ -40,6 +37,7 @@ Operations:
 
 type Brain struct {
 	knowledge *badger.DB
+	past      sync2.Map[string, *past]
 }
 
 var _ brain.Learner = (*Brain)(nil)
@@ -56,31 +54,6 @@ func New(knowledge *badger.DB) *Brain {
 func (br *Brain) Order() int {
 	// TOOD(zeph): this can go away one day
 	return 250
-}
-
-// Forget removes a set of recorded tuples. The tuples provided are as for
-// Learn. If a tuple has been recorded multiple times, only the first
-// should be deleted. If a tuple has not been recorded, it should be
-// ignored.
-func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
-	panic("not implemented") // TODO: Implement
-}
-
-// ForgetMessage forgets everything learned from a single given message.
-// If nothing has been learned from the message, it should be ignored.
-func (br *Brain) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error {
-	panic("not implemented") // TODO: Implement
-}
-
-// ForgetDuring forgets all messages learned in the given time span.
-func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before time.Time) error {
-	panic("not implemented") // TODO: Implement
-}
-
-// ForgetUserSince forgets all messages learned from a user since a given
-// time.
-func (br *Brain) ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error {
-	panic("not implemented") // TODO: Implement
 }
 
 func hashTag(tag string) uint64 {
