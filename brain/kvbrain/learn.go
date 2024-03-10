@@ -24,13 +24,10 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 	// There are probably things we could do to control allocations since we're
 	// using many overlapping tuples for keys, but it's tremendously easier to
 	// just fill up a buffer for each.
-	type entry struct {
-		key []byte
-		val []byte
-	}
-	entries := make([]entry, len(tuples))
+	keys := make([][]byte, len(tuples))
+	vals := make([][]byte, len(tuples)) // TODO(zeph): could do one call to make
 	var b bytes.Buffer
-	p := make([]string, 0, len(tuples[0].Prefix))
+	pre := make([]string, 0, len(tuples[0].Prefix))
 	for i, t := range tuples {
 		b.Reset()
 		// Write the tag.
@@ -43,25 +40,31 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 			// First prefix of the message. We want to write only the separator.
 			k = len(t.Prefix)
 		}
-		p = append(p[:0], t.Prefix[k:]...)
-		slices.Reverse(p)
-		for _, s := range p {
+		pre = append(pre[:0], t.Prefix[k:]...)
+		slices.Reverse(pre)
+		for _, s := range pre {
 			b.WriteString(s)
 			b.WriteByte('\xff')
 		}
 		b.WriteByte('\xff')
 		// Write message ID.
 		b.Write(meta.ID[:])
-		entries[i] = entry{
-			key: bytes.Clone(b.Bytes()),
-			val: []byte(t.Suffix),
-		}
+		keys[i] = bytes.Clone(b.Bytes())
+		vals[i] = []byte(t.Suffix)
 	}
-	// TODO(zeph): record mapping of metadata to key
+
+	p, _ := br.past.Load(meta.Tag)
+	if p == nil {
+		// We might race with others also creating this past. Ensure we don't
+		// overwrite if that happens.
+		p, _ = br.past.LoadOrStore(meta.Tag, new(past))
+	}
+	p.record(meta.ID, meta.User, meta.Time.UnixNano(), keys)
+
 	batch := br.knowledge.NewWriteBatch()
 	defer batch.Cancel()
-	for _, e := range entries {
-		err := batch.Set(e.key, e.val)
+	for i, key := range keys {
+		err := batch.Set(key, vals[i])
 		if err != nil {
 			return err
 		}
