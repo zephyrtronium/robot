@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
-	"math"
 	"math/rand/v2"
 	"strconv"
 
@@ -16,29 +15,16 @@ import (
 
 func gumbelscan(rows *sq.Rows) (string, error) {
 	var s string
-	w := rand.Float64()
-	if rows.Next() {
-		err := rows.Scan(&s)
-		if err != nil {
-			return "", fmt.Errorf("couldn't scan first string in sample: %w", err)
-		}
-	}
-Loop:
+	var m uint64
 	for rows.Next() {
-		u := math.Log(rand.Float64())/math.Log(1-w) + 1
-		if math.IsNaN(u) || u <= 0 {
-			continue
-		}
-		for range uint64(u) {
-			if !rows.Next() {
-				break Loop
+		u := rand.Uint64()
+		if m <= u {
+			err := rows.Scan(&s)
+			if err != nil {
+				return "", fmt.Errorf("couldn't scan string for sample: %w", err)
 			}
+			m = u
 		}
-		err := rows.Scan(&s)
-		if err != nil {
-			return "", fmt.Errorf("couldn't scan string for sample: %w", err)
-		}
-		w *= rand.Float64()
 	}
 	if rows.Err() != nil {
 		return "", fmt.Errorf("couldn't get sample: %w", rows.Err())
