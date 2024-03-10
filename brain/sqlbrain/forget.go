@@ -22,7 +22,7 @@ import (
 func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
 	names := make([]sq.NamedArg, 2+br.order)
 	names[0] = sql.Named("tag", tag)
-	terms := make([]sq.NullString, 1+br.order)
+	terms := make([]string, 1+br.order)
 	for i := 0; i < br.order; i++ {
 		names[i+1] = sql.Named("p"+strconv.Itoa(i), &terms[i])
 	}
@@ -40,10 +40,8 @@ func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) e
 		// Note that each p[i] is a named arg, and those for the prefix and
 		// suffix each point to an element of terms. So, updating terms is
 		// sufficient to update the query parameters.
-		for i, w := range tup.Prefix {
-			terms[i] = sq.NullString{String: w, Valid: w != ""}
-		}
-		terms[br.order] = sq.NullString{String: tup.Suffix, Valid: tup.Suffix != ""}
+		copy(terms, tup.Prefix)
+		terms[br.order] = tup.Suffix
 		// Execute the statements in order. We do this manually because the
 		// arguments differ for some statements, and the SQLite3 driver
 		// complains if we give the wrong ones.

@@ -38,7 +38,8 @@ func testForgetful(ctx context.Context, br Interface) func(t *testing.T) {
 			Time: time.Unix(0, 0),
 		}
 		text := "bocchi ryou nijika kita"
-		if err := brain.Learn(ctx, br, &msg, brain.Tokens(nil, text)); err != nil {
+		toks := brain.Tokens(nil, text)
+		if err := brain.Learn(ctx, br, &msg, toks); err != nil {
 			t.Errorf("failed to learn: %v", err)
 		}
 		s, err := brain.Speak(ctx, br, tag, "")
@@ -48,14 +49,14 @@ func testForgetful(ctx context.Context, br Interface) func(t *testing.T) {
 		if s != text {
 			t.Errorf("surprise thought: %q", s)
 		}
-		if err := brain.Forget(ctx, br, tag, brain.Tokens(nil, text)); err != nil {
+		if err := brain.Forget(ctx, br, tag, toks); err != nil {
 			t.Errorf("failed to forget: %v", err)
 		}
 		// We don't really care about an error here, since the brain is empty.
 		// All we care about is no thoughts.
 		s, _ = brain.Speak(ctx, br, tag, "")
 		if s != "" {
-			t.Errorf("remembered that which must be forgotten: %v", err)
+			t.Errorf("remembered that which must be forgotten: %q", s)
 		}
 	}
 }
