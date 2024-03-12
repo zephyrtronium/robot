@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/zephyrtronium/robot/brain"
 )
@@ -26,30 +25,13 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 	// just fill up a buffer for each.
 	keys := make([][]byte, len(tuples))
 	vals := make([][]byte, len(tuples)) // TODO(zeph): could do one call to make
-	var b bytes.Buffer
-	pre := make([]string, 0, len(tuples[0].Prefix))
+	var b []byte
+	tag := meta.Tag
 	for i, t := range tuples {
-		b.Reset()
-		// Write the tag.
-		u := make([]byte, 8)
-		binary.LittleEndian.PutUint64(u, hashTag(meta.Tag))
-		b.Write(u)
-		// Write prefixes.
-		k := slices.IndexFunc(t.Prefix, func(s string) bool { return s != "" })
-		if k < 0 {
-			// First prefix of the message. We want to write only the separator.
-			k = len(t.Prefix)
-		}
-		pre = append(pre[:0], t.Prefix[k:]...)
-		slices.Reverse(pre)
-		for _, s := range pre {
-			b.WriteString(s)
-			b.WriteByte('\xff')
-		}
-		b.WriteByte('\xff')
+		b = keystart(b[:0], tag, t.Prefix)
 		// Write message ID.
-		b.Write(meta.ID[:])
-		keys[i] = bytes.Clone(b.Bytes())
+		b = append(b, meta.ID[:]...)
+		keys[i] = bytes.Clone(b)
 		vals[i] = []byte(t.Suffix)
 	}
 
@@ -74,4 +56,18 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 		return fmt.Errorf("couldn't commit learned knowledge: %w", err)
 	}
 	return nil
+}
+
+// keystart appends the tag and prefix components for a knowledge key to b.
+func keystart(b []byte, tag string, prefix []string) []byte {
+	b = binary.LittleEndian.AppendUint64(b, hashTag(tag))
+	for i := len(prefix) - 1; i >= 0; i-- {
+		if prefix[i] == "" {
+			break
+		}
+		b = append(b, prefix[i]...)
+		b = append(b, '\xff')
+	}
+	b = append(b, '\xff')
+	return b
 }
