@@ -3,11 +3,14 @@ package kvbrain
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/google/uuid"
 
 	"github.com/zephyrtronium/robot/brain"
@@ -97,7 +100,51 @@ func (p *past) findUser(user userhash.Hash, since int64) [][]byte {
 // should be deleted. If a tuple has not been recorded, it should be
 // ignored.
 func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
-	panic("not implemented") // TODO: Implement
+	// Sort tuples so that we always seek forward.
+	slices.SortFunc(tuples, func(a, b brain.Tuple) int {
+		p := slices.Compare(a.Prefix, b.Prefix)
+		if p == 0 {
+			p = strings.Compare(a.Suffix, b.Suffix)
+		}
+		return p
+	})
+	err := br.knowledge.Update(func(txn *badger.Txn) error {
+		th := hashTag(tag)
+		opts := badger.DefaultIteratorOptions
+		opts.Prefix = binary.LittleEndian.AppendUint64(nil, th)
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+		var b []byte
+		for _, t := range tuples {
+			b = keystart(b[:0], tag, t.Prefix)
+			it.Seek(b)
+			for it.ValidForPrefix(b) {
+				v := it.Item()
+				it.Next()
+				if v.IsDeletedOrExpired() {
+					continue
+				}
+				var err error
+				b, err = v.ValueCopy(b[:0])
+				if err != nil {
+					// TODO(zeph): collect and continue
+					return err
+				}
+				if string(b) != t.Suffix {
+					continue
+				}
+				if err := txn.Delete(v.KeyCopy(nil)); err != nil {
+					// TODO(zeph): collect and continue
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("couldn't forget: %w", err)
+	}
+	return nil
 }
 
 // ForgetMessage forgets everything learned from a single given message.
