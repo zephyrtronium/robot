@@ -2,11 +2,15 @@ package kvbrain
 
 import (
 	"bytes"
+	"context"
 	"slices"
 	"testing"
+	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/google/uuid"
 
+	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -204,3 +208,115 @@ func BenchmarkPastFindUser(b *testing.B) {
 
 //go:noinline
 func use(x [][]byte) {}
+
+func TestForgetMessage(t *testing.T) {
+	type message struct {
+		msg  brain.MessageMeta
+		tups []brain.Tuple
+	}
+	cases := []struct {
+		name string
+		msgs []message
+		uu   uuid.UUID
+		want map[string]string
+	}{
+		{
+			name: "single",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(0, 0),
+					},
+					tups: []brain.Tuple{
+						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
+					},
+				},
+			},
+			uu:   uuid.UUID{1},
+			want: map[string]string{},
+		},
+		{
+			name: "several",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(0, 0),
+					},
+					tups: []brain.Tuple{
+						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
+						{Prefix: []string{"nijika"}, Suffix: "kita"},
+					},
+				},
+			},
+			uu:   uuid.UUID{1},
+			want: map[string]string{},
+		},
+		{
+			name: "tagged",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "sickhack",
+						Time: time.Unix(0, 0),
+					},
+					tups: []brain.Tuple{
+						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
+					},
+				},
+			},
+			uu: uuid.UUID{1},
+			want: map[string]string{
+				mkey("sickhack", "bocchi\xff\xff", uuid.UUID{1}): "ryou",
+			},
+		},
+		{
+			name: "unseen",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(0, 0),
+					},
+					tups: []brain.Tuple{
+						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
+					},
+				},
+			},
+			uu: uuid.UUID{2},
+			want: map[string]string{
+				mkey("kessoku", "bocchi\xff\xff", uuid.UUID{1}): "ryou",
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLogger(nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			br := New(db)
+			for _, msg := range c.msgs {
+				err := br.Learn(ctx, &msg.msg, msg.tups)
+				if err != nil {
+					t.Errorf("failed to learn: %v", err)
+				}
+			}
+			if err := br.ForgetMessage(ctx, "kessoku", c.uu); err != nil {
+				t.Errorf("couldn't forget: %v", err)
+			}
+			dbcheck(t, db, c.want)
+		})
+	}
+}

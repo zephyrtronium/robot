@@ -13,14 +13,44 @@ import (
 	"github.com/zephyrtronium/robot/userhash"
 )
 
-func TestLearn(t *testing.T) {
-	mkey := func(tag, toks string, id uuid.UUID) string {
-		b := make([]byte, 8, 8+len(toks)+len(id))
-		binary.LittleEndian.PutUint64(b, hashTag(tag))
-		b = append(b, toks...)
-		b = append(b, id[:]...)
-		return string(b)
+func mkey(tag, toks string, id uuid.UUID) string {
+	b := make([]byte, 8, 8+len(toks)+len(id))
+	binary.LittleEndian.PutUint64(b, hashTag(tag))
+	b = append(b, toks...)
+	b = append(b, id[:]...)
+	return string(b)
+}
+
+func dbcheck(t *testing.T, db *badger.DB, want map[string]string) {
+	t.Helper()
+	seen := 0
+	err := db.View(func(txn *badger.Txn) error {
+		opts := badger.IteratorOptions{}
+		it := txn.NewIterator(opts)
+		defer it.Close()
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			k := string(item.Key())
+			v, err := item.ValueCopy(nil)
+			if err != nil {
+				t.Errorf("couldn't get value for key %q: %v", k, err)
+			}
+			if got := string(v); want[k] != got {
+				t.Errorf("wrong value for key %q: want %q, got %q", k, want[k], got)
+			}
+			seen++
+		}
+		return nil
+	})
+	if err != nil {
+		t.Errorf("view failed: %v", err)
 	}
+	if seen != len(want) {
+		t.Errorf("saw wrong number of items: want %d, got %d", len(want), seen)
+	}
+}
+
+func TestLearn(t *testing.T) {
 	uu := uuid.UUID{':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')'}
 	h := userhash.Hash{2}
 	cases := []struct {
@@ -103,31 +133,7 @@ func TestLearn(t *testing.T) {
 			if err := br.Learn(ctx, &c.msg, c.tups); err != nil {
 				t.Errorf("failed to learn: %v", err)
 			}
-			seen := 0
-			err = db.View(func(txn *badger.Txn) error {
-				opts := badger.IteratorOptions{}
-				it := txn.NewIterator(opts)
-				defer it.Close()
-				for it.Rewind(); it.Valid(); it.Next() {
-					item := it.Item()
-					k := string(item.Key())
-					v, err := item.ValueCopy(nil)
-					if err != nil {
-						t.Errorf("couldn't get value for key %q: %v", k, err)
-					}
-					if got := string(v); c.want[k] != got {
-						t.Errorf("wrong value for key %q: want %q, got %q", k, c.want[k], got)
-					}
-					seen++
-				}
-				return nil
-			})
-			if err != nil {
-				t.Errorf("view failed: %v", err)
-			}
-			if seen != len(c.want) {
-				t.Errorf("saw wrong number of items: want %d, got %d", len(c.want), seen)
-			}
+			dbcheck(t, db, c.want)
 		})
 	}
 }

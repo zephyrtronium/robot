@@ -3,6 +3,7 @@ package kvbrain
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -102,7 +103,24 @@ func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) e
 // ForgetMessage forgets everything learned from a single given message.
 // If nothing has been learned from the message, it should be ignored.
 func (br *Brain) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error {
-	panic("not implemented") // TODO: Implement
+	past, _ := br.past.Load(tag)
+	if past == nil {
+		return nil
+	}
+	keys := past.findID(msg)
+	batch := br.knowledge.NewWriteBatch()
+	defer batch.Cancel()
+	for _, key := range keys {
+		err := batch.Delete(key)
+		if err != nil {
+			return err
+		}
+	}
+	err := batch.Flush()
+	if err != nil {
+		return fmt.Errorf("couldn't commit deleting message %v: %w", msg, err)
+	}
+	return nil
 }
 
 // ForgetDuring forgets all messages learned in the given time span.
