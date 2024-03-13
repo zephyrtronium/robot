@@ -535,3 +535,146 @@ func TestForgetMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestForgetDuring(t *testing.T) {
+	type message struct {
+		msg  brain.MessageMeta
+		tups []brain.Tuple
+	}
+	cases := []struct {
+		name string
+		msgs []message
+		a, b int64
+		want map[string]string
+	}{
+		{
+			name: "single",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(1, 0),
+					},
+					tups: []brain.Tuple{
+						{
+							Prefix: []string{"bocchi", "ryou"},
+							Suffix: "kita",
+						},
+					},
+				},
+			},
+			a:    0,
+			b:    2,
+			want: map[string]string{},
+		},
+		{
+			name: "several",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(1, 0),
+					},
+					tups: []brain.Tuple{
+						{
+							Prefix: []string{"bocchi", "ryou"},
+							Suffix: "kita",
+						},
+					},
+				},
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{2},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(1, 0),
+					},
+					tups: []brain.Tuple{
+						{
+							Prefix: []string{"bocchi", "ryou"},
+							Suffix: "kita",
+						},
+					},
+				},
+			},
+			a:    0,
+			b:    2,
+			want: map[string]string{},
+		},
+		{
+			name: "none",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(5, 0),
+					},
+					tups: []brain.Tuple{
+						{
+							Prefix: []string{"bocchi", "ryou"},
+							Suffix: "kita",
+						},
+					},
+				},
+			},
+			a: 0,
+			b: 2,
+			want: map[string]string{
+				mkey("kessoku", "ryou\xffbocchi\xff\xff", uuid.UUID{1}): "kita",
+			},
+		},
+		{
+			name: "tagged",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "sickhack",
+						Time: time.Unix(1, 0),
+					},
+					tups: []brain.Tuple{
+						{
+							Prefix: []string{"bocchi", "ryou"},
+							Suffix: "kita",
+						},
+					},
+				},
+			},
+			a: 0,
+			b: 2,
+			want: map[string]string{
+				mkey("sickhack", "ryou\xffbocchi\xff\xff", uuid.UUID{1}): "kita",
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLogger(nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			br := New(db)
+			for _, msg := range c.msgs {
+				err := br.Learn(ctx, &msg.msg, msg.tups)
+				if err != nil {
+					t.Errorf("failed to learn: %v", err)
+				}
+			}
+			since := time.Unix(c.a, 0)
+			before := time.Unix(c.b, 0)
+			if err := br.ForgetDuring(ctx, "kessoku", since, before); err != nil {
+				t.Errorf("failed to forget between %v and %v: %v", since, before, err)
+			}
+			dbcheck(t, db, c.want)
+		})
+	}
+}

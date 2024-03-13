@@ -172,7 +172,24 @@ func (br *Brain) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) e
 
 // ForgetDuring forgets all messages learned in the given time span.
 func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before time.Time) error {
-	panic("not implemented") // TODO: Implement
+	past, _ := br.past.Load(tag)
+	if past == nil {
+		return nil
+	}
+	keys := past.findDuring(since.UnixNano(), before.UnixNano())
+	batch := br.knowledge.NewWriteBatch()
+	defer batch.Cancel()
+	for _, key := range keys {
+		err := batch.Delete(key)
+		if err != nil {
+			return err
+		}
+	}
+	err := batch.Flush()
+	if err != nil {
+		return fmt.Errorf("couldn't commit deleting between times %v and %v: %w", since, before, err)
+	}
+	return nil
 }
 
 // ForgetUserSince forgets all messages learned from a user since a given
