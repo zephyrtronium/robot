@@ -678,3 +678,82 @@ func TestForgetDuring(t *testing.T) {
 		})
 	}
 }
+
+func TestForgetUserSince(t *testing.T) {
+	type message struct {
+		msg  brain.MessageMeta
+		tups []brain.Tuple
+	}
+	cases := []struct {
+		name string
+		msgs []message
+		user userhash.Hash
+		want map[string]string
+	}{
+		{
+			name: "match",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(1, 0),
+					},
+					tups: []brain.Tuple{
+						{
+							Prefix: []string{"bocchi", "ryou"},
+							Suffix: "kita",
+						},
+					},
+				},
+			},
+			user: userhash.Hash{2},
+			want: map[string]string{},
+		},
+		{
+			name: "different",
+			msgs: []message{
+				{
+					msg: brain.MessageMeta{
+						ID:   uuid.UUID{1},
+						User: userhash.Hash{2},
+						Tag:  "kessoku",
+						Time: time.Unix(1, 0),
+					},
+					tups: []brain.Tuple{
+						{
+							Prefix: []string{"bocchi", "ryou"},
+							Suffix: "kita",
+						},
+					},
+				},
+			},
+			user: userhash.Hash{1},
+			want: map[string]string{
+				mkey("kessoku", "ryou\xffbocchi\xff\xff", uuid.UUID{1}): "kita",
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLogger(nil))
+			if err != nil {
+				t.Fatal(err)
+			}
+			br := New(db)
+			for _, msg := range c.msgs {
+				err := br.Learn(ctx, &msg.msg, msg.tups)
+				if err != nil {
+					t.Errorf("failed to learn: %v", err)
+				}
+			}
+			if err := br.ForgetUserSince(ctx, &c.user, time.Unix(0, 0)); err != nil {
+				t.Errorf("failed to forget from user %02x: %v", c.user, err)
+			}
+			dbcheck(t, db, c.want)
+		})
+	}
+}

@@ -195,5 +195,28 @@ func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before tim
 // ForgetUserSince forgets all messages learned from a user since a given
 // time.
 func (br *Brain) ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error {
-	panic("not implemented") // TODO: Implement
+	var rangeErr error
+	u := *user
+	br.past.Range(func(tag string, past *past) bool {
+		keys := past.findUser(u, since.UnixNano())
+		if len(keys) == 0 {
+			return true
+		}
+		batch := br.knowledge.NewWriteBatch()
+		defer batch.Cancel()
+		for _, key := range keys {
+			err := batch.Delete(key)
+			if err != nil {
+				rangeErr = err
+				return false
+			}
+		}
+		err := batch.Flush()
+		if err != nil {
+			rangeErr = fmt.Errorf("couldn't commit deleting messages from user since %v: %w", since, err)
+			return false
+		}
+		return false
+	})
+	return rangeErr
 }
