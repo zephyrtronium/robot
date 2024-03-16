@@ -56,8 +56,9 @@ func (br *Brain) Order() int {
 	return 250
 }
 
-func hashTag(tag string) uint64 {
+// hashTag appends the hash of a tag to b to serve as the start of a knowledge key.
+func hashTag(b []byte, tag string) []byte {
 	h := fnv.New64a()
 	io.WriteString(h, tag)
-	return h.Sum64()
+	return h.Sum(b)
 }

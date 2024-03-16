@@ -3,7 +3,6 @@ package kvbrain
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"fmt"
 	"slices"
 	"strings"
@@ -109,14 +108,14 @@ func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) e
 		return p
 	})
 	err := br.knowledge.Update(func(txn *badger.Txn) error {
-		th := hashTag(tag)
 		opts := badger.DefaultIteratorOptions
-		opts.Prefix = binary.LittleEndian.AppendUint64(nil, th)
+		opts.Prefix = hashTag(nil, tag)
 		it := txn.NewIterator(badger.DefaultIteratorOptions)
 		defer it.Close()
 		var b []byte
 		for _, t := range tuples {
-			b = keystart(b[:0], tag, t.Prefix)
+			b = hashTag(b[:0], tag)
+			b = append(appendPrefix(b, t.Prefix), '\xff') // terminate the prefix
 			it.Seek(b)
 			for it.ValidForPrefix(b) {
 				v := it.Item()
