@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -135,4 +136,24 @@ func TestLearn(t *testing.T) {
 			dbcheck(t, db, c.want)
 		})
 	}
+}
+
+func BenchmarkLearn(b *testing.B) {
+	new := func(ctx context.Context, b *testing.B) brain.Learner {
+		db, err := badger.Open(badger.DefaultOptions(b.TempDir()).WithLogger(nil))
+		if err != nil {
+			b.Fatal(err)
+		}
+		return New(db)
+	}
+	cleanup := func(l brain.Learner) {
+		br := l.(*Brain)
+		if err := br.knowledge.DropAll(); err != nil {
+			b.Fatal(err)
+		}
+		if err := br.knowledge.Close(); err != nil {
+			b.Fatal(err)
+		}
+	}
+	braintest.BenchLearn(context.Background(), b, new, cleanup)
 }
