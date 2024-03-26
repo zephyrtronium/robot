@@ -152,9 +152,10 @@ func TestPastFindUser(t *testing.T) {
 		},
 	}
 	want := [][]byte{
+		[]byte("bocchi"),
 		[]byte("ryou"),
 	}
-	got := p.findUser(userhash.Hash{8}, 5)
+	got := p.findUser(userhash.Hash{8})
 	if !slices.EqualFunc(got, want, bytes.Equal) {
 		t.Errorf("wrong result: want %q, got %q", want, got)
 	}
@@ -202,7 +203,7 @@ func BenchmarkPastFindUser(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := range b.N {
-		use(p.findUser(userhash.Hash{byte(i)}, 0))
+		use(p.findUser(userhash.Hash{byte(i)}))
 	}
 }
 
@@ -750,7 +751,7 @@ func TestForgetUserSince(t *testing.T) {
 					t.Errorf("failed to learn: %v", err)
 				}
 			}
-			if err := br.ForgetUserSince(ctx, &c.user, time.Unix(0, 0)); err != nil {
+			if err := br.ForgetUser(ctx, &c.user); err != nil {
 				t.Errorf("failed to forget from user %02x: %v", c.user, err)
 			}
 			dbcheck(t, db, c.want)

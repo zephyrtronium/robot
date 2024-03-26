@@ -51,9 +51,8 @@ type Learner interface {
 	ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error
 	// ForgetDuring forgets all messages learned in the given time span.
 	ForgetDuring(ctx context.Context, tag string, since, before time.Time) error
-	// ForgetUserSince forgets all messages learned from a user since a given
-	// time.
-	ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error
+	// ForgetUser forgets all messages associated with a userhash.
+	ForgetUser(ctx context.Context, user *userhash.Hash) error
 }
 
 // Learn records tokens into a Learner.

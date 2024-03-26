@@ -81,7 +81,7 @@ func (t *testLearner) ForgetDuring(ctx context.Context, tag string, since, befor
 	return nil
 }
 
-func (t *testLearner) ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error {
+func (t *testLearner) ForgetUser(ctx context.Context, user *userhash.Hash) error {
 	return nil
 }
 

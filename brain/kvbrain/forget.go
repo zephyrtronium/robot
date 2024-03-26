@@ -78,12 +78,12 @@ func (p *past) findDuring(since, before int64) [][]byte {
 
 // findUser finds all knowledge keys of messages recorded from a given user
 // since a timestamp.
-func (p *past) findUser(user userhash.Hash, since int64) [][]byte {
+func (p *past) findUser(user userhash.Hash) [][]byte {
 	r := make([][]byte, 0, 64)
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	for k, v := range p.time {
-		if since <= v && p.user[k] == user {
+	for k, v := range p.user {
+		if v == user {
 			keys := p.key[k]
 			r = slices.Grow(r, len(keys))
 			for _, v := range keys {
@@ -191,13 +191,12 @@ func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before tim
 	return nil
 }
 
-// ForgetUserSince forgets all messages learned from a user since a given
-// time.
-func (br *Brain) ForgetUserSince(ctx context.Context, user *userhash.Hash, since time.Time) error {
+// ForgetUser forgets all messages associated with a userhash.
+func (br *Brain) ForgetUser(ctx context.Context, user *userhash.Hash) error {
 	var rangeErr error
 	u := *user
 	br.past.Range(func(tag string, past *past) bool {
-		keys := past.findUser(u, since.UnixNano())
+		keys := past.findUser(u)
 		if len(keys) == 0 {
 			return true
 		}
@@ -212,7 +211,7 @@ func (br *Brain) ForgetUserSince(ctx context.Context, user *userhash.Hash, since
 		}
 		err := batch.Flush()
 		if err != nil {
-			rangeErr = fmt.Errorf("couldn't commit deleting messages from user since %v: %w", since, err)
+			rangeErr = fmt.Errorf("couldn't commit deleting messages by user: %w", err)
 			return false
 		}
 		return false

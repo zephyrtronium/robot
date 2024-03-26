@@ -999,7 +999,6 @@ func TestForgetUserSince(t *testing.T) {
 		order  int
 		insert []insert
 		user   userhash.Hash
-		since  int64
 		left   []remain
 	}{
 		{
@@ -1015,9 +1014,8 @@ func TestForgetUserSince(t *testing.T) {
 					},
 				},
 			},
-			user:  userhash.Hash{0: 1},
-			since: 1,
-			left:  nil,
+			user: userhash.Hash{0: 1},
+			left: nil,
 		},
 		{
 			name:  "multiple-1",
@@ -1033,9 +1031,8 @@ func TestForgetUserSince(t *testing.T) {
 					},
 				},
 			},
-			user:  userhash.Hash{0: 1},
-			since: 1,
-			left:  nil,
+			user: userhash.Hash{0: 1},
+			left: nil,
 		},
 		{
 			name:  "user-1",
@@ -1050,32 +1047,7 @@ func TestForgetUserSince(t *testing.T) {
 					},
 				},
 			},
-			user:  userhash.Hash{0: 2},
-			since: 1,
-			left: []remain{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-		},
-		{
-			name:  "time-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			user:  userhash.Hash{0: 1},
-			since: 3,
+			user: userhash.Hash{0: 2},
 			left: []remain{
 				{
 					tag: "madoka",
@@ -1098,9 +1070,8 @@ func TestForgetUserSince(t *testing.T) {
 					},
 				},
 			},
-			user:  userhash.Hash{0: 1},
-			since: 1,
-			left:  nil,
+			user: userhash.Hash{0: 1},
+			left: nil,
 		},
 		{
 			name:  "multiple-2",
@@ -1116,9 +1087,8 @@ func TestForgetUserSince(t *testing.T) {
 					},
 				},
 			},
-			user:  userhash.Hash{0: 1},
-			since: 1,
-			left:  nil,
+			user: userhash.Hash{0: 1},
+			left: nil,
 		},
 		{
 			name:  "user-2",
@@ -1133,32 +1103,7 @@ func TestForgetUserSince(t *testing.T) {
 					},
 				},
 			},
-			user:  userhash.Hash{0: 2},
-			since: 1,
-			left: []remain{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-		},
-		{
-			name:  "time-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			user:  userhash.Hash{0: 1},
-			since: 3,
+			user: userhash.Hash{0: 2},
 			left: []remain{
 				{
 					tag: "madoka",
@@ -1199,7 +1144,7 @@ func TestForgetUserSince(t *testing.T) {
 					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
 				}
 			}
-			if err := br.ForgetUserSince(ctx, &c.user, time.UnixMilli(c.since)); err != nil {
+			if err := br.ForgetUser(ctx, &c.user); err != nil {
 				t.Errorf("couldn't forget: %v", err)
 			}
 			var wantTags []string
