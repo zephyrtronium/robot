@@ -16,10 +16,14 @@ name = 'zephyrtronium'
 # contact is a description of how to contact the owner.
 contact = '/w zephyrtronium'
 
-# db is a table of databases used by the bot. Each one may be the same as or
-# different from any other. Each value is a connection string for SQLite3.
+# db is a table of databases used by the bot.
 [db]
-brain = 'file:$ROBOT_SQLITE'
+# brain is the directory in which learned knowledge is stored.
+brain = '$ROBOT_KNOWLEDGE'
+# brainflag configures the brain database as a Badger "superflag" string.
+brainflag = ''
+# privacy is an SQLite3 connection string for the database where privacy
+# information is stored.
 privacy = 'file:$ROBOT_SQLITE'
 
 # global includes chat settings that apply to all channels.

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dgraph-io/badger/v4"
+	"github.com/dgraph-io/badger/v4/options"
 	"gitlab.com/zephyrtronium/pick"
 	"gitlab.com/zephyrtronium/sq"
 	"gitlab.com/zephyrtronium/tmi"
@@ -20,7 +22,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/zephyrtronium/robot/auth"
-	"github.com/zephyrtronium/robot/brain/sqlbrain"
+	"github.com/zephyrtronium/robot/brain/kvbrain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/privacy"
@@ -60,12 +62,9 @@ func (robo *Robot) SetSecrets(file string) error {
 
 // SetSources opens the brain and privacy list wrappers around the respective
 // databases. Use [loadDBs] to open the databases themselves from DSNs.
-func (robo *Robot) SetSources(ctx context.Context, brain, priv *sq.DB) error {
+func (robo *Robot) SetSources(ctx context.Context, brain *badger.DB, priv *sq.DB) error {
 	var err error
-	robo.brain, err = sqlbrain.Open(ctx, brain)
-	if err != nil {
-		return fmt.Errorf("couldn't open brain: %w", err)
-	}
+	robo.brain = kvbrain.New(brain)
 	robo.privacy, err = privacy.Open(ctx, priv)
 	if err != nil {
 		return fmt.Errorf("couldn't open privacy list: %w", err)
@@ -154,18 +153,15 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 	return nil
 }
 
-func loadDBs(ctx context.Context, cfg DBCfg) (brain, priv *sq.DB, err error) {
-	brain, err = sq.Open("sqlite3", cfg.Brain)
+func loadDBs(ctx context.Context, cfg DBCfg) (brain *badger.DB, priv *sq.DB, err error) {
+	opts := badger.DefaultOptions(cfg.Brain)
+	// TODO(zeph): logger?
+	opts = opts.WithLogger(nil)
+	opts = opts.WithCompression(options.None)
+	opts = opts.WithBloomFalsePositive(0)
+	brain, err = badger.Open(opts.FromSuperFlag(cfg.Brainflag))
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't open brain db: %w", err)
-	}
-	if err := brain.Ping(ctx); err != nil {
-		return nil, nil, fmt.Errorf("couldn't connect to brain db: %w", err)
-	}
-
-	if cfg.Privacy == cfg.Brain {
-		priv = brain
-		return brain, priv, nil
 	}
 
 	priv, err = sq.Open("sqlite3", cfg.Privacy)
@@ -331,8 +327,9 @@ type ClientCfg struct {
 
 // DBCfg is the configuration of databases.
 type DBCfg struct {
-	Brain   string `toml:"brain"`
-	Privacy string `toml:"privacy"`
+	Brain     string `toml:"brain"`
+	Brainflag string `toml:"brainflag"`
+	Privacy   string `toml:"privacy"`
 }
 
 // Rate is a rate limit configuration.

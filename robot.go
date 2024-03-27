@@ -18,7 +18,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/zephyrtronium/robot/auth"
-	"github.com/zephyrtronium/robot/brain/sqlbrain"
+	"github.com/zephyrtronium/robot/brain/kvbrain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/privacy"
 )
@@ -26,7 +26,7 @@ import (
 // Robot is the overall configuration for the bot.
 type Robot struct {
 	// brain is the brain.
-	brain *sqlbrain.Brain
+	brain *kvbrain.Brain
 	// privacy is the privacy.
 	privacy *privacy.List
 	// channels are the channels.
@@ -164,7 +164,7 @@ func validateTwitch(ctx context.Context, tok *oauth2.Token) error {
 	if err := json.Unmarshal(body, &s); err != nil {
 		return fmt.Errorf("couldn't unmarshal token validation response: %w", err)
 	}
-	slog.InfoContext(ctx, "token validation", slog.String("token", tok.AccessToken), slog.Any("result", s))
+	slog.InfoContext(ctx, "token validation", slog.Any("result", s))
 	if resp.StatusCode == http.StatusUnauthorized {
 		// Token expired or otherwise invalid. We need a refresh.
 		return fmt.Errorf("token validation failed: %s (%w)", s.Message, errNeedRefresh)

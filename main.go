@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v3"
-	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/privacy"
 )
 
@@ -27,7 +26,6 @@ var app = cli.Command{
 			Action: cliInit,
 			Flags: []cli.Flag{
 				&flagConfig,
-				&flagOrder,
 			},
 		},
 		{
@@ -64,7 +62,6 @@ func main() {
 
 func cliInit(ctx context.Context, cmd *cli.Command) error {
 	slog.SetDefault(loggerFromFlags(cmd))
-	order := int(cmd.Int("order"))
 	r, err := os.Open(cmd.String("config"))
 	if err != nil {
 		return fmt.Errorf("couldn't open config file: %w", err)
@@ -73,12 +70,9 @@ func cliInit(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("couldn't load config: %w", err)
 	}
-	brain, priv, err := loadDBs(ctx, cfg.DB)
+	_, priv, err := loadDBs(ctx, cfg.DB)
 	if err != nil {
 		return err
-	}
-	if err := sqlbrain.Create(ctx, brain, order); err != nil {
-		return fmt.Errorf("couldn't initialize brain: %w", err)
 	}
 	if err := privacy.Init(ctx, priv); err != nil {
 		return fmt.Errorf("couldn't initialize privacy list: %w", err)
@@ -160,18 +154,6 @@ var (
 			default:
 				return errors.New("unknown logging format")
 			}
-		},
-	}
-
-	flagOrder = cli.IntFlag{
-		Name:     "order",
-		Required: true,
-		Usage:    "Prefix length for Markov chains",
-		Action: func(ctx context.Context, cmd *cli.Command, i int64) error {
-			if i <= 0 {
-				return errors.New("order must be positive")
-			}
-			return nil
 		},
 	}
 )
