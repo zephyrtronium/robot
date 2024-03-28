@@ -75,7 +75,7 @@ func (s *dcf) Refresh(ctx context.Context, old *oauth2.Token) (*oauth2.Token, er
 	}
 	if tok != nil {
 		if !Equal(tok, old) {
-			slog.InfoContext(ctx, "token not current, won't refresh", slog.Any("tok", tok), slog.Any("old", old))
+			slog.InfoContext(ctx, "token not current, won't refresh")
 			return tok, nil
 		}
 		tok, err := s.refreshLocked(ctx, tok.RefreshToken)
@@ -121,10 +121,11 @@ func (s *dcf) refreshLocked(ctx context.Context, rt string) (*oauth2.Token, erro
 	if err := json.Unmarshal(body, &d); err != nil {
 		return nil, fmt.Errorf("couldn't decode token refresh response: %w", err)
 	}
-	slog.InfoContext(ctx, "refresh response", slog.Any("unmarshaled", d), slog.String("raw", string(body)))
 	if resp.StatusCode == 400 && d.Message == "Invalid refresh token" {
+		slog.InfoContext(ctx, "invalid refresh token; need device code flow")
 		return nil, fmt.Errorf("refresh failed: %w", errInvalidRefresh)
 	}
+	slog.InfoContext(ctx, "refresh response", slog.Int("status", d.Status))
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("refresh failed: %s (%s)", d.Message, resp.Status)
 	}
