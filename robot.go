@@ -218,10 +218,7 @@ func (robo *Robot) join(ctx context.Context, send chan<- *tmi.Message) {
 	}
 	burst := 20
 	for len(ls) > 0 {
-		l := ls
-		if len(l) > burst {
-			l = l[:burst]
-		}
+		l := ls[:min(burst, len(ls))]
 		ls = ls[len(l):]
 		msg := tmi.Message{
 			Command: "JOIN",
