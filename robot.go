@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -21,6 +19,7 @@ import (
 	"github.com/zephyrtronium/robot/brain/kvbrain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/privacy"
+	"github.com/zephyrtronium/robot/twitch"
 )
 
 // Robot is the overall configuration for the bot.
@@ -115,13 +114,15 @@ func twitchToken(ctx context.Context, tokens auth.TokenSource) (*oauth2.Token, e
 	if err != nil {
 		return nil, fmt.Errorf("couldn't obtain access token for TMI login: %w", err)
 	}
+	client := http.Client{Timeout: 30 * time.Second}
 	for range 5 {
-		err := validateTwitch(ctx, tok)
+		v, err := twitch.Validate(ctx, &client, tok)
+		slog.InfoContext(ctx, "Twitch validation", slog.Any("response", v), slog.Any("err", err))
 		switch {
 		case err == nil:
 			// Current token is good.
 			return tok, nil
-		case errors.Is(err, errNeedRefresh):
+		case errors.Is(err, twitch.ErrNeedRefresh):
 			// Refresh and try again.
 			tok, err = tokens.Refresh(ctx, tok)
 			if err != nil {
@@ -132,47 +133,6 @@ func twitchToken(ctx context.Context, tokens auth.TokenSource) (*oauth2.Token, e
 		}
 	}
 	return nil, fmt.Errorf("giving up on refresh retries")
-}
-
-// validateTwitch validates a Twitch access token. If the returned error Is
-// errNeedRefresh, then the caller should refresh it and try again.
-func validateTwitch(ctx context.Context, tok *oauth2.Token) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://id.twitch.tv/oauth2/validate", nil)
-	if err != nil {
-		return fmt.Errorf("couldn't make validate request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
-	client := http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("couldn't validate access token: %w", err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return fmt.Errorf("couldn't read token validation response: %w", err)
-	}
-	var s struct {
-		ClientID  string   `json:"client_id"`
-		Login     string   `json:"login"`
-		Scopes    []string `json:"scopes"`
-		UserID    string   `json:"user_id"`
-		ExpiresIn int      `json:"expires_in"`
-		Message   string   `json:"message"`
-		Status    int      `json:"status"`
-	}
-	if err := json.Unmarshal(body, &s); err != nil {
-		return fmt.Errorf("couldn't unmarshal token validation response: %w", err)
-	}
-	slog.InfoContext(ctx, "token validation", slog.Any("result", s))
-	if resp.StatusCode == http.StatusUnauthorized {
-		// Token expired or otherwise invalid. We need a refresh.
-		return fmt.Errorf("token validation failed: %s (%w)", s.Message, errNeedRefresh)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("token validation failed: %s (%s)", s.Message, resp.Status)
-	}
-	return nil
 }
 
 func (robo *Robot) tmiLoop(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, recv <-chan *tmi.Message) {
@@ -259,5 +219,3 @@ func (l *tmiSlog) Recv(s string)   { l.l.Debug("TMI recv", slog.String("message"
 func (l *tmiSlog) Ping(s string) {
 	l.l.Log(context.Background(), slog.LevelDebug-1, "TMI ping", slog.String("message", s))
 }
-
-var errNeedRefresh = errors.New("need refresh")
