@@ -20,7 +20,7 @@ func Validate(ctx context.Context, client *http.Client, tok *oauth2.Token) (*Val
 	if err != nil {
 		return nil, fmt.Errorf("couldn't make validate request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
+	tok.SetAuthHeader(req)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't validate access token: %w", err)
