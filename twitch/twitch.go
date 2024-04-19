@@ -34,7 +34,11 @@ func reqjson[Resp any](ctx context.Context, client Client, method, url string, b
 		return fmt.Errorf("couldn't read response: %w", err)
 	}
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK: // do nothing
+	case http.StatusUnauthorized:
+		return fmt.Errorf("request failed: %s (%w)", b, ErrNeedRefresh)
+	default:
 		return fmt.Errorf("request failed: %s (%s)", b, resp.Status)
 	}
 	r := struct {
