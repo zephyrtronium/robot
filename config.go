@@ -111,20 +111,19 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 		}
 		emotes := pick.New(pick.FromMap(mergemaps(global.Emotes, ch.Emotes)))
 		var ign, mod map[string]bool
-		for u, p := range ch.Privileges {
-			// TODO(zeph): Users may be listed in the TOML as usernames or as
-			// user IDs, but the maps we give back should be only IDs.
+		for _, p := range ch.Privileges {
+			// TODO(zeph): resolve user ids
 			switch {
-			case strings.EqualFold(p, "ignore"):
+			case strings.EqualFold(p.Level, "ignore"):
 				if ign == nil {
 					ign = make(map[string]bool)
 				}
-				ign[u] = true
-			case strings.EqualFold(p, "moderator"):
+				ign[p.ID] = true
+			case strings.EqualFold(p.Level, "moderator"):
 				if mod == nil {
 					mod = make(map[string]bool)
 				}
-				mod[u] = true
+				mod[p.ID] = true
 			}
 		}
 		for _, p := range ch.Channels {
@@ -216,7 +215,7 @@ func loadClient[Send, Receive any](
 		send:   send,
 		recv:   recv,
 		me:     t.User,
-		owner:  t.Owner,
+		owner:  t.Owner.ID, // TODO(zeph): resolve username
 		rate:   rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
 		tokens: tokens(cfg, stor),
 	}, nil
@@ -278,7 +277,7 @@ type ChannelCfg struct {
 	// Emotes is the emotes and their weights for the channel.
 	Emotes map[string]int `toml:"emotes"`
 	// Privileges is the user access controls for the channel.
-	Privileges map[string]string `toml:"privileges"`
+	Privileges []Privilege `toml:"privileges"`
 }
 
 // Global is the configuration for globally applied options.
@@ -291,7 +290,7 @@ type Global struct {
 
 // Owner is metadata about the bot owner.
 type Owner struct {
-	// Name is the username of the owner.
+	// Name is the name of the owner. It does not need to be a username.
 	Name string `toml:"name"`
 	// Contact describes owner contact information.
 	Contact string `toml:"contact"`
@@ -316,11 +315,24 @@ type ClientCfg struct {
 	TokenFile string `toml:"token"`
 	// Owner is the user ID of the owner. The interpretation of this is
 	// domain-specific.
-	Owner string `toml:"owner"`
+	Owner Privilege `toml:"owner"`
 	// Rate is the global rate limit for this client.
 	Rate Rate `toml:"rate"`
 
 	endpoint oauth2.Endpoint `toml:"-"`
+}
+
+type Privilege struct {
+	// ID is the user ID.
+	ID string `toml:"id"`
+	// Name is the user name or login name (not display name).
+	// If both ID and Name are provided, Name is generally ignored.
+	Name string `toml:"name"`
+	// Level is the access level granted to the user.
+	// Valid values are the empty string as the default capability,
+	// "ignore" to disable access to all commands including prompting,
+	// or "moderator" to enable access to moderation commands.
+	Level string `toml:"level"`
 }
 
 // DBCfg is the configuration of databases.
@@ -353,7 +365,8 @@ func expandcfg(cfg *Config, expand func(s string) string) {
 		&cfg.TMI.CID,
 		&cfg.TMI.SecretFile,
 		&cfg.TMI.TokenFile,
-		&cfg.TMI.Owner,
+		&cfg.TMI.Owner.Name,
+		&cfg.TMI.Owner.ID,
 	}
 	for _, f := range fields {
 		*f = os.Expand(*f, expand)

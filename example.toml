@@ -53,9 +53,9 @@ redirect = 'http://localhost'
 # exists, it should have permissions 0600. It is encrypted with a key derived
 # from the key given in the top-level secret.
 token = '/var/robot/tmi_refresh'
-# owner is the user ID of the owner. This user can use special commands for
+# owner is the owner user. This user can use special commands for
 # administrating the bot.
-owner = '51421897'
+owner = { id = '51421897', name = 'zephyrtronium' }
 # rate is the message rate limit for TMI.
 rate = { every = 30, num = 20 }
 
@@ -80,14 +80,17 @@ responses = 0.02
 rate = { every = 10.1, num = 2 }
 # copypasta is the configuration of copypastaing.
 copypasta = { need = 2, within = 30 }
+# Access levels for users.
+# Each entry must have a name or ID and a level. If both a name and ID are
+# given, the name is ignored.
+# The valid levels are 'ignore' to disable use of all commands, including
+# prompting, or 'moderator' to add use of moderation commands.
+# Note that on Twitch, the broadcaster and channel moderators always have
+# moderator privileges.
+# Unlike most strings, these are not expanded with environment variables.
+privileges = [
+	{ name = 'zephyrtronium', level = 'moderator' },
+]
 
 [twitch.bocchi.emotes]
 'btw make sure to stretch, hydrate, and take care of yourself <3' = 1
-
-# Access levels for users. Each key may be a (login) username or a user ID. The
-# valid values are 'ignore' to disable use of all commands including prompting
-# or 'moderator' to add use of moderation commands. Note that on Twitch, the
-# broadcaster and channel moderators always have moderator privileges. Unlike
-# most string options, these are not expanded with environment variables.
-[twitch.bocchi.privileges]
-'zephyrtronium' = 'moderator'
