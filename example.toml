@@ -30,7 +30,7 @@ privacy = 'file:$ROBOT_SQLITE'
 [global]
 # block is a regex that blocks messages from being learned in any channel.
 # Unlike most string options, it is not expanded with environment variables.
-block = '(?i)bad\s+stuff'
+block = '(?i)bad\s+stuff[^$x]'
 
 # global.emotes is a table of emotes to use in every channel along with their
 # relative weights.
@@ -40,6 +40,7 @@ block = '(?i)bad\s+stuff'
 
 [tmi]
 # user is the Twitch username (not display name) of the bot.
+# TODO(zeph): this can go away, we can get it from the api instead
 user = 'robotisbroken'
 # cid is the Twitch app's client ID.
 cid = 'hof5gwx0su6owfnys0nyan9c87zr6t'
@@ -72,7 +73,7 @@ send = 'bocchi'
 # message containing text matching this or the global block regex is not used
 # for learning. Unlike most string options, it is not expanded with environment
 # variables.
-block = '(?i)cucumber'
+block = '(?i)cucumber[^$x]'
 # responses is the probability of generating a random message when a
 # non-command message is received.
 responses = 0.02
