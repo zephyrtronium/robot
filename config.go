@@ -83,7 +83,6 @@ func (robo *Robot) SetTMI(ctx context.Context, cfg ClientCfg) error {
 	recv := make(chan *tmi.Message, 8) // 8 is enough for on-connect msgs
 	client := &http.Client{Timeout: 30 * time.Second}
 	tmi, err := loadClient(
-		ctx,
 		cfg,
 		send,
 		recv,
@@ -191,7 +190,6 @@ func fseconds(s float64) time.Duration {
 
 // loadClient loads client configuration from unmarshaled TOML.
 func loadClient[Send, Receive any](
-	ctx context.Context,
 	t ClientCfg,
 	send chan Send,
 	recv chan Receive,
