@@ -112,7 +112,7 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 func twitchToken(ctx context.Context, tokens auth.TokenSource) (*oauth2.Token, error) {
 	tok, err := tokens.Token(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't obtain access token for TMI login: %w", err)
+		return nil, fmt.Errorf("couldn't obtain Twitch access token: %w", err)
 	}
 	client := http.Client{Timeout: 30 * time.Second}
 	for range 5 {
