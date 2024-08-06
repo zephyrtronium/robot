@@ -40,7 +40,7 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			for pb.Next() {
 				t++
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
-				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				id := uuid.New()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
 				err := brain.Learn(ctx, l, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
@@ -78,7 +78,7 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			for pb.Next() {
 				t++
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				id := uuid.New()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
 				err := brain.Learn(ctx, l, "bocchi", u, id, time.Unix(t, 0), toks[:8])
 				if err != nil {
@@ -112,7 +112,7 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			}
 			for t := range size {
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
-				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				id := uuid.New()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
 				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
@@ -157,7 +157,7 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			}
 			for t := range size {
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				id := uuid.New()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
 				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
@@ -202,7 +202,7 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			}
 			for t := range size {
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				id := uuid.New()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
 				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
