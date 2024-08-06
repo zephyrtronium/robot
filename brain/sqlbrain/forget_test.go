@@ -2,15 +2,11 @@ package sqlbrain_test
 
 import (
 	"context"
-	"slices"
-	"sort"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/uuid"
-	"gitlab.com/zephyrtronium/sq"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
@@ -18,1220 +14,1800 @@ import (
 )
 
 func TestForget(t *testing.T) {
-	type insert struct {
-		tag    string
-		tuples []brain.Tuple
+	learn := []learn{
+		{
+			tag:  "結束",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: strings.Fields("喜多 虹夏 リョウ ぼっち"), Suffix: ""},
+				{Prefix: strings.Fields("虹夏 リョウ ぼっち"), Suffix: "喜多"},
+				{Prefix: strings.Fields("リョウ ぼっち"), Suffix: "虹夏"},
+				{Prefix: strings.Fields("ぼっち"), Suffix: "リョウ"},
+				{Prefix: nil, Suffix: "ぼっち"},
+			},
+		},
+		{
+			tag:  "結束",
+			user: userhash.Hash{4},
+			id:   uuid.UUID{5},
+			t:    6,
+			tups: []brain.Tuple{
+				{Prefix: []string{"bocchi"}, Suffix: ""},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "結束",
+			user: userhash.Hash{7},
+			id:   uuid.UUID{8},
+			t:    9,
+			tups: []brain.Tuple{
+				{Prefix: []string{"bocchi"}, Suffix: ""},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "sickhack",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: []string{"bocchi"}, Suffix: ""},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+	}
+	initKnow := []know{
+		{
+			tag:    "結束",
+			id:     uuid.UUID{2},
+			prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
+			suffix: "",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{2},
+			prefix: "虹夏\x00リョウ\x00ぼっち\x00",
+			suffix: "喜多",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{2},
+			prefix: "リョウ\x00ぼっち\x00",
+			suffix: "虹夏",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{2},
+			prefix: "ぼっち\x00",
+			suffix: "リョウ",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "ぼっち",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{5},
+			prefix: "bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{5},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{8},
+			prefix: "bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "結束",
+			id:     uuid.UUID{8},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "bocchi",
+		},
+	}
+	initMsgs := []msg{
+		{
+			tag:  "結束",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{1},
+		},
+		{
+			tag:  "結束",
+			id:   uuid.UUID{5},
+			time: 6,
+			user: userhash.Hash{4},
+		},
+		{
+			tag:  "結束",
+			id:   uuid.UUID{8},
+			time: 9,
+			user: userhash.Hash{7},
+		},
+		{
+			tag:  "sickhack",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{1},
+		},
+	}
+	type forget struct {
+		tag  string
+		tups []brain.Tuple
 	}
 	cases := []struct {
 		name   string
-		order  int
-		insert []insert
-		forget []insert
-		left   []insert
+		forget []forget
+		know   []know
+		msgs   []msg
 	}{
 		{
-			name:   "empty-1",
-			order:  1,
-			insert: nil,
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			left: nil,
+			name:   "empty",
+			forget: nil,
+			know:   initKnow,
+			msgs:   initMsgs,
 		},
 		{
-			name:  "success-1",
-			order: 1,
-			insert: []insert{
+			name: "none",
+			forget: []forget{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
+					tag: "結束",
+					tups: []brain.Tuple{
+						{Prefix: strings.Fields("tuples such no"), Suffix: ""},
+						{Prefix: strings.Fields("such no"), Suffix: "tuples"},
+						{Prefix: strings.Fields("no"), Suffix: "such"},
+						{Prefix: nil, Suffix: "no"},
 					},
 				},
 			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			left: nil,
+			know: initKnow,
+			msgs: initMsgs,
 		},
 		{
-			name:  "prefix-1",
-			order: 1,
-			insert: []insert{
+			name: "single",
+			forget: []forget{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "c"},
+					tag: "結束",
+					tups: []brain.Tuple{
+						{Prefix: nil, Suffix: "ぼっち"},
 					},
 				},
 			},
-			forget: []insert{
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "喜多",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "リョウ\x00ぼっち\x00",
+					suffix: "虹夏",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "ぼっち\x00",
+					suffix: "リョウ",
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "ぼっち",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
 				},
 			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "c"},
-					},
-				},
-			},
+			msgs: initMsgs,
 		},
 		{
-			name:  "suffix-1",
-			order: 1,
-			insert: []insert{
+			name: "all",
+			forget: []forget{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
+					tag: "結束",
+					tups: []brain.Tuple{
+						{Prefix: strings.Fields("喜多 虹夏 リョウ ぼっち"), Suffix: ""},
+						{Prefix: strings.Fields("虹夏 リョウ ぼっち"), Suffix: "喜多"},
+						{Prefix: strings.Fields("リョウ ぼっち"), Suffix: "虹夏"},
+						{Prefix: strings.Fields("ぼっち"), Suffix: "リョウ"},
+						{Prefix: nil, Suffix: "ぼっち"},
 					},
 				},
 			},
-			forget: []insert{
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"c"}, Suffix: "b"},
-					},
+					tag:     "結束",
+					id:      uuid.UUID{2},
+					prefix:  "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
+					suffix:  "",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{2},
+					prefix:  "虹夏\x00リョウ\x00ぼっち\x00",
+					suffix:  "喜多",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{2},
+					prefix:  "リョウ\x00ぼっち\x00",
+					suffix:  "虹夏",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{2},
+					prefix:  "ぼっち\x00",
+					suffix:  "リョウ",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "ぼっち",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
 				},
 			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
+			msgs: initMsgs,
 		},
 		{
-			name:  "single-1",
-			order: 1,
-			insert: []insert{
+			name: "once",
+			forget: []forget{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"a"}, Suffix: "b"},
+					tag: "結束",
+					tups: []brain.Tuple{
+						{Prefix: nil, Suffix: "bocchi"},
 					},
 				},
 			},
-			forget: []insert{
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "喜多",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "リョウ\x00ぼっち\x00",
+					suffix: "虹夏",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "ぼっち\x00",
+					suffix: "リョウ",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "ぼっち",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{5},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
 				},
 			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
+			msgs: initMsgs,
 		},
 		{
-			name:  "idempotent-1",
-			order: 1,
-			insert: []insert{
+			name: "multi",
+			forget: []forget{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"a"}, Suffix: "c"},
+					tag: "結束",
+					tups: []brain.Tuple{
+						{Prefix: nil, Suffix: "bocchi"},
+					},
+				},
+				{
+					tag: "結束",
+					tups: []brain.Tuple{
+						{Prefix: nil, Suffix: "bocchi"},
 					},
 				},
 			},
-			forget: []insert{
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "喜多",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "リョウ\x00ぼっち\x00",
+					suffix: "虹夏",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "ぼっち\x00",
+					suffix: "リョウ",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "ぼっち",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{5},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:     "結束",
+					id:      uuid.UUID{8},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
 				},
 			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "c"},
-					},
-				},
-			},
+			msgs: initMsgs,
 		},
 		{
-			name:  "repeat-1",
-			order: 1,
-			insert: []insert{
+			name: "tag",
+			forget: []forget{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"a"}, Suffix: "b"},
+					tag: "sickhack",
+					tups: []brain.Tuple{
+						{Prefix: nil, Suffix: "bocchi"},
 					},
 				},
 			},
-			forget: []insert{
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "喜多",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "リョウ\x00ぼっち\x00",
+					suffix: "虹夏",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "ぼっち\x00",
+					suffix: "リョウ",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "ぼっち",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{8},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:     "sickhack",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("FORGET"),
 				},
 			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-		},
-		{
-			name:  "tagged-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "homura",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-		},
-		{
-			name:   "empty-2",
-			order:  2,
-			insert: nil,
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: nil,
-		},
-		{
-			name:  "success-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: nil,
-		},
-		{
-			name:  "prefix-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "d"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "d"},
-					},
-				},
-			},
-		},
-		{
-			name:  "suffix-first-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"d", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-		},
-		{
-			name:  "suffix-second-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "d"}, Suffix: "c"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-		},
-		{
-			name:  "single-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-		},
-		{
-			name:  "idempotent-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"a", "b"}, Suffix: "d"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "d"},
-					},
-				},
-			},
-		},
-		{
-			name:  "repeat-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-		},
-		{
-			name:  "tagged-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			forget: []insert{
-				{
-					tag: "homura",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			left: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
+			msgs: initMsgs,
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			db := testDB(c.order)
+			db := testDB(ctx)
 			br, err := sqlbrain.Open(ctx, db)
 			if err != nil {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
-			for _, v := range c.insert {
-				err := addTuples(ctx, db, tagged(v.tag), v.tuples)
+			for _, m := range learn {
+				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
 				if err != nil {
-					t.Fatal(err)
-				}
-				// Double-check that the tuples are in.
-				// This is largely testing that tuples() works as advertised.
-				tups, err := tuples(ctx, db, v.tag, c.order)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if diff := cmp.Diff(v.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
+					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}
 			}
-			for i, v := range c.forget {
-				err := br.Forget(ctx, v.tag, v.tuples)
-				if err != nil {
-					t.Errorf("couldn't forget %q (group %d): %v", v, i, err)
-				}
-			}
-			var wantTags []string
-			for _, left := range c.left {
-				wantTags = append(wantTags, left.tag)
-				tups, err := tuples(ctx, db, left.tag, c.order)
-				if err != nil {
-					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
-					continue
-				}
-				if diff := cmp.Diff(left.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Errorf("wrong tuples left with tag %s (+got/-want):\n%s", left.tag, diff)
-				}
-			}
-			sort.Strings(wantTags)
-			gotTags, err := tags(ctx, t, db)
+			conn, err := db.Take(ctx)
+			defer db.Put(conn)
 			if err != nil {
-				t.Errorf("couldn't get tags list: %v", err)
+				t.Fatalf("couldn't get conn to check db state: %v", err)
 			}
-			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
-				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
-			}
+			contents(t, conn, initKnow, initMsgs)
 			if t.Failed() {
-				dumpdb(ctx, t, db)
+				t.Fatal("setup failed")
 			}
+			for _, v := range c.forget {
+				err := br.Forget(ctx, v.tag, v.tups)
+				if err != nil {
+					t.Errorf("couldn't forget %q in %v: %v", v.tups, v.tag, err)
+				}
+			}
+			contents(t, conn, c.know, c.msgs)
 		})
 	}
 }
 
 func TestForgetMessage(t *testing.T) {
-	type insert struct {
-		id     uuid.UUID
-		tag    string
-		tuples []brain.Tuple
+	learn := []learn{
+		{
+			tag:  "kessoku",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
+				{Prefix: strings.Fields("nijika ryo bocchi"), Suffix: "kita"},
+				{Prefix: strings.Fields("ryo bocchi"), Suffix: "nijika"},
+				{Prefix: strings.Fields("bocchi"), Suffix: "ryo"},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "kessoku",
+			user: userhash.Hash{4},
+			id:   uuid.UUID{5},
+			t:    6,
+			tups: []brain.Tuple{
+				{Prefix: []string{"bocchi"}, Suffix: ""},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "sickhack",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: []string{"kikuri"}, Suffix: ""},
+				{Prefix: nil, Suffix: "kikuri"},
+			},
+		},
 	}
-	type forget struct {
-		id  uuid.UUID
-		tag string
+	initKnow := []know{
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "nijika\x00ryo\x00bocchi\x00",
+			suffix: "kita",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "ryo\x00bocchi\x00",
+			suffix: "nijika",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "bocchi\x00",
+			suffix: "ryo",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{5},
+			prefix: "bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{5},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "kikuri\x00",
+			suffix: "",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "kikuri",
+		},
 	}
-	type remain struct {
-		tag    string
-		tuples []brain.Tuple
-	}
-	uuids := []uuid.UUID{
-		uuid.New(),
-		uuid.New(),
+	initMsgs := []msg{
+		{
+			tag:  "kessoku",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{1},
+		},
+		{
+			tag:  "kessoku",
+			id:   uuid.UUID{5},
+			time: 6,
+			user: userhash.Hash{4},
+		},
+		{
+			tag:  "sickhack",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{1},
+		},
 	}
 	cases := []struct {
-		name   string
-		order  int
-		insert []insert
-		forget []forget
-		left   []remain
-		errs   bool
+		name string
+		tag  string
+		id   uuid.UUID
+		know []know
+		msgs []msg
 	}{
 		{
-			name:  "single-1",
-			order: 1,
-			insert: []insert{
-				{
-					id:  uuids[0],
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			forget: []forget{
-				{id: uuids[0], tag: "madoka"},
-			},
-			left: nil,
+			name: "none",
+			tag:  "kessoku",
+			id:   uuid.UUID{},
+			know: initKnow,
+			msgs: initMsgs,
 		},
 		{
-			name:  "multi-1",
-			order: 1,
-			insert: []insert{
+			name: "first",
+			tag:  "kessoku",
+			id:   uuid.UUID{2},
+			know: []know{
 				{
-					id:  uuids[0],
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"b"}, Suffix: "c"},
-						{Prefix: []string{"c"}, Suffix: "d"},
-					},
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix:  "",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "nijika\x00ryo\x00bocchi\x00",
+					suffix:  "kita",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "ryo\x00bocchi\x00",
+					suffix:  "nijika",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "bocchi\x00",
+					suffix:  "ryo",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "kikuri\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "kikuri",
 				},
 			},
-			forget: []forget{
-				{id: uuids[0], tag: "madoka"},
+			msgs: []msg{
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					time:    3,
+					user:    userhash.Hash{1},
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{5},
+					time: 6,
+					user: userhash.Hash{4},
+				},
+				{
+					tag:  "sickhack",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
 			},
-			left: nil,
 		},
 		{
-			name:  "unmatched-1",
-			order: 1,
-			insert: []insert{
+			name: "second",
+			tag:  "kessoku",
+			id:   uuid.UUID{5},
+			know: []know{
 				{
-					id:  uuids[0],
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "nijika\x00ryo\x00bocchi\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "ryo\x00bocchi\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "bocchi\x00",
+					suffix:  "",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "kikuri\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "kikuri",
 				},
 			},
-			forget: []forget{
-				{id: uuids[1], tag: "madoka"},
-			},
-			left: []remain{
+			msgs: []msg{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:  "kessoku",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					time:    6,
+					user:    userhash.Hash{4},
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:  "sickhack",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
 				},
 			},
-			errs: true,
 		},
 		{
-			name:  "single-2",
-			order: 2,
-			insert: []insert{
+			name: "tagged",
+			tag:  "sickhack",
+			id:   uuid.UUID{2},
+			know: []know{
 				{
-					id:  uuids[0],
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "nijika\x00ryo\x00bocchi\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "ryo\x00bocchi\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:     "sickhack",
+					id:      uuid.UUID{2},
+					prefix:  "kikuri\x00",
+					suffix:  "",
+					deleted: ref("CLEARMSG"),
+				},
+				{
+					tag:     "sickhack",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "kikuri",
+					deleted: ref("CLEARMSG"),
 				},
 			},
-			forget: []forget{
-				{id: uuids[0], tag: "madoka"},
-			},
-			left: nil,
-		},
-		{
-			name:  "multi-2",
-			order: 2,
-			insert: []insert{
+			msgs: []msg{
 				{
-					id:  uuids[0],
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"b", "c"}, Suffix: "d"},
-						{Prefix: []string{"c", "d"}, Suffix: "e"},
-					},
+					tag:  "kessoku",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{5},
+					time: 6,
+					user: userhash.Hash{4},
+				},
+				{
+					tag:     "sickhack",
+					id:      uuid.UUID{2},
+					time:    3,
+					user:    userhash.Hash{1},
+					deleted: ref("CLEARMSG"),
 				},
 			},
-			forget: []forget{
-				{id: uuids[0], tag: "madoka"},
-			},
-			left: nil,
-		},
-		{
-			name:  "unmatched-2",
-			order: 2,
-			insert: []insert{
-				{
-					id:  uuids[0],
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			forget: []forget{
-				{id: uuids[1], tag: "madoka"},
-			},
-			left: []remain{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			errs: true,
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			db := testDB(c.order)
+			db := testDB(ctx)
 			br, err := sqlbrain.Open(ctx, db)
 			if err != nil {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
-			for _, v := range c.insert {
-				md := brain.MessageMeta{
-					ID:  v.id,
-					Tag: v.tag,
-				}
-				err := addTuples(ctx, db, md, v.tuples)
+			for _, m := range learn {
+				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
 				if err != nil {
-					t.Fatal(err)
-				}
-				// Double-check that the tuples are in.
-				tups, err := tuples(ctx, db, v.tag, c.order)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if diff := cmp.Diff(v.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
+					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}
 			}
-			for _, f := range c.forget {
-				err := br.ForgetMessage(ctx, f.tag, f.id)
-				if err != nil && !c.errs {
-					t.Errorf("couldn't forget message %v: %v", f.id, err)
-				} else if err == nil && c.errs {
-					t.Error("expected forget to fail")
-				}
-			}
-			var wantTags []string
-			for _, left := range c.left {
-				wantTags = append(wantTags, left.tag)
-				tups, err := tuples(ctx, db, left.tag, c.order)
-				if err != nil {
-					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
-					continue
-				}
-				if diff := cmp.Diff(left.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Errorf("wrong tuples left with tag %s (+got/-want):\n%s", left.tag, diff)
-				}
-			}
-			sort.Strings(wantTags)
-			gotTags, err := tags(ctx, t, db)
+			conn, err := db.Take(ctx)
+			defer db.Put(conn)
 			if err != nil {
-				t.Errorf("couldn't get tags list: %v", err)
+				t.Fatalf("couldn't get conn to check db state: %v", err)
 			}
-			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
-				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
-			}
+			contents(t, conn, initKnow, initMsgs)
 			if t.Failed() {
-				dumpdb(ctx, t, db)
+				t.Fatal("setup failed")
 			}
+			if err := br.ForgetMessage(ctx, c.tag, c.id); err != nil {
+				t.Errorf("failed to delete %v/%v: %v", c.tag, c.id, err)
+			}
+			contents(t, conn, c.know, c.msgs)
 		})
 	}
 }
 
 func TestForgetDuring(t *testing.T) {
-	type insert struct {
-		tag    string
-		time   int64
-		tuples []brain.Tuple
+	learn := []learn{
+		{
+			tag:  "kessoku",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
+				{Prefix: strings.Fields("nijika ryo bocchi"), Suffix: "kita"},
+				{Prefix: strings.Fields("ryo bocchi"), Suffix: "nijika"},
+				{Prefix: strings.Fields("bocchi"), Suffix: "ryo"},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "kessoku",
+			user: userhash.Hash{4},
+			id:   uuid.UUID{5},
+			t:    6,
+			tups: []brain.Tuple{
+				{Prefix: []string{"bocchi"}, Suffix: ""},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "sickhack",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: []string{"kikuri"}, Suffix: ""},
+				{Prefix: nil, Suffix: "kikuri"},
+			},
+		},
 	}
-	type remain struct {
-		tag    string
-		tuples []brain.Tuple
+	initKnow := []know{
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "nijika\x00ryo\x00bocchi\x00",
+			suffix: "kita",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "ryo\x00bocchi\x00",
+			suffix: "nijika",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "bocchi\x00",
+			suffix: "ryo",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{5},
+			prefix: "bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{5},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "kikuri\x00",
+			suffix: "",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "kikuri",
+		},
+	}
+	initMsgs := []msg{
+		{
+			tag:  "kessoku",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{1},
+		},
+		{
+			tag:  "kessoku",
+			id:   uuid.UUID{5},
+			time: 6,
+			user: userhash.Hash{4},
+		},
+		{
+			tag:  "sickhack",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{1},
+		},
 	}
 	cases := []struct {
 		name   string
-		order  int
-		insert []insert
 		tag    string
-		forget [2]int64
-		left   []remain
+		since  int64
+		before int64
+		know   []know
+		msgs   []msg
 	}{
 		{
-			name:  "single-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			tag:    "madoka",
-			forget: [2]int64{1, 3},
-			left:   nil,
+			name:   "none",
+			tag:    "kessoku",
+			since:  100,
+			before: 200,
+			know:   initKnow,
+			msgs:   initMsgs,
 		},
 		{
-			name:  "multiple-1",
-			order: 1,
-			insert: []insert{
+			name:   "early",
+			tag:    "kessoku",
+			since:  1,
+			before: 4,
+			know: []know{
 				{
-					tag:  "madoka",
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"b"}, Suffix: "c"},
-					},
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix:  "",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "nijika\x00ryo\x00bocchi\x00",
+					suffix:  "kita",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "ryo\x00bocchi\x00",
+					suffix:  "nijika",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "bocchi\x00",
+					suffix:  "ryo",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "kikuri\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "kikuri",
 				},
 			},
-			tag:    "madoka",
-			forget: [2]int64{1, 3},
-			left:   nil,
-		},
-		{
-			name:  "outside-1",
-			order: 1,
-			insert: []insert{
+			msgs: []msg{
 				{
-					tag:  "madoka",
-					time: 4,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					time:    3,
+					user:    userhash.Hash{1},
+					deleted: ref("TIME"),
 				},
-			},
-			tag:    "madoka",
-			forget: [2]int64{1, 3},
-			left: []remain{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:  "kessoku",
+					id:   uuid.UUID{5},
+					time: 6,
+					user: userhash.Hash{4},
 				},
-			},
-		},
-		{
-			name:  "tagged-1",
-			order: 1,
-			insert: []insert{
 				{
-					tag:  "madoka",
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			tag:    "homura",
-			forget: [2]int64{1, 3},
-			left: []remain{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-		},
-		{
-			name:  "single-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			tag:    "madoka",
-			forget: [2]int64{1, 3},
-			left:   nil,
-		},
-		{
-			name:  "multiple-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"b", "c"}, Suffix: "d"},
-					},
-				},
-			},
-			tag:    "madoka",
-			forget: [2]int64{1, 3},
-			left:   nil,
-		},
-		{
-			name:  "outside-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					time: 4,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			tag:    "madoka",
-			forget: [2]int64{1, 3},
-			left: []remain{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
+					tag:  "sickhack",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
 				},
 			},
 		},
 		{
-			name:  "tagged-2",
-			order: 2,
-			insert: []insert{
+			name:   "late",
+			tag:    "kessoku",
+			since:  5,
+			before: 8,
+			know: []know{
 				{
-					tag:  "madoka",
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "nijika\x00ryo\x00bocchi\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "ryo\x00bocchi\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "bocchi\x00",
+					suffix:  "",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "kikuri\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "kikuri",
 				},
 			},
-			tag:    "homura",
-			forget: [2]int64{1, 3},
-			left: []remain{
+			msgs: []msg{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
+					tag:  "kessoku",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					time:    6,
+					user:    userhash.Hash{4},
+					deleted: ref("TIME"),
+				},
+				{
+					tag:  "sickhack",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+			},
+		},
+		{
+			name:   "all",
+			tag:    "kessoku",
+			since:  1,
+			before: 8,
+			know: []know{
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix:  "",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "nijika\x00ryo\x00bocchi\x00",
+					suffix:  "kita",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "ryo\x00bocchi\x00",
+					suffix:  "nijika",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "bocchi\x00",
+					suffix:  "ryo",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "bocchi\x00",
+					suffix:  "",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "kikuri\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "kikuri",
+				},
+			},
+			msgs: []msg{
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					time:    3,
+					user:    userhash.Hash{1},
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					time:    6,
+					user:    userhash.Hash{4},
+					deleted: ref("TIME"),
+				},
+				{
+					tag:  "sickhack",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+			},
+		},
+		{
+			name:   "tagged",
+			tag:    "sickhack",
+			since:  1,
+			before: 7,
+			know: []know{
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "nijika\x00ryo\x00bocchi\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "ryo\x00bocchi\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:     "sickhack",
+					id:      uuid.UUID{2},
+					prefix:  "kikuri\x00",
+					suffix:  "",
+					deleted: ref("TIME"),
+				},
+				{
+					tag:     "sickhack",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "kikuri",
+					deleted: ref("TIME"),
+				},
+			},
+			msgs: []msg{
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{5},
+					time: 6,
+					user: userhash.Hash{4},
+				},
+				{
+					tag:     "sickhack",
+					id:      uuid.UUID{2},
+					time:    3,
+					user:    userhash.Hash{1},
+					deleted: ref("TIME"),
 				},
 			},
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			db := testDB(c.order)
+			db := testDB(ctx)
 			br, err := sqlbrain.Open(ctx, db)
 			if err != nil {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
-			for _, v := range c.insert {
-				md := brain.MessageMeta{
-					ID:   uuid.New(),
-					Time: time.UnixMilli(v.time),
-					Tag:  v.tag,
-				}
-				err := addTuples(ctx, db, md, v.tuples)
+			for _, m := range learn {
+				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
 				if err != nil {
-					t.Fatal(err)
-				}
-				// Double-check that the tuples are in.
-				tups, err := tuples(ctx, db, v.tag, c.order)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if diff := cmp.Diff(v.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
+					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}
 			}
-			a, b := time.UnixMilli(c.forget[0]), time.UnixMilli(c.forget[1])
-			if err := br.ForgetDuring(ctx, c.tag, a, b); err != nil {
-				t.Errorf("could't forget: %v", err)
-			}
-			var wantTags []string
-			for _, left := range c.left {
-				wantTags = append(wantTags, left.tag)
-				tups, err := tuples(ctx, db, left.tag, c.order)
-				if err != nil {
-					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
-					continue
-				}
-				if diff := cmp.Diff(left.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Errorf("wrong tuples left with tag %s (+got/-want):\n%s", left.tag, diff)
-				}
-			}
-			sort.Strings(wantTags)
-			gotTags, err := tags(ctx, t, db)
+			conn, err := db.Take(ctx)
+			defer db.Put(conn)
 			if err != nil {
-				t.Errorf("couldn't get tags list: %v", err)
+				t.Fatalf("couldn't get conn to check db state: %v", err)
 			}
-			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
-				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
-			}
+			contents(t, conn, initKnow, initMsgs)
 			if t.Failed() {
-				dumpdb(ctx, t, db)
+				t.Fatal("setup failed")
 			}
+			since, before := time.Unix(0, c.since), time.Unix(0, c.before)
+			if err := br.ForgetDuring(ctx, c.tag, since, before); err != nil {
+				t.Errorf("couldn't delete in %v between %d and %d: %v", c.tag, c.since, c.before, err)
+			}
+			contents(t, conn, c.know, c.msgs)
 		})
 	}
 }
 
-func TestForgetUserSince(t *testing.T) {
-	type insert struct {
-		tag    string
-		user   userhash.Hash
-		time   int64
-		tuples []brain.Tuple
+func TestForgetUser(t *testing.T) {
+	learn := []learn{
+		{
+			tag:  "kessoku",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
+				{Prefix: strings.Fields("nijika ryo bocchi"), Suffix: "kita"},
+				{Prefix: strings.Fields("ryo bocchi"), Suffix: "nijika"},
+				{Prefix: strings.Fields("bocchi"), Suffix: "ryo"},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "kessoku",
+			user: userhash.Hash{1},
+			id:   uuid.UUID{5},
+			t:    6,
+			tups: []brain.Tuple{
+				{Prefix: []string{"bocchi"}, Suffix: ""},
+				{Prefix: nil, Suffix: "bocchi"},
+			},
+		},
+		{
+			tag:  "sickhack",
+			user: userhash.Hash{4},
+			id:   uuid.UUID{2},
+			t:    3,
+			tups: []brain.Tuple{
+				{Prefix: []string{"kikuri"}, Suffix: ""},
+				{Prefix: nil, Suffix: "kikuri"},
+			},
+		},
 	}
-	type remain struct {
-		tag    string
-		tuples []brain.Tuple
+	initKnow := []know{
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "nijika\x00ryo\x00bocchi\x00",
+			suffix: "kita",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "ryo\x00bocchi\x00",
+			suffix: "nijika",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "bocchi\x00",
+			suffix: "ryo",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{5},
+			prefix: "bocchi\x00",
+			suffix: "",
+		},
+		{
+			tag:    "kessoku",
+			id:     uuid.UUID{5},
+			prefix: "",
+			suffix: "bocchi",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "kikuri\x00",
+			suffix: "",
+		},
+		{
+			tag:    "sickhack",
+			id:     uuid.UUID{2},
+			prefix: "",
+			suffix: "kikuri",
+		},
+	}
+	initMsgs := []msg{
+		{
+			tag:  "kessoku",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{1},
+		},
+		{
+			tag:  "kessoku",
+			id:   uuid.UUID{5},
+			time: 6,
+			user: userhash.Hash{1},
+		},
+		{
+			tag:  "sickhack",
+			id:   uuid.UUID{2},
+			time: 3,
+			user: userhash.Hash{4},
+		},
 	}
 	cases := []struct {
-		name   string
-		order  int
-		insert []insert
-		user   userhash.Hash
-		left   []remain
+		name string
+		user userhash.Hash
+		know []know
+		msgs []msg
 	}{
 		{
-			name:  "single-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
-				},
-			},
-			user: userhash.Hash{0: 1},
-			left: nil,
+			name: "none",
+			user: userhash.Hash{100},
+			know: initKnow,
+			msgs: initMsgs,
 		},
 		{
-			name:  "multiple-1",
-			order: 1,
-			insert: []insert{
+			name: "all",
+			user: userhash.Hash{1},
+			know: []know{
 				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"b"}, Suffix: "c"},
-					},
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix:  "",
+					deleted: ref("CLEARCHAT"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "nijika\x00ryo\x00bocchi\x00",
+					suffix:  "kita",
+					deleted: ref("CLEARCHAT"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "ryo\x00bocchi\x00",
+					suffix:  "nijika",
+					deleted: ref("CLEARCHAT"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "bocchi\x00",
+					suffix:  "ryo",
+					deleted: ref("CLEARCHAT"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("CLEARCHAT"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "bocchi\x00",
+					suffix:  "",
+					deleted: ref("CLEARCHAT"),
+				},
+				{
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					prefix:  "",
+					suffix:  "bocchi",
+					deleted: ref("CLEARCHAT"),
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "kikuri\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "kikuri",
 				},
 			},
-			user: userhash.Hash{0: 1},
-			left: nil,
-		},
-		{
-			name:  "user-1",
-			order: 1,
-			insert: []insert{
+			msgs: []msg{
 				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:     "kessoku",
+					id:      uuid.UUID{2},
+					time:    3,
+					user:    userhash.Hash{1},
+					deleted: ref("CLEARCHAT"),
 				},
-			},
-			user: userhash.Hash{0: 2},
-			left: []remain{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a"}, Suffix: "b"},
-					},
+					tag:     "kessoku",
+					id:      uuid.UUID{5},
+					time:    6,
+					user:    userhash.Hash{1},
+					deleted: ref("CLEARCHAT"),
 				},
-			},
-		},
-		{
-			name:  "single-2",
-			order: 2,
-			insert: []insert{
 				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			user: userhash.Hash{0: 1},
-			left: nil,
-		},
-		{
-			name:  "multiple-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-						{Prefix: []string{"b", "c"}, Suffix: "d"},
-					},
-				},
-			},
-			user: userhash.Hash{0: 1},
-			left: nil,
-		},
-		{
-			name:  "user-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag:  "madoka",
-					user: userhash.Hash{0: 1},
-					time: 2,
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			user: userhash.Hash{0: 2},
-			left: []remain{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"a", "b"}, Suffix: "c"},
-					},
+					tag:  "sickhack",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{4},
 				},
 			},
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			db := testDB(c.order)
+			db := testDB(ctx)
 			br, err := sqlbrain.Open(ctx, db)
 			if err != nil {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
-			for _, v := range c.insert {
-				md := brain.MessageMeta{
-					ID:   uuid.New(),
-					User: v.user,
-					Tag:  v.tag,
-					Time: time.UnixMilli(v.time),
-				}
-				err := addTuples(ctx, db, md, v.tuples)
+			for _, m := range learn {
+				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
 				if err != nil {
-					t.Fatal(err)
+					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}
-				// Double-check that the tuples are in.
-				tups, err := tuples(ctx, db, v.tag, c.order)
-				if err != nil {
-					t.Fatal(err)
-				}
-				if diff := cmp.Diff(v.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Fatalf("wrong tuples added before test (+got/-want):\n%s", diff)
-				}
+			}
+			conn, err := db.Take(ctx)
+			defer db.Put(conn)
+			if err != nil {
+				t.Fatalf("couldn't get conn to check db state: %v", err)
+			}
+			contents(t, conn, initKnow, initMsgs)
+			if t.Failed() {
+				t.Fatal("setup failed")
 			}
 			if err := br.ForgetUser(ctx, &c.user); err != nil {
-				t.Errorf("couldn't forget: %v", err)
+				t.Errorf("couldn't delete from %x: %v", c.user, err)
 			}
-			var wantTags []string
-			for _, left := range c.left {
-				wantTags = append(wantTags, left.tag)
-				tups, err := tuples(ctx, db, left.tag, c.order)
-				if err != nil {
-					t.Errorf("couldn't get remaining tuples for tag %s: %v", left.tag, err)
-					continue
-				}
-				if diff := cmp.Diff(left.tuples, tups, cmpopts.EquateEmpty()); diff != "" {
-					t.Errorf("wrong tuples left with tag %s (+got/-want):\n%s", left.tag, diff)
-				}
-			}
-			sort.Strings(wantTags)
-			gotTags, err := tags(ctx, t, db)
-			if err != nil {
-				t.Errorf("couldn't get tags list: %v", err)
-			}
-			if diff := cmp.Diff(wantTags, gotTags); diff != "" {
-				t.Errorf("wrong tags have tuples (+got/-want):\n%s", diff)
-			}
-			if t.Failed() {
-				dumpdb(ctx, t, db)
-			}
+			contents(t, conn, c.know, c.msgs)
 		})
 	}
-}
-
-// tuples gets all tuples in db with the given tag. The returned tuples are in
-// lexicographically ascending order.
-func tuples(ctx context.Context, db sqlbrain.DB, tag string, order int) ([]brain.Tuple, error) {
-	rows, err := db.Query(ctx, "SELECT Tuple.* FROM Tuple JOIN Message AS m ON m.id = Tuple.msg WHERE m.tag = ? AND m.deleted IS NULL", tag)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-	var all []brain.Tuple
-	r := make([]any, order+2)
-	for i := range r {
-		r[i] = &sq.NullString{}
-	}
-	for rows.Next() {
-		if err := rows.Scan(r...); err != nil {
-			panic(err)
-		}
-		t := brain.Tuple{Prefix: make([]string, order)}
-		for i := range t.Prefix {
-			s := r[i+1].(*sq.NullString)
-			if s.Valid {
-				t.Prefix[i] = s.String
-			}
-		}
-		s := r[order+1].(*sq.NullString)
-		if s.Valid {
-			t.Suffix = s.String
-		}
-		all = append(all, t)
-	}
-	sort.Slice(all, func(i, j int) bool {
-		switch d := slices.Compare(all[i].Prefix, all[j].Prefix); d {
-		case -1:
-			return true
-		case 1:
-			return false
-		default:
-			return all[i].Suffix < all[j].Suffix
-		}
-	})
-	return all, rows.Err()
-}
-
-// tags gets all tags with any associated tuples in db in ascending order.
-func tags(ctx context.Context, t *testing.T, db sqlbrain.DB) ([]string, error) {
-	t.Helper()
-	rows, err := db.Query(ctx, `SELECT DISTINCT m.tag FROM Message AS m INNER JOIN Tuple ON m.id = Tuple.msg WHERE m.deleted IS NULL ORDER BY tag`)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-	var tags []string
-	for rows.Next() {
-		var s string
-		if err := rows.Scan(&s); err != nil {
-			panic(err)
-		}
-		tags = append(tags, s)
-	}
-	return tags, rows.Err()
 }

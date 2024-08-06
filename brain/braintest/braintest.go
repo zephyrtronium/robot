@@ -4,6 +4,7 @@ package braintest
 import (
 	"context"
 	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -31,97 +32,88 @@ func Test(ctx context.Context, t *testing.T, new func(context.Context) Interface
 	t.Run("combinatoric", testCombinatoric(ctx, new(ctx)))
 }
 
+func these(s ...string) func() []string {
+	return func() []string {
+		return slices.Clone(s)
+	}
+}
+
 var messages = [...]struct {
-	brain.MessageMeta
-	Tokens []string
+	ID     uuid.UUID
+	User   userhash.Hash
+	Tag    string
+	Time   time.Time
+	Tokens func() []string
 }{
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{1},
-			User: userhash.Hash{2},
-			Tag:  "kessoku",
-			Time: time.Unix(0, 0),
-		},
-		Tokens: []string{"member", "bocchi"},
+		ID:     uuid.UUID{1},
+		User:   userhash.Hash{2},
+		Tag:    "kessoku",
+		Time:   time.Unix(0, 0),
+		Tokens: these("member", "bocchi"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{2},
-			User: userhash.Hash{2},
-			Tag:  "kessoku",
-			Time: time.Unix(1, 0),
-		},
-		Tokens: []string{"member", "ryou"},
+		ID:     uuid.UUID{2},
+		User:   userhash.Hash{2},
+		Tag:    "kessoku",
+		Time:   time.Unix(1, 0),
+		Tokens: these("member", "ryou"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{3},
-			User: userhash.Hash{3},
-			Tag:  "kessoku",
-			Time: time.Unix(2, 0),
-		},
-		Tokens: []string{"member", "nijika"},
+		ID:     uuid.UUID{3},
+		User:   userhash.Hash{3},
+		Tag:    "kessoku",
+		Time:   time.Unix(2, 0),
+		Tokens: these("member", "nijika"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{4},
-			User: userhash.Hash{3},
-			Tag:  "kessoku",
-			Time: time.Unix(3, 0),
-		},
-		Tokens: []string{"member", "kita"},
+		ID:     uuid.UUID{4},
+		User:   userhash.Hash{3},
+		Tag:    "kessoku",
+		Time:   time.Unix(3, 0),
+		Tokens: these("member", "kita"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{5},
-			User: userhash.Hash{2},
-			Tag:  "sickhack",
-			Time: time.Unix(0, 0),
-		},
-		Tokens: []string{"member", "bocchi"},
+		ID:     uuid.UUID{5},
+		User:   userhash.Hash{2},
+		Tag:    "sickhack",
+		Time:   time.Unix(0, 0),
+		Tokens: these("member", "bocchi"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{6},
-			User: userhash.Hash{2},
-			Tag:  "sickhack",
-			Time: time.Unix(1, 0),
-		},
-		Tokens: []string{"member", "ryou"},
+		ID:     uuid.UUID{6},
+		User:   userhash.Hash{2},
+		Tag:    "sickhack",
+		Time:   time.Unix(1, 0),
+		Tokens: these("member", "ryou"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{7},
-			User: userhash.Hash{3},
-			Tag:  "sickhack",
-			Time: time.Unix(2, 0),
-		},
-		Tokens: []string{"member", "nijika"},
+		ID:     uuid.UUID{7},
+		User:   userhash.Hash{3},
+		Tag:    "sickhack",
+		Time:   time.Unix(2, 0),
+		Tokens: these("member", "nijika"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{8},
-			User: userhash.Hash{3},
-			Tag:  "sickhack",
-			Time: time.Unix(3, 0),
-		},
-		Tokens: []string{"member", "kita"},
+		ID:     uuid.UUID{8},
+		User:   userhash.Hash{3},
+		Tag:    "sickhack",
+		Time:   time.Unix(3, 0),
+		Tokens: these("member", "kita"),
 	},
 	{
-		MessageMeta: brain.MessageMeta{
-			ID:   uuid.UUID{9},
-			User: userhash.Hash{4},
-			Tag:  "sickhack",
-			Time: time.Unix(43, 0),
-		},
-		Tokens: []string{"manager", "seika"},
+		ID:     uuid.UUID{9},
+		User:   userhash.Hash{4},
+		Tag:    "sickhack",
+		Time:   time.Unix(43, 0),
+		Tokens: these("manager", "seika"),
 	},
 }
 
 func learn(ctx context.Context, t *testing.T, br brain.Learner) {
 	t.Helper()
 	for _, m := range messages {
-		if err := brain.Learn(ctx, br, &m.MessageMeta, m.Tokens); err != nil {
+		if err := brain.Learn(ctx, br, m.Tag, m.User, m.ID, m.Time, m.Tokens()); err != nil {
 			t.Fatalf("couldn't learn message %v: %v", m.ID, err)
 		}
 	}
@@ -179,7 +171,7 @@ func testSpeak(ctx context.Context, br Interface) func(t *testing.T) {
 func testForget(ctx context.Context, br Interface) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
-		if err := brain.Forget(ctx, br, "kessoku", messages[0].Tokens); err != nil {
+		if err := brain.Forget(ctx, br, "kessoku", messages[0].Tokens()); err != nil {
 			t.Errorf("couldn't forget: %v", err)
 		}
 		for range 100 {
@@ -191,16 +183,16 @@ func testForget(ctx context.Context, br Interface) func(t *testing.T) {
 				t.Errorf("remembered that which must be forgotten: %q", s)
 			}
 		}
-		for {
+		for range 10000 {
 			s, err := brain.Speak(ctx, br, "sickhack", "")
 			if err != nil {
 				t.Errorf("couldn't speak: %v", err)
 			}
 			if strings.Contains(s, "bocchi") {
-				break
+				return
 			}
-			// The failure condition is that this loop is infinite.
 		}
+		t.Error("didn't see bocchi in many attempts; deleted from wrong tag?")
 	}
 }
 
@@ -269,12 +261,7 @@ func testForgetDuring(ctx context.Context, br Interface) func(t *testing.T) {
 // overlap in learned material.
 func testCombinatoric(ctx context.Context, br Interface) func(t *testing.T) {
 	return func(t *testing.T) {
-		msg := brain.MessageMeta{
-			ID:   uuid.UUID{1},
-			User: userhash.Hash{2},
-			Tag:  "bocchi",
-			Time: time.Unix(0, 0),
-		}
+		u := userhash.Hash{2}
 		band := []string{"bocchi", "ryou", "nijika", "kita"}
 		toks := make([]string, 6)
 		for _, toks[0] = range band {
@@ -285,7 +272,8 @@ func testCombinatoric(ctx context.Context, br Interface) func(t *testing.T) {
 							for _, toks[5] = range band {
 								toks := toks
 								for len(toks) > 1 {
-									err := brain.Learn(ctx, br, &msg, toks)
+									id := uuid.New()
+									err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(0, 0), toks)
 									if err != nil {
 										t.Fatalf("couldn't learn init: %v", err)
 									}
@@ -297,7 +285,7 @@ func testCombinatoric(ctx context.Context, br Interface) func(t *testing.T) {
 				}
 			}
 		}
-		allocs := testing.AllocsPerRun(100, func() {
+		allocs := testing.AllocsPerRun(10, func() {
 			_, err := brain.Speak(ctx, br, "bocchi", "")
 			if err != nil {
 				t.Errorf("couldn't speak: %v", err)

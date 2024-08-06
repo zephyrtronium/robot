@@ -1,6 +1,7 @@
 package kvbrain
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"maps"
@@ -82,7 +83,7 @@ func TestSpeak(t *testing.T) {
 			},
 			prompt: []string{"bocchi"},
 			want: [][]string{
-				{"bocchi", "ryou", "nijika", "kita"},
+				{"ryou", "nijika", "kita"},
 			},
 		},
 		{
@@ -94,9 +95,9 @@ func TestSpeak(t *testing.T) {
 				{mkey("kessoku", "nijika\xffryou\xffbocchi\xff\xff", uu), "KITA"},
 				{mkey("kessoku", "kita\xffnijika\xffryou\xffbocchi\xff\xff", uu), ""},
 			},
-			prompt: []string{"BOCCHI"},
+			prompt: []string{"bocchi"},
 			want: [][]string{
-				{"BOCCHI", "RYOU", "NIJIKA", "KITA"},
+				{"RYOU", "NIJIKA", "KITA"},
 			},
 		},
 		{
@@ -138,15 +139,15 @@ func TestSpeak(t *testing.T) {
 			br := New(db)
 			want := make(map[string]bool, len(c.want))
 			for _, v := range c.want {
-				want[strings.Join(v, ":")] = true
+				want[strings.Join(v, " ")] = true
 			}
 			got := make(map[string]bool, len(c.want))
 			for range 256 {
-				m, err := br.Speak(ctx, "kessoku", slices.Clone(c.prompt))
+				m, err := br.Speak(ctx, "kessoku", slices.Clone(c.prompt), nil)
 				if err != nil {
 					t.Errorf("failed to speak: %v", err)
 				}
-				got[strings.Join(m, ":")] = true
+				got[string(bytes.TrimSpace(m))] = true
 			}
 			if !maps.Equal(want, got) {
 				t.Errorf("wrong results: want %v, got %v", want, got)

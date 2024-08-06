@@ -6,41 +6,31 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"zombiezen.com/go/sqlite"
+	"zombiezen.com/go/sqlite/sqlitex"
+
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
-	"gitlab.com/zephyrtronium/sq"
-
-	_ "github.com/mattn/go-sqlite3" // driver for tests
 )
 
-var testdbCounter atomic.Uint64
+var dbCount atomic.Int64
 
-func testDB(order int) sqlbrain.DB {
-	ctx := context.Background()
-	k := testdbCounter.Add(1)
-	db, err := sq.Open("sqlite3", fmt.Sprintf("file:%d.db?cache=shared&mode=memory", k))
+func testDB(ctx context.Context) *sqlitex.Pool {
+	k := dbCount.Add(1)
+	pool, err := sqlitex.NewPool(fmt.Sprintf("file:%d.db?mode=memory&cache=shared", k), sqlitex.PoolOptions{Flags: sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenMemory | sqlite.OpenSharedCache | sqlite.OpenURI})
 	if err != nil {
 		panic(err)
 	}
-	if err := db.Ping(ctx); err != nil {
-		panic(err)
-	}
-	if err := sqlbrain.Create(ctx, db, order); err != nil {
-		panic(err)
-	}
-	return db
-}
-
-func TestOpen(t *testing.T) {
-	ctx := context.Background()
-	br, err := sqlbrain.Open(ctx, testDB(2))
+	conn, err := pool.Take(ctx)
+	defer pool.Put(conn)
 	if err != nil {
-		t.Error(err)
+		panic(err)
 	}
-	if got := br.Order(); got != 2 {
-		t.Errorf("wrong order after opening brain: want 2, got %d", got)
+	if err := sqlbrain.Create(ctx, conn); err != nil {
+		panic(err)
 	}
+	return pool
 }
 
 var _ brain.Learner = (*sqlbrain.Brain)(nil)
@@ -50,10 +40,10 @@ func TestIntegrated(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	new := func(ctx context.Context) braintest.Interface {
-		db := testDB(2)
+		db := testDB(ctx)
 		br, err := sqlbrain.Open(ctx, db)
 		if err != nil {
-			t.Fatalf("couldn't open brain: %v", err)
+			panic(err)
 		}
 		return br
 	}

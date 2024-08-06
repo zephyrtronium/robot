@@ -55,21 +55,22 @@ func TestLearn(t *testing.T) {
 	h := userhash.Hash{2}
 	cases := []struct {
 		name string
-		msg  brain.MessageMeta
+		id   uuid.UUID
+		user userhash.Hash
+		tag  string
+		time time.Time
 		tups []brain.Tuple
 		want map[string]string
 	}{
 		{
 			name: "single",
-			msg: brain.MessageMeta{
-				ID:   uu,
-				User: h,
-				Tag:  "kessoku",
-				Time: time.Unix(0, 0),
-			},
+			id:   uu,
+			user: h,
+			tag:  "kessoku",
+			time: time.Unix(0, 0),
 			tups: []brain.Tuple{
 				{
-					Prefix: []string{""},
+					Prefix: nil,
 					Suffix: "bocchi",
 				},
 			},
@@ -79,45 +80,43 @@ func TestLearn(t *testing.T) {
 		},
 		{
 			name: "full",
-			msg: brain.MessageMeta{
-				ID:   uu,
-				User: h,
-				Tag:  "kessoku",
-				Time: time.Unix(0, 0),
-			},
+			id:   uu,
+			user: h,
+			tag:  "kessoku",
+			time: time.Unix(0, 0),
 			tups: []brain.Tuple{
 				{
-					Prefix: []string{"", "", "", ""},
-					Suffix: "bocchi",
+					Prefix: []string{"seika", "kita", "nijika", "ryou", "bocchi"},
+					Suffix: "",
 				},
 				{
-					Prefix: []string{"", "", "", "bocchi"},
-					Suffix: "ryou",
-				},
-				{
-					Prefix: []string{"", "", "bocchi", "ryou"},
-					Suffix: "nijika",
-				},
-				{
-					Prefix: []string{"", "bocchi", "ryou", "nijika"},
-					Suffix: "kita",
-				},
-				{
-					Prefix: []string{"bocchi", "ryou", "nijika", "kita"},
+					Prefix: []string{"kita", "nijika", "ryou", "bocchi"},
 					Suffix: "seika",
 				},
 				{
-					Prefix: []string{"ryou", "nijika", "kita", "seika"},
-					Suffix: "",
+					Prefix: []string{"nijika", "ryou", "bocchi"},
+					Suffix: "kita",
+				},
+				{
+					Prefix: []string{"ryou", "bocchi"},
+					Suffix: "nijika",
+				},
+				{
+					Prefix: []string{"bocchi"},
+					Suffix: "ryou",
+				},
+				{
+					Prefix: nil,
+					Suffix: "bocchi",
 				},
 			},
 			want: map[string]string{
-				mkey("kessoku", "\xff", uu):                                     "bocchi",
-				mkey("kessoku", "bocchi\xff\xff", uu):                           "ryou",
-				mkey("kessoku", "ryou\xffbocchi\xff\xff", uu):                   "nijika",
-				mkey("kessoku", "nijika\xffryou\xffbocchi\xff\xff", uu):         "kita",
-				mkey("kessoku", "kita\xffnijika\xffryou\xffbocchi\xff\xff", uu): "seika",
-				mkey("kessoku", "seika\xffkita\xffnijika\xffryou\xff\xff", uu):  "",
+				mkey("kessoku", "\xff", uu):                                              "bocchi",
+				mkey("kessoku", "bocchi\xff\xff", uu):                                    "ryou",
+				mkey("kessoku", "ryou\xffbocchi\xff\xff", uu):                            "nijika",
+				mkey("kessoku", "nijika\xffryou\xffbocchi\xff\xff", uu):                  "kita",
+				mkey("kessoku", "kita\xffnijika\xffryou\xffbocchi\xff\xff", uu):          "seika",
+				mkey("kessoku", "seika\xffkita\xffnijika\xffryou\xffbocchi\xff\xff", uu): "",
 			},
 		},
 	}
@@ -130,7 +129,7 @@ func TestLearn(t *testing.T) {
 				t.Fatal(err)
 			}
 			br := New(db)
-			if err := br.Learn(ctx, &c.msg, c.tups); err != nil {
+			if err := br.Learn(ctx, c.tag, c.user, c.id, c.time, c.tups); err != nil {
 				t.Errorf("failed to learn: %v", err)
 			}
 			dbcheck(t, db, c.want)

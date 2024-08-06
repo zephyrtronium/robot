@@ -2,91 +2,147 @@ package sqlbrain
 
 import (
 	"context"
-	"database/sql"
-	_ "embed"
 	"fmt"
 	"math/rand/v2"
-	"strconv"
 
-	"gitlab.com/zephyrtronium/sq"
+	"zombiezen.com/go/sqlite"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/prepend"
+	"github.com/zephyrtronium/robot/tpool"
 )
 
-func gumbelscan(rows *sq.Rows) (string, error) {
-	var s string
-	var m uint64
-	for rows.Next() {
-		u := rand.Uint64()
-		if m <= u {
-			err := rows.Scan(&s)
-			if err != nil {
-				return "", fmt.Errorf("couldn't scan string for sample: %w", err)
-			}
-			m = u
-		}
-	}
-	if rows.Err() != nil {
-		return "", fmt.Errorf("couldn't get sample: %w", rows.Err())
-	}
-	return s, nil
-}
+var prependerPool tpool.Pool[*prepend.List[string]]
 
-// New creates a new prompt.
-func (br *Brain) New(ctx context.Context, tag string) ([]string, error) {
-	rows, err := br.stmts.newTuple.Query(ctx, tag)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't run query for new chain: %w", err)
-	}
-	s, err := gumbelscan(rows)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get new chain: %w", err)
-	}
-	r := make([]string, br.order)
-	r[br.order-1] = s
-	return r, nil
-}
+// Speak generates a full message and appends it to w.
+// The prompt is in reverse order and has entropy reduction applied.
+func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w []byte) ([]byte, error) {
+	search := prependerPool.Get().Set(prompt...)
+	defer func() { prependerPool.Put(search) }()
 
-// Speak creates a message from a prompt.
-func (br *Brain) Speak(ctx context.Context, tag string, prompt []string) ([]string, error) {
-	names := make([]sq.NamedArg, 1+len(prompt))
-	names[0] = sql.Named("tag", tag)
-	terms := make([]string, len(prompt))
-	nn := 0
-	for i, w := range prompt {
-		nn += len(w) + 1
-		terms[i] = brain.ReduceEntropy(w)
-		names[i+1] = sql.Named("p"+strconv.Itoa(i), &terms[i])
+	conn, err := br.db.Take(ctx)
+	defer br.db.Put(conn)
+	if err != nil {
+		return w, fmt.Errorf("couldn't get connection to speak: %w", err)
 	}
-	p := make([]any, len(names))
-	for i := range names {
-		p[i] = names[i]
-	}
-	for nn < 500 {
-		rows, err := br.stmts.selectTuple.Query(ctx, p...)
+
+	b := make([]byte, 0, 128)
+	for range 1024 {
+		var err error
+		var l int
+		b, l, err = next(conn, tag, b, search.Slice())
 		if err != nil {
-			return nil, fmt.Errorf("couldn't run query to continue chain with terms %v: %w", terms, err)
+			return nil, err
 		}
-		w, err := gumbelscan(rows)
-		if err != nil {
-			return nil, fmt.Errorf("couldn't continue chain with terms %v: %w", terms, err)
-		}
-		if w == "" {
+		if len(b) == 0 {
 			break
 		}
-		nn += len(w) + 1
-		prompt = append(prompt, w)
-		// Note that each p[i] is a named arg, and each name for prefix
-		// elements aliases an element of terms. So, just updating terms is
-		// sufficient to update the query parameters.
-		copy(terms, terms[1:])
-		terms[len(terms)-1] = w
+		w = append(w, b...)
+		w = append(w, ' ')
+		search = search.Drop(search.Len() - l - 1).Prepend(brain.ReduceEntropy(string(b)))
 	}
-	return prompt, nil
+	return w, nil
 }
 
-//go:embed templates/tuple.new.sql
-var newTuple string
+func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, int, error) {
+	if len(prompt) == 0 {
+		var err error
+		b, err = first(conn, tag, b)
+		return b, 0, err
+	}
+	st, err := conn.Prepare(`SELECT suffix FROM knowledge WHERE tag = :tag AND prefix >= :lower AND prefix < :upper AND LIKELY(deleted IS NULL)`)
+	if err != nil {
+		return b[:0], len(prompt), fmt.Errorf("couldn't prepare term selection: %w", err)
+	}
+	st.SetText(":tag", tag)
+	w := make([]byte, 0, 32)
+	var d []byte
+	var m uint64
+	picked := 0
+	for {
+		b = prefix(b[:0], prompt)
+		b, d = searchbounds(b)
+		st.SetBytes(":lower", b)
+		st.SetBytes(":upper", d)
+		for {
+			ok, err := st.Step()
+			if err != nil {
+				return b[:0], len(prompt), fmt.Errorf("couldn't step term selection: %w", err)
+			}
+			if !ok {
+				break
+			}
+			// We generate a uniform variate per row, then choose the row that
+			// gets the maximum variate.
+			// TODO(zeph): gumbel distribution
+			u := rand.Uint64()
+			if m > u {
+				continue
+			}
+			picked++
+			m = u
+			n := st.ColumnLen(0)
+			if cap(w) < n {
+				w = make([]byte, n)
+			}
+			w = w[:st.ColumnBytes(0, w[:n])]
+		}
+		if picked < 3 && len(prompt) > 1 {
+			// We haven't seen enough options, and we have context we could
+			// lose. Do so and try again from the beginning.
+			prompt = prompt[:len(prompt)-1]
+			if err := st.Reset(); err != nil {
+				return b[:0], len(prompt), fmt.Errorf("couldn't reset term selection: %w", err)
+			}
+			continue
+		}
+		// Note that this also handles the case where there were no results.
+		b = append(b[:0], w...)
+		return b, len(prompt), nil
+	}
+}
 
-//go:embed templates/tuple.select.sql
-var selectTuple string
+// searchbounds produces the lower and upper bounds for a search by prefix.
+// The upper bound is always a slice of the lower bound's underlying array.
+func searchbounds(prefix []byte) (lower, upper []byte) {
+	lower = append(prefix, prefix...)
+	lower, upper = lower[:len(prefix)], lower[len(prefix):]
+	if len(upper) != 0 {
+		// The prefix is a list of terms each followed by a 0 byte.
+		// So, the supremum of all strings with that prefix is the same with
+		// the last byte replaced by 1.
+		upper[len(upper)-1] = 1
+	}
+	return lower, upper
+}
+
+func first(conn *sqlite.Conn, tag string, b []byte) ([]byte, error) {
+	b = b[:0] // in case we get no rows
+	s, err := conn.Prepare(`SELECT suffix FROM knowledge WHERE tag = :tag AND prefix = x'' AND LIKELY(deleted IS NULL)`)
+	if err != nil {
+		return b, fmt.Errorf("couldn't prepare first term selection: %w", err)
+	}
+	s.SetText(":tag", tag)
+	var m uint64
+	for {
+		ok, err := s.Step()
+		if err != nil {
+			return b[:0], fmt.Errorf("couldn't step first term selection: %w", err)
+		}
+		if !ok {
+			break
+		}
+		// TODO(zeph): gumbel distribution
+		u := rand.Uint64()
+		if m > u {
+			continue
+		}
+		m = u
+		n := s.ColumnLen(0)
+		if cap(b) < n {
+			b = make([]byte, n)
+		}
+		b = b[:s.ColumnBytes(0, b[:n])]
+	}
+	return b, nil
+}

@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
-	"text/template"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/uuid"
-	"gitlab.com/zephyrtronium/sq"
+	"zombiezen.com/go/sqlite"
+	"zombiezen.com/go/sqlite/sqlitex"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
@@ -20,210 +18,407 @@ import (
 	"github.com/zephyrtronium/robot/userhash"
 )
 
-func TestLearn(t *testing.T) {
-	type row struct {
-		ID   uuid.UUID
-		User userhash.Hash
-		Tag  string
-		Ts   int64
-		Pn   []string
-		Suf  string
+type learn struct {
+	tag  string
+	user userhash.Hash
+	id   uuid.UUID
+	t    int64
+	tups []brain.Tuple
+}
+
+type know struct {
+	tag     string
+	id      uuid.UUID
+	prefix  string
+	suffix  string
+	deleted *string
+}
+
+type msg struct {
+	tag     string
+	id      uuid.UUID
+	time    int64
+	user    userhash.Hash
+	deleted *string
+}
+
+func ref[T any](x T) *T { return &x }
+
+func contents(t *testing.T, conn *sqlite.Conn, know []know, msgs []msg) {
+	t.Helper()
+	for _, want := range know {
+		opts := sqlitex.ExecOptions{
+			Named: map[string]any{
+				":tag":    want.tag,
+				":id":     want.id[:],
+				":prefix": []byte(want.prefix),
+				":suffix": []byte(want.suffix),
+			},
+			ResultFunc: func(stmt *sqlite.Stmt) error {
+				n := stmt.ColumnInt64(0)
+				if n != 1 {
+					t.Errorf("wrong number of rows for tag=%q id=%v prefix=%q suffix=%q: want 1, got %d", want.tag, want.id, want.prefix, want.suffix, n)
+				}
+				return nil
+			},
+		}
+		if want.deleted == nil {
+			err := sqlitex.Execute(conn, `SELECT COUNT(*) FROM knowledge WHERE tag=:tag AND id=:id AND prefix=:prefix AND suffix=:suffix AND deleted IS NULL`, &opts)
+			if err != nil {
+				t.Errorf("couldn't check for tag=%q id=%v prefix=%q suffix=%q: %v", want.tag, want.id, want.prefix, want.suffix, err)
+			}
+		} else {
+			opts.Named[":deleted"] = *want.deleted
+			err := sqlitex.Execute(conn, `SELECT COUNT(*) FROM knowledge WHERE tag=:tag AND id=:id AND prefix=:prefix AND suffix=:suffix AND deleted=:deleted`, &opts)
+			if err != nil {
+				t.Errorf("couldn't check for tag=%q id=%v prefix=%q suffix=%q: %v", want.tag, want.id, want.prefix, want.suffix, err)
+			}
+		}
 	}
+	for _, want := range msgs {
+		opts := sqlitex.ExecOptions{
+			Named: map[string]any{
+				":tag":  want.tag,
+				":id":   want.id[:],
+				":time": want.time,
+				":user": want.user[:],
+			},
+			ResultFunc: func(stmt *sqlite.Stmt) error {
+				n := stmt.ColumnInt64(0)
+				if n != 1 {
+					t.Errorf("wrong number of rows for tag=%q id=%v time=%d user=%02x: want 1, got %d", want.tag, want.id, want.time, want.user, n)
+				}
+				return nil
+			},
+		}
+		if want.deleted == nil {
+			err := sqlitex.Execute(conn, `SELECT COUNT(*) FROM messages WHERE tag=:tag AND id=:id AND time=:time AND user=:user AND deleted IS NULL`, &opts)
+			if err != nil {
+				t.Errorf("couldn't check for tag=%q id=%v time=%d user=%02x deleted=null: %v", want.tag, want.id, want.time, want.user, err)
+			}
+		} else {
+			opts.Named[":deleted"] = *want.deleted
+			err := sqlitex.Execute(conn, `SELECT COUNT(*) FROM messages WHERE tag=:tag AND id=:id AND time=:time AND user=:user AND deleted=:deleted`, &opts)
+			if err != nil {
+				t.Errorf("couldn't check for tag=%q id=%v time=%d user=%02x deleted=%s: %v", want.tag, want.id, want.time, want.user, *want.deleted, err)
+			}
+		}
+	}
+}
+
+func TestLearn(t *testing.T) {
 	cases := []struct {
 		name  string
-		order int
-		msg   brain.MessageMeta
-		tups  []brain.Tuple
-		want  []row
+		learn []learn
+		know  []know
+		msgs  []msg
 	}{
 		{
-			name:  "2x1",
-			order: 2,
-			msg: brain.MessageMeta{
-				ID:   uuid.UUID([16]byte{0: 1}),
-				User: userhash.Hash{1: 2},
-				Tag:  "tag",
-				Time: time.UnixMilli(3),
-			},
-			tups: []brain.Tuple{
-				{Prefix: []string{"a", "b"}, Suffix: "c"},
-			},
-			want: []row{
+			name:  "empty",
+			learn: nil,
+			know:  nil,
+			msgs:  nil,
+		},
+		{
+			name: "terms",
+			learn: []learn{
 				{
-					ID:   uuid.UUID([16]byte{0: 1}),
-					User: userhash.Hash{1: 2},
-					Tag:  "tag",
-					Ts:   3,
-					Pn:   []string{"a", "b"},
-					Suf:  "c",
+					tag:  "kessoku",
+					user: userhash.Hash{1},
+					id:   uuid.UUID{2},
+					t:    3,
+					tups: []brain.Tuple{
+						{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
+						{Prefix: strings.Fields("nijika ryo bocchi"), Suffix: "kita"},
+						{Prefix: strings.Fields("ryo bocchi"), Suffix: "nijika"},
+						{Prefix: strings.Fields("bocchi"), Suffix: "ryo"},
+						{Prefix: nil, Suffix: "bocchi"},
+					},
+				},
+			},
+			know: []know{
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "nijika\x00ryo\x00bocchi\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "ryo\x00bocchi\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
+				},
+			},
+			msgs: []msg{
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
 				},
 			},
 		},
 		{
-			name:  "2x2",
-			order: 2,
-			msg: brain.MessageMeta{
-				ID:   uuid.UUID([16]byte{1: 1}),
-				User: userhash.Hash{2: 2},
-				Tag:  "tag",
-				Time: time.UnixMilli(4),
-			},
-			tups: []brain.Tuple{
-				{Prefix: []string{"u", "v"}, Suffix: "w"},
-				{Prefix: []string{"v", "w"}, Suffix: "x"},
-			},
-			want: []row{
+			name: "unicode",
+			learn: []learn{
 				{
-					ID:   uuid.UUID([16]byte{1: 1}),
-					User: userhash.Hash{2: 2},
-					Tag:  "tag",
-					Ts:   4,
-					Pn:   []string{"u", "v"},
-					Suf:  "w",
+					tag:  "結束",
+					user: userhash.Hash{1},
+					id:   uuid.UUID{2},
+					t:    3,
+					tups: []brain.Tuple{
+						{Prefix: strings.Fields("喜多 虹夏 リョウ ぼっち"), Suffix: ""},
+						{Prefix: strings.Fields("虹夏 リョウ ぼっち"), Suffix: "喜多"},
+						{Prefix: strings.Fields("リョウ ぼっち"), Suffix: "虹夏"},
+						{Prefix: strings.Fields("ぼっち"), Suffix: "リョウ"},
+						{Prefix: nil, Suffix: "ぼっち"},
+					},
+				},
+			},
+			know: []know{
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "",
 				},
 				{
-					ID:   uuid.UUID([16]byte{1: 1}),
-					User: userhash.Hash{2: 2},
-					Tag:  "tag",
-					Ts:   4,
-					Pn:   []string{"v", "w"},
-					Suf:  "x",
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
+					suffix: "喜多",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "リョウ\x00ぼっち\x00",
+					suffix: "虹夏",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "ぼっち\x00",
+					suffix: "リョウ",
+				},
+				{
+					tag:    "結束",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "ぼっち",
+				},
+			},
+			msgs: []msg{
+				{
+					tag:  "結束",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
 				},
 			},
 		},
 		{
-			name:  "4x1",
-			order: 4,
-			msg: brain.MessageMeta{
-				ID:   uuid.UUID([16]byte{2: 1}),
-				User: userhash.Hash{3: 2},
-				Tag:  "tag",
-				Time: time.UnixMilli(5),
-			},
-			tups: []brain.Tuple{
-				{Prefix: []string{"a", "b", "c", "d"}, Suffix: "e"},
-			},
-			want: []row{
+			name: "msgs",
+			learn: []learn{
 				{
-					ID:   uuid.UUID([16]byte{2: 1}),
-					User: userhash.Hash{3: 2},
-					Tag:  "tag",
-					Ts:   5,
-					Pn:   []string{"a", "b", "c", "d"},
-					Suf:  "e",
+					tag:  "kessoku",
+					user: userhash.Hash{1},
+					id:   uuid.UUID{2},
+					t:    3,
+					tups: []brain.Tuple{
+						{Prefix: []string{"bocchi"}, Suffix: ""},
+						{Prefix: nil, Suffix: "bocchi"},
+					},
+				},
+				{
+					tag:  "kessoku",
+					user: userhash.Hash{4},
+					id:   uuid.UUID{5},
+					t:    6,
+					tups: []brain.Tuple{
+						{Prefix: []string{"ryo"}, Suffix: ""},
+						{Prefix: nil, Suffix: "ryo"},
+					},
+				},
+			},
+			know: []know{
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "ryo\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{5},
+					prefix: "",
+					suffix: "ryo",
+				},
+			},
+			msgs: []msg{
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{5},
+					time: 6,
+					user: userhash.Hash{4},
 				},
 			},
 		},
 		{
-			name:  "4x2",
-			order: 4,
-			msg: brain.MessageMeta{
-				ID:   uuid.UUID([16]byte{3: 1}),
-				User: userhash.Hash{4: 2},
-				Tag:  "tag",
-				Time: time.UnixMilli(6),
-			},
-			tups: []brain.Tuple{
-				{Prefix: []string{"u", "v", "w", "x"}, Suffix: "y"},
-				{Prefix: []string{"v", "w", "x", "y"}, Suffix: "z"},
-			},
-			want: []row{
+			name: "tagged",
+			learn: []learn{
 				{
-					ID:   uuid.UUID([16]byte{3: 1}),
-					User: userhash.Hash{4: 2},
-					Tag:  "tag",
-					Ts:   6,
-					Pn:   []string{"u", "v", "w", "x"},
-					Suf:  "y",
+					tag:  "kessoku",
+					user: userhash.Hash{1},
+					id:   uuid.UUID{2},
+					t:    3,
+					tups: []brain.Tuple{
+						{Prefix: []string{"bocchi"}, Suffix: ""},
+						{Prefix: nil, Suffix: "bocchi"},
+					},
 				},
 				{
-					ID:   uuid.UUID([16]byte{3: 1}),
-					User: userhash.Hash{4: 2},
-					Tag:  "tag",
-					Ts:   6,
-					Pn:   []string{"v", "w", "x", "y"},
-					Suf:  "z",
+					tag:  "sickhack",
+					user: userhash.Hash{1},
+					id:   uuid.UUID{2},
+					t:    3,
+					tups: []brain.Tuple{
+						{Prefix: []string{"kikuri"}, Suffix: ""},
+						{Prefix: nil, Suffix: "kikuri"},
+					},
+				},
+			},
+			know: []know{
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "bocchi\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "kikuri\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					id:     uuid.UUID{2},
+					prefix: "",
+					suffix: "kikuri",
+				},
+			},
+			msgs: []msg{
+				{
+					tag:  "kessoku",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
+				},
+				{
+					tag:  "sickhack",
+					id:   uuid.UUID{2},
+					time: 3,
+					user: userhash.Hash{1},
 				},
 			},
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			db := testDB(c.order)
+			db := testDB(ctx)
 			br, err := sqlbrain.Open(ctx, db)
 			if err != nil {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
-			if err := br.Learn(ctx, &c.msg, c.tups); err != nil {
-				t.Errorf("couldn't learn: %v", err)
+			for _, m := range c.learn {
+				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
+				if err != nil {
+					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
+				}
 			}
-			q := `SELECT id, user, tag, time, {{range $i, $_ := $}}p{{$i}}, {{end}}suffix FROM Message, Tuple`
-			var b strings.Builder
-			template.Must(template.New("query").Parse(q)).Execute(&b, make([]struct{}, c.order))
-			rows, err := db.Query(ctx, b.String())
+			conn, err := db.Take(ctx)
+			defer db.Put(conn)
 			if err != nil {
-				t.Fatalf("couldn't select: %v", err)
+				t.Fatalf("couldn't get conn to check db state: %v", err)
 			}
-			for i := 0; rows.Next(); i++ {
-				got := row{Pn: make([]string, c.order)}
-				dst := []any{&got.ID, &got.User, &got.Tag, &got.Ts}
-				for i := range got.Pn {
-					dst = append(dst, &got.Pn[i])
-				}
-				dst = append(dst, &got.Suf)
-				if err := rows.Scan(dst...); err != nil {
-					t.Errorf("couldn't scan: %v", err)
-				}
-				if i >= len(c.want) {
-					t.Errorf("too many rows: got %+v", got)
-					continue
-				}
-				if diff := cmp.Diff(c.want[i], got); diff != "" {
-					t.Errorf("got wrong row #%d: %s", i, diff)
-				}
-			}
+			contents(t, conn, c.know, c.msgs)
 		})
 	}
 }
 
 func BenchmarkLearn(b *testing.B) {
 	dir := filepath.ToSlash(b.TempDir())
-	for _, order := range []int{2, 4, 6, 16} {
-		b.Run(strconv.Itoa(order), func(b *testing.B) {
-			new := func(ctx context.Context, b *testing.B) brain.Learner {
-				dsn := fmt.Sprintf("file:%s/benchmark_learn_%d.db?_journal=WAL&_mutex=full", dir, order)
-				db, err := sq.Open("sqlite3", dsn)
-				if err != nil {
-					b.Fatal(err)
-				}
-				// The benchmark function will run this multiple times to
-				// estimate iteration count, so we need to drop tables and
-				// views if they exist.
-				stmts := []string{
-					`DROP VIEW IF EXISTS MessageTuple`,
-					`DROP TABLE IF EXISTS Tuple`,
-					`DROP TABLE IF EXISTS Message`,
-					`DROP TABLE IF EXISTS Config`,
-				}
-				for _, s := range stmts {
-					_, err := db.Exec(context.Background(), s)
-					if err != nil {
-						b.Fatal(err)
-					}
-				}
-				if err := sqlbrain.Create(context.Background(), db, order); err != nil {
-					b.Fatal(err)
-				}
-				br, err := sqlbrain.Open(ctx, db)
-				if err != nil {
-					b.Fatalf("couldn't open brain: %v", err)
-				}
-				return br
+	new := func(ctx context.Context, b *testing.B) brain.Learner {
+		dsn := fmt.Sprintf("file:%s/benchmark_learn.db?_journal=WAL", dir)
+		db, err := sqlitex.NewPool(dsn, sqlitex.PoolOptions{Flags: sqlite.OpenCreate | sqlite.OpenReadWrite | sqlite.OpenURI | sqlite.OpenWAL})
+		if err != nil {
+			b.Fatal(err)
+		}
+		{
+			conn, err := db.Take(ctx)
+			if err != nil {
+				b.Fatal(err)
 			}
-			braintest.BenchLearn(context.Background(), b, new, func(l brain.Learner) { l.(*sqlbrain.Brain).Close() })
-		})
+			// The benchmark function will run this multiple times to estimate
+			// iteration count, so we need to drop tables if they exist.
+			if err := sqlitex.ExecuteScript(conn, `DROP TABLE IF EXISTS knowledge; DROP TABLE IF EXISTS messages;`, nil); err != nil {
+				b.Fatal(err)
+			}
+			if err := sqlbrain.Create(ctx, conn); err != nil {
+				b.Fatal(err)
+			}
+			db.Put(conn)
+		}
+		br, err := sqlbrain.Open(ctx, db)
+		if err != nil {
+			b.Fatalf("couldn't open brain: %v", err)
+		}
+		return br
 	}
+	braintest.BenchLearn(context.Background(), b, new, func(l brain.Learner) { l.(*sqlbrain.Brain).Close() })
 }

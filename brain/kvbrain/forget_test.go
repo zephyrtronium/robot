@@ -212,7 +212,10 @@ func use(x [][]byte) {}
 
 func TestForget(t *testing.T) {
 	type message struct {
-		msg  brain.MessageMeta
+		id   uuid.UUID
+		user userhash.Hash
+		tag  string
+		time time.Time
 		tups []brain.Tuple
 	}
 	cases := []struct {
@@ -225,15 +228,13 @@ func TestForget(t *testing.T) {
 			name: "none",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -241,7 +242,7 @@ func TestForget(t *testing.T) {
 			},
 			forget: []brain.Tuple{
 				{
-					Prefix: []string{"kikuri", "eliza"},
+					Prefix: []string{"eliza", "kikuri"},
 					Suffix: "shima",
 				},
 			},
@@ -253,15 +254,13 @@ func TestForget(t *testing.T) {
 			name: "suffix",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -269,7 +268,7 @@ func TestForget(t *testing.T) {
 			},
 			forget: []brain.Tuple{
 				{
-					Prefix: []string{"kikuri", "eliza"},
+					Prefix: []string{"eliza", "kikuri"},
 					Suffix: "kita",
 				},
 			},
@@ -281,15 +280,13 @@ func TestForget(t *testing.T) {
 			name: "prefix",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -297,7 +294,7 @@ func TestForget(t *testing.T) {
 			},
 			forget: []brain.Tuple{
 				{
-					Prefix: []string{"bocchi", "ryou"},
+					Prefix: []string{"ryou", "bocchi"},
 					Suffix: "shima",
 				},
 			},
@@ -309,15 +306,13 @@ func TestForget(t *testing.T) {
 			name: "tag",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "sickhack",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "sickhack",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -325,7 +320,7 @@ func TestForget(t *testing.T) {
 			},
 			forget: []brain.Tuple{
 				{
-					Prefix: []string{"bocchi", "ryou"},
+					Prefix: []string{"ryou", "bocchi"},
 					Suffix: "kita",
 				},
 			},
@@ -337,15 +332,13 @@ func TestForget(t *testing.T) {
 			name: "match",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -353,7 +346,7 @@ func TestForget(t *testing.T) {
 			},
 			forget: []brain.Tuple{
 				{
-					Prefix: []string{"bocchi", "ryou"},
+					Prefix: []string{"ryou", "bocchi"},
 					Suffix: "kita",
 				},
 			},
@@ -363,29 +356,25 @@ func TestForget(t *testing.T) {
 			name: "single",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
 				},
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{2},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{2},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -393,7 +382,7 @@ func TestForget(t *testing.T) {
 			},
 			forget: []brain.Tuple{
 				{
-					Prefix: []string{"bocchi", "ryou"},
+					Prefix: []string{"ryou", "bocchi"},
 					Suffix: "kita",
 				},
 			},
@@ -412,7 +401,7 @@ func TestForget(t *testing.T) {
 			}
 			br := New(db)
 			for _, msg := range c.msgs {
-				err := br.Learn(ctx, &msg.msg, msg.tups)
+				err := br.Learn(ctx, msg.tag, msg.user, msg.id, msg.time, msg.tups)
 				if err != nil {
 					t.Errorf("failed to learn: %v", err)
 				}
@@ -427,7 +416,10 @@ func TestForget(t *testing.T) {
 
 func TestForgetMessage(t *testing.T) {
 	type message struct {
-		msg  brain.MessageMeta
+		id   uuid.UUID
+		user userhash.Hash
+		tag  string
+		time time.Time
 		tups []brain.Tuple
 	}
 	cases := []struct {
@@ -440,12 +432,10 @@ func TestForgetMessage(t *testing.T) {
 			name: "single",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
 					},
@@ -458,12 +448,10 @@ func TestForgetMessage(t *testing.T) {
 			name: "several",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
 						{Prefix: []string{"nijika"}, Suffix: "kita"},
@@ -477,12 +465,10 @@ func TestForgetMessage(t *testing.T) {
 			name: "tagged",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "sickhack",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "sickhack",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
 					},
@@ -497,12 +483,10 @@ func TestForgetMessage(t *testing.T) {
 			name: "unseen",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(0, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(0, 0),
 					tups: []brain.Tuple{
 						{Prefix: []string{"bocchi"}, Suffix: "ryou"},
 					},
@@ -524,7 +508,7 @@ func TestForgetMessage(t *testing.T) {
 			}
 			br := New(db)
 			for _, msg := range c.msgs {
-				err := br.Learn(ctx, &msg.msg, msg.tups)
+				err := br.Learn(ctx, msg.tag, msg.user, msg.id, msg.time, msg.tups)
 				if err != nil {
 					t.Errorf("failed to learn: %v", err)
 				}
@@ -539,7 +523,10 @@ func TestForgetMessage(t *testing.T) {
 
 func TestForgetDuring(t *testing.T) {
 	type message struct {
-		msg  brain.MessageMeta
+		id   uuid.UUID
+		user userhash.Hash
+		tag  string
+		time time.Time
 		tups []brain.Tuple
 	}
 	cases := []struct {
@@ -552,15 +539,13 @@ func TestForgetDuring(t *testing.T) {
 			name: "single",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(1, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(1, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -574,29 +559,25 @@ func TestForgetDuring(t *testing.T) {
 			name: "several",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(1, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(1, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
 				},
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{2},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(1, 0),
-					},
+					id:   uuid.UUID{2},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(1, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -610,15 +591,13 @@ func TestForgetDuring(t *testing.T) {
 			name: "none",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(5, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(5, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -634,15 +613,13 @@ func TestForgetDuring(t *testing.T) {
 			name: "tagged",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "sickhack",
-						Time: time.Unix(1, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "sickhack",
+					time: time.Unix(1, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -665,7 +642,7 @@ func TestForgetDuring(t *testing.T) {
 			}
 			br := New(db)
 			for _, msg := range c.msgs {
-				err := br.Learn(ctx, &msg.msg, msg.tups)
+				err := br.Learn(ctx, msg.tag, msg.user, msg.id, msg.time, msg.tups)
 				if err != nil {
 					t.Errorf("failed to learn: %v", err)
 				}
@@ -682,7 +659,10 @@ func TestForgetDuring(t *testing.T) {
 
 func TestForgetUserSince(t *testing.T) {
 	type message struct {
-		msg  brain.MessageMeta
+		id   uuid.UUID
+		user userhash.Hash
+		tag  string
+		time time.Time
 		tups []brain.Tuple
 	}
 	cases := []struct {
@@ -695,15 +675,13 @@ func TestForgetUserSince(t *testing.T) {
 			name: "match",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(1, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(1, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -716,15 +694,13 @@ func TestForgetUserSince(t *testing.T) {
 			name: "different",
 			msgs: []message{
 				{
-					msg: brain.MessageMeta{
-						ID:   uuid.UUID{1},
-						User: userhash.Hash{2},
-						Tag:  "kessoku",
-						Time: time.Unix(1, 0),
-					},
+					id:   uuid.UUID{1},
+					user: userhash.Hash{2},
+					tag:  "kessoku",
+					time: time.Unix(1, 0),
 					tups: []brain.Tuple{
 						{
-							Prefix: []string{"bocchi", "ryou"},
+							Prefix: []string{"ryou", "bocchi"},
 							Suffix: "kita",
 						},
 					},
@@ -746,7 +722,7 @@ func TestForgetUserSince(t *testing.T) {
 			}
 			br := New(db)
 			for _, msg := range c.msgs {
-				err := br.Learn(ctx, &msg.msg, msg.tups)
+				err := br.Learn(ctx, msg.tag, msg.user, msg.id, msg.time, msg.tups)
 				if err != nil {
 					t.Errorf("failed to learn: %v", err)
 				}

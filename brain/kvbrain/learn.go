@@ -5,8 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Learn records a set of tuples. Each tuple prefix has length equal to the
@@ -14,7 +18,7 @@ import (
 // denote the start of the message and end with one empty suffix to denote
 // the end; all other tokens are non-empty. Each tuple's prefix has entropy
 // reduction transformations applied.
-func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []brain.Tuple) error {
+func (br *Brain) Learn(ctx context.Context, tag string, user userhash.Hash, id uuid.UUID, t time.Time, tuples []brain.Tuple) error {
 	if len(tuples) == 0 {
 		return errors.New("no tuples to learn")
 	}
@@ -25,12 +29,11 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 	keys := make([][]byte, len(tuples))
 	vals := make([][]byte, len(tuples)) // TODO(zeph): could do one call to make
 	var b []byte
-	tag := meta.Tag
 	for i, t := range tuples {
 		b = hashTag(b[:0], tag)
 		b = append(appendPrefix(b, t.Prefix), '\xff')
 		// Write message ID.
-		b = append(b, meta.ID[:]...)
+		b = append(b, id[:]...)
 		keys[i] = bytes.Clone(b)
 		vals[i] = []byte(t.Suffix)
 	}
@@ -41,7 +44,7 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 		// overwrite if that happens.
 		p, _ = br.past.LoadOrStore(tag, new(past))
 	}
-	p.record(meta.ID, meta.User, meta.Time.UnixNano(), keys)
+	p.record(id, user, t.UnixNano(), keys)
 
 	batch := br.knowledge.NewWriteBatch()
 	defer batch.Cancel()
@@ -64,11 +67,8 @@ func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []br
 // append a final \xff to terminate the prefix before appending the message ID
 // to form a complete key.
 func appendPrefix(b []byte, prefix []string) []byte {
-	for i := len(prefix) - 1; i >= 0; i-- {
-		if prefix[i] == "" {
-			break
-		}
-		b = append(b, prefix[i]...)
+	for _, w := range prefix {
+		b = append(b, w...)
 		b = append(b, '\xff')
 	}
 	return b

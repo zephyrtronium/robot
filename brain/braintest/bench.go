@@ -24,24 +24,25 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 		if cleanup != nil {
 			b.Cleanup(func() { cleanup(l) })
 		}
-		var msg brain.MessageMeta
 		b.ReportAllocs()
 		b.RunParallel(func(pb *testing.PB) {
 			var t int64
-			toks := make([]string, 2+l.Order())
-			for i := range toks {
-				toks[i] = hex.EncodeToString(randbytes(make([]byte, 16)))
+			toks := []string{
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
 			}
 			for pb.Next() {
 				t++
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
-				msg = brain.MessageMeta{
-					ID:   uuid.UUID(randbytes(make([]byte, len(uuid.UUID{})))),
-					User: userhash.Hash(randbytes(make([]byte, len(userhash.Hash{})))),
-					Tag:  "bocchi",
-					Time: time.Unix(t, 0),
-				}
-				err := brain.Learn(ctx, l, &msg, toks)
+				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
+				err := brain.Learn(ctx, l, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -53,25 +54,33 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 		if cleanup != nil {
 			b.Cleanup(func() { cleanup(l) })
 		}
-		var msg brain.MessageMeta
 		b.ReportAllocs()
 		b.RunParallel(func(pb *testing.PB) {
 			var t int64
-			order := l.Order()
-			toks := make([]string, 16+order)
-			for i := range toks {
-				toks[i] = hex.EncodeToString(randbytes(make([]byte, 16)))
+			toks := []string{
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
 			}
 			for pb.Next() {
 				t++
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				msg = brain.MessageMeta{
-					ID:   uuid.UUID(randbytes(make([]byte, len(uuid.UUID{})))),
-					User: userhash.Hash(randbytes(make([]byte, len(userhash.Hash{})))),
-					Tag:  "bocchi",
-					Time: time.Unix(t, 0),
-				}
-				err := brain.Learn(ctx, l, &msg, toks[:2+order])
+				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
+				err := brain.Learn(ctx, l, "bocchi", u, id, time.Unix(t, 0), toks[:8])
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -91,21 +100,21 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				b.Cleanup(func() { cleanup(br) })
 			}
 			// First fill the brain.
-			var msg brain.MessageMeta
-			order := br.Order()
-			toks := make([]string, 2+order)
-			for i := range toks {
-				toks[i] = hex.EncodeToString(randbytes(make([]byte, 16)))
+			toks := []string{
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
 			}
 			for t := range size {
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
-				msg = brain.MessageMeta{
-					ID:   uuid.UUID(randbytes(make([]byte, len(uuid.UUID{})))),
-					User: userhash.Hash(randbytes(make([]byte, len(userhash.Hash{})))),
-					Tag:  "bocchi",
-					Time: time.Unix(t, 0),
-				}
-				err := brain.Learn(ctx, br, &msg, toks)
+				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
+				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -128,21 +137,29 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				b.Cleanup(func() { cleanup(br) })
 			}
 			// First fill the brain.
-			var msg brain.MessageMeta
-			order := br.Order()
-			toks := make([]string, 16+order)
-			for i := range toks {
-				toks[i] = hex.EncodeToString(randbytes(make([]byte, 16)))
+			toks := []string{
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
 			}
 			for t := range size {
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				msg = brain.MessageMeta{
-					ID:   uuid.UUID(randbytes(make([]byte, len(uuid.UUID{})))),
-					User: userhash.Hash(randbytes(make([]byte, len(userhash.Hash{})))),
-					Tag:  "bocchi",
-					Time: time.Unix(t, 0),
-				}
-				err := brain.Learn(ctx, br, &msg, toks)
+				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
+				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -165,21 +182,29 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				b.Cleanup(func() { cleanup(br) })
 			}
 			// First fill the brain.
-			var msg brain.MessageMeta
-			order := br.Order()
-			toks := make([]string, 16+order)
-			for i := range toks {
-				toks[i] = hex.EncodeToString(randbytes(make([]byte, 16)))
+			toks := []string{
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
+				hex.EncodeToString(randbytes(make([]byte, 4))),
 			}
 			for t := range size {
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				msg = brain.MessageMeta{
-					ID:   uuid.UUID(randbytes(make([]byte, len(uuid.UUID{})))),
-					User: userhash.Hash(randbytes(make([]byte, len(userhash.Hash{})))),
-					Tag:  "bocchi",
-					Time: time.Unix(t, 0),
-				}
-				err := brain.Learn(ctx, br, &msg, toks)
+				id := uuid.UUID(randbytes(make([]byte, len(uuid.UUID{}))))
+				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
+				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -197,9 +222,8 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 	}
 }
 
-// randbytes fills a slice of at least length 16 with random data.
+// randbytes fills a slice of at least length 4 with random data.
 func randbytes(b []byte) []byte {
-	binary.NativeEndian.PutUint64(b[8:], rand.Uint64())
-	binary.NativeEndian.PutUint64(b, rand.Uint64())
+	binary.NativeEndian.PutUint32(b, rand.Uint32())
 	return b
 }

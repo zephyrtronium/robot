@@ -48,17 +48,11 @@ func New(knowledge *badger.DB) *Brain {
 	}
 }
 
-// Order returns the number of elements in the prefix of a chain. It is
-// called once at the beginning of learning. The returned value must always
-// be at least 1.
-func (br *Brain) Order() int {
-	// TOOD(zeph): this can go away one day
-	return 250
-}
-
 // hashTag appends the hash of a tag to b to serve as the start of a knowledge key.
 func hashTag(b []byte, tag string) []byte {
 	h := fnv.New64a()
 	io.WriteString(h, tag)
 	return h.Sum(b)
 }
+
+const tagHashLen = 8

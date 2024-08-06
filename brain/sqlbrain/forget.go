@@ -2,132 +2,201 @@ package sqlbrain
 
 import (
 	"context"
-	"database/sql"
 	_ "embed"
 	"fmt"
-	"strconv"
-	"strings"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
-	"gitlab.com/zephyrtronium/sq"
+	"zombiezen.com/go/sqlite"
+	"zombiezen.com/go/sqlite/sqlitex"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
-// Forget deletes tuples from the database. To ensure consistency and accuracy,
-// the ForgetMessage, ForgetDuring, and ForgetUserSince methods should be
-// preferred where possible.
-func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
-	names := make([]sq.NamedArg, 2+br.order)
-	names[0] = sql.Named("tag", tag)
-	terms := make([]string, 1+br.order)
-	for i := 0; i < br.order; i++ {
-		names[i+1] = sql.Named("p"+strconv.Itoa(i), &terms[i])
-	}
-	names[br.order+1] = sql.Named("suffix", &terms[br.order])
-	p := make([]any, len(names))
-	for i := range names {
-		p[i] = names[i]
-	}
-	tx, err := br.db.Begin(ctx, nil)
+//go:embed forget.sql
+var forgetSQL string
+
+// Forget removes a set of recorded tuples.
+func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) (err error) {
+	conn, err := br.db.Take(ctx)
+	defer br.db.Put(conn)
 	if err != nil {
-		return fmt.Errorf("couldn't open transaction: %w", err)
+		return fmt.Errorf("couldn't get connection to forget: %w", err)
 	}
-	defer tx.Rollback()
-	for _, tup := range tuples {
-		// Note that each p[i] is a named arg, and those for the prefix and
-		// suffix each point to an element of terms. So, updating terms is
-		// sufficient to update the query parameters.
-		copy(terms, tup.Prefix)
-		terms[br.order] = tup.Suffix
-		// Execute the statements in order. We do this manually because the
-		// arguments differ for some statements, and the SQLite3 driver
-		// complains if we give the wrong ones.
-		snd := func(_ sq.Result, err error) error { return err }
-		steps := []func() error{
-			func() error { return snd(tx.Exec(ctx, br.stmts.deleteTuple[0])) },
-			func() error { return snd(tx.Exec(ctx, br.stmts.deleteTuple[1], p...)) },
-			func() error { return snd(tx.Exec(ctx, br.stmts.deleteTuple[2], p[1:]...)) },
-			func() error { return snd(tx.Exec(ctx, br.stmts.deleteTuple[3])) },
-			func() error { return snd(tx.Exec(ctx, br.stmts.deleteTuple[4])) },
+	defer sqlitex.Transaction(conn)(&err)
+	p := make([]byte, 0, 256)
+	s := make([]byte, 0, 32)
+	for _, tt := range tuples {
+		p = prefix(p[:0], tt.Prefix)
+		s = append(s[:0], tt.Suffix...)
+		// Unlike learning and speaking, forgetting is generally outside the hot path.
+		// So, it's fine to have extra allocations and reflection here.
+		opts := sqlitex.ExecOptions{
+			Named: map[string]any{
+				":tag":    tag,
+				":prefix": p,
+				":suffix": s,
+			},
 		}
-		for i, step := range steps {
-			err := step()
-			if err != nil {
-				return fmt.Errorf("couldn't remove tuples (step %d failed): %w", i, err)
-			}
+		if err := sqlitex.Execute(conn, forgetSQL, &opts); err != nil {
+			return fmt.Errorf("couldn't forget: %w", err)
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("couldn't commit delete ops: %w", err)
-	}
 	return nil
 }
 
-// ForgetMessage removes tuples associated with a message from the database.
-// The delete reason is set to "CLEARMSG".
-func (br *Brain) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error {
-	res, err := br.db.Exec(ctx, `UPDATE Message SET deleted='CLEARMSG' WHERE id = ?`, msg)
+// ForgetMessage forgets everything learned from a single given message.
+// If nothing has been learned from the message, nothing happens.
+func (br *Brain) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) (err error) {
+	conn, err := br.db.Take(ctx)
+	defer br.db.Put(conn)
 	if err != nil {
-		return fmt.Errorf("couldn't delete message %v: %w", msg, err)
+		return fmt.Errorf("couldn't get connection to forget message %v: %w", msg, err)
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		// Since the query succeeded, an error here is probably from the driver
-		// not supporting RowsAffected (although those we use do). Don't care.
-		return nil
-	}
-	if n == 0 {
-		return fmt.Errorf("no message with id %v", msg)
-	}
-	return nil
-}
-
-// ForgetDuring removes tuples associated with messages learned in the given
-// time span. The delete reason is set to "TIMED".
-func (br *Brain) ForgetDuring(ctx context.Context, tag string, since, before time.Time) error {
-	a, b := since.UnixMilli(), before.UnixMilli()
-	_, err := br.db.Exec(ctx, `UPDATE Message SET deleted='TIMED' WHERE tag = ? AND time BETWEEN ? AND ?`, tag, a, b)
-	if err != nil {
-		return fmt.Errorf("couldn't delete messages between %v and %v: %w", since, before, err)
-	}
-	return nil
-}
-
-// ForgetUser removes tuples learned from the given user hash.
-// The delete reason is set to "CLEARCHAT".
-func (br *Brain) ForgetUser(ctx context.Context, user *userhash.Hash) error {
-	_, err := br.db.Exec(ctx, `UPDATE Message SET deleted='CLEARCHAT' WHERE user = ?`, user[:])
-	if err != nil {
-		return fmt.Errorf("couldn't forget messages from %x: %w", user, err)
-	}
-	return nil
-}
-
-func (br *Brain) initDelete() {
-	tp, err := br.tpl.Parse(deleteTuple)
-	if err != nil {
-		panic(fmt.Errorf("couldn't parse tuple.delete.sql: %w", err))
-	}
-	const numTemplates = 5
-	br.stmts.deleteTuple = make([]string, numTemplates)
-	data := struct {
-		Iter []struct{}
-	}{
-		Iter: make([]struct{}, br.order),
-	}
-	var b strings.Builder
-	for i := range br.stmts.deleteTuple {
-		b.Reset()
-		err := tp.ExecuteTemplate(&b, fmt.Sprintf("tuple.delete.%d", i), &data)
+	defer sqlitex.Transaction(conn)(&err)
+	{
+		// First forget the message, so that an attempt to learn it later will fail.
+		const forget = `
+			INSERT INTO messages (tag, id, deleted) VALUES (:tag, :id, 'CLEARMSG')
+			ON CONFLICT DO UPDATE SET deleted = 'CLEARMSG'
+		`
+		st, err := conn.Prepare(forget)
 		if err != nil {
-			panic(fmt.Errorf("couldn't exec tuple.delete.%d: %w", i, err))
+			return fmt.Errorf("couldn't prepare delete for message %v: %w", msg, err)
 		}
-		br.stmts.deleteTuple[i] = b.String()
+		st.SetText(":tag", tag)
+		st.SetBytes(":id", msg[:])
+		if err := allsteps(st); err != nil {
+			return fmt.Errorf("couldn't delete message %v: %w", msg, err)
+		}
 	}
+	{
+		// Now forget tuples.
+		const forget = `UPDATE knowledge SET deleted = 'CLEARMSG' WHERE tag=:tag AND id=:id`
+		st, err := conn.Prepare(forget)
+		if err != nil {
+			return fmt.Errorf("couldn't prepare delete for tuples of message %v: %w", msg, err)
+		}
+		st.SetText(":tag", tag)
+		st.SetBytes(":id", msg[:])
+		if err := allsteps(st); err != nil {
+			return fmt.Errorf("couldn't delete tuples of message %v: %w", msg, err)
+		}
+	}
+	return nil
 }
 
-//go:embed templates/tuple.delete.sql
-var deleteTuple string
+// ForgetDuring forgets all messages learned in the given time span.
+func (br *Brain) ForgetDuring(ctx context.Context, tag string, since time.Time, before time.Time) error {
+	conn, err := br.db.Take(ctx)
+	defer br.db.Put(conn)
+	if err != nil {
+		return fmt.Errorf("couldn't get connection to forget time span: %w", err)
+	}
+	defer sqlitex.Transaction(conn)(&err)
+	// Forget messages by time and get their IDs.
+	const forgetTime = `UPDATE messages SET deleted = 'TIME' WHERE tag=:tag AND time BETWEEN :since AND :before RETURNING id`
+	sm, err := conn.Prepare(forgetTime)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare delete for messages in time span: %w", err)
+	}
+	sm.SetText(":tag", tag)
+	sm.SetInt64(":since", since.UnixNano())
+	sm.SetInt64(":before", before.UnixNano())
+	const forgetTuple = `UPDATE knowledge SET deleted = 'TIME' WHERE tag=:tag AND id=:id`
+	st, err := conn.Prepare(forgetTuple)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare delete for tuples in time span: %w", err)
+	}
+	st.SetText(":tag", tag)
+	// Now forget tuples by the IDs.
+	id := make([]byte, 0, 16)
+	for {
+		ok, err := sm.Step()
+		if err != nil {
+			return fmt.Errorf("couldn't step delete for messages in time span: %w", err)
+		}
+		if !ok {
+			break
+		}
+		idk := sm.ColumnIndex("id")
+		if idk < 0 {
+			panic("sqlbrain: no index for id column")
+		}
+		l := sm.ColumnLen(idk)
+		id = slices.Grow(id[:0], l)[:l]
+		sm.ColumnBytes(idk, id)
+		st.SetBytes(":id", id)
+		if err := allsteps(st); err != nil {
+			return fmt.Errorf("couldn't step delete for tuples in time span: %w", err)
+		}
+		if err := st.Reset(); err != nil {
+			return fmt.Errorf("couldn't reset delete for tuples in time span: %w", err)
+		}
+	}
+	return nil
+}
+
+// ForgetUser forgets all messages associated with a userhash.
+func (br *Brain) ForgetUser(ctx context.Context, user *userhash.Hash) error {
+	conn, err := br.db.Take(ctx)
+	defer br.db.Put(conn)
+	if err != nil {
+		return fmt.Errorf("couldn't get connection to forget from user: %w", err)
+	}
+	defer sqlitex.Transaction(conn)(&err)
+	// Forget messages by user and get their IDs.
+	const forgetUser = `UPDATE messages SET deleted = 'CLEARCHAT' WHERE user = :user RETURNING tag, id`
+	sm, err := conn.Prepare(forgetUser)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare delete for messages from user: %w", err)
+	}
+	sm.SetBytes(":user", user[:])
+	const forgetTuple = `UPDATE knowledge SET deleted = 'CLEARCHAT' WHERE tag=:tag AND id=:id`
+	st, err := conn.Prepare(forgetTuple)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare delete for tuples from user: %w", err)
+	}
+	// Now forget by the IDs.
+	id := make([]byte, 0, 16)
+	for {
+		ok, err := sm.Step()
+		if err != nil {
+			return fmt.Errorf("couldn't step delete for messages from user: %w", err)
+		}
+		if !ok {
+			break
+		}
+		tag := sm.GetText("tag")
+		idk := sm.ColumnIndex("id")
+		if idk < 0 {
+			panic("sqlbrain: no index for id column")
+		}
+		l := sm.ColumnLen(idk)
+		id = slices.Grow(id[:0], l)[:l]
+		sm.ColumnBytes(idk, id)
+		st.SetText(":tag", tag)
+		st.SetBytes(":id", id)
+		if err := allsteps(st); err != nil {
+			return fmt.Errorf("couldn't step delete for tuples from user: %w", err)
+		}
+		if err := st.Reset(); err != nil {
+			return fmt.Errorf("couldn't reset delete for tuples from user: %w", err)
+		}
+	}
+	return nil
+}
+
+func allsteps(st *sqlite.Stmt) error {
+	for {
+		ok, err := st.Step()
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+	}
+}

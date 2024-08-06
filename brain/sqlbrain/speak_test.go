@@ -2,531 +2,482 @@ package sqlbrain_test
 
 import (
 	"context"
-	"fmt"
-	"path/filepath"
 	"slices"
-	"strconv"
-	"strings"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
-	"github.com/zephyrtronium/robot/brain"
-	"github.com/zephyrtronium/robot/brain/braintest"
+	"zombiezen.com/go/sqlite"
+	"zombiezen.com/go/sqlite/sqlitex"
+
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
-	"gitlab.com/zephyrtronium/sq"
 )
 
-func TestNew(t *testing.T) {
-	type insert struct {
-		tag    string
-		tuples []brain.Tuple
-	}
-	cases := []struct {
-		name   string
-		order  int
-		insert []insert
-		tag    string
-		want   [][]string
-	}{
-		{
-			name:  "include-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "a"},
-						{Prefix: []string{""}, Suffix: "b"},
-					},
-				},
-			},
-			tag: "madoka",
-			want: [][]string{
-				{"a"},
-				{"b"},
-			},
-		},
-		{
-			name:  "start-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "a"},
-						{Prefix: []string{""}, Suffix: "b"},
-						{Prefix: []string{"b"}, Suffix: "c"},
-					},
-				},
-			},
-			tag: "madoka",
-			want: [][]string{
-				{"a"},
-				{"b"},
-			},
-		},
-		{
-			name:  "tagged-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "a"},
-						{Prefix: []string{""}, Suffix: "b"},
-					},
-				},
-				{
-					tag: "homura",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "x"},
-						{Prefix: []string{""}, Suffix: "y"},
-					},
-				},
-			},
-			tag: "madoka",
-			want: [][]string{
-				{"a"},
-				{"b"},
-			},
-		},
-		{
-			name:  "include-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "a"},
-						{Prefix: []string{"", ""}, Suffix: "b"},
-					},
-				},
-			},
-			tag: "madoka",
-			want: [][]string{
-				{"", "a"},
-				{"", "b"},
-			},
-		},
-		{
-			name:  "start-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "a"},
-						{Prefix: []string{"", ""}, Suffix: "b"},
-						{Prefix: []string{"", "b"}, Suffix: "c"},
-					},
-				},
-			},
-			tag: "madoka",
-			want: [][]string{
-				{"", "a"},
-				{"", "b"},
-			},
-		},
-		{
-			name:  "tagged-2",
-			order: 2,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "a"},
-						{Prefix: []string{"", ""}, Suffix: "b"},
-					},
-				},
-				{
-					tag: "homura",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "x"},
-						{Prefix: []string{"", ""}, Suffix: "y"},
-					},
-				},
-			},
-			tag: "madoka",
-			want: [][]string{
-				{"", "a"},
-				{"", "b"},
-			},
-		},
-	}
-	for _, c := range cases {
-		c := c
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			ctx := context.Background()
-			db := testDB(c.order)
-			br, err := sqlbrain.Open(ctx, db)
-			if err != nil {
-				t.Fatalf("couldn't open brain: %v", err)
-			}
-			for _, v := range c.insert {
-				err := addTuples(ctx, db, tagged(v.tag), v.tuples)
-				if err != nil {
-					t.Fatal(err)
-				}
-			}
-			var got [][]string
-			for i := 0; i < 100; i++ {
-				p, err := br.New(ctx, c.tag)
-				if err != nil {
-					t.Errorf("err from new: %v", err)
-				}
-				got = lexset(got, p)
-			}
-			if diff := cmp.Diff(c.want, got); diff != "" {
-				t.Errorf("wrong prompts: (-want/+got)\n%s", diff)
-			}
-			if t.Failed() {
-				dumpdb(ctx, t, db)
-			}
-		})
-	}
-}
-
 func TestSpeak(t *testing.T) {
-	type insert struct {
-		tag    string
-		tuples []brain.Tuple
-	}
 	cases := []struct {
 		name   string
-		order  int
-		insert []insert
+		know   []know
 		tag    string
 		prompt []string
-		want   [][]string
+		w      []byte
+		want   []string
 	}{
 		{
-			name:  "include-1",
-			order: 1,
-			insert: []insert{
-				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "a"},
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"b"}, Suffix: ""},
-					},
-				},
-			},
-			tag:    "madoka",
-			prompt: []string{""},
-			want: [][]string{
-				{"a", "b"},
-			},
+			name:   "empty",
+			know:   nil,
+			tag:    "kessoku",
+			prompt: nil,
+			w:      nil,
+			// We should only ever get nil from the brain,
+			// but that converts to the empty string.
+			want: []string{""},
 		},
 		{
-			name:  "branch-1",
-			order: 1,
-			insert: []insert{
+			name: "empty-tagged",
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "a"},
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"a"}, Suffix: "c"},
-						{Prefix: []string{"b"}, Suffix: ""},
-						{Prefix: []string{"c"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi\x00",
+					suffix: "",
 				},
 			},
-			tag:    "madoka",
-			prompt: []string{""},
-			want: [][]string{
-				{"a", "b"},
-				{"a", "c"},
-			},
+			tag:    "sickhack",
+			prompt: nil,
+			w:      nil,
+			// We should only ever get nil from the brain,
+			// but that converts to the empty string.
+			want: []string{""},
 		},
 		{
-			name:  "tagged-1",
-			order: 1,
-			insert: []insert{
+			name: "empty-prompted",
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "a"},
-						{Prefix: []string{"a"}, Suffix: "b"},
-						{Prefix: []string{"b"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "bocchi",
 				},
 				{
-					tag: "homura",
-					tuples: []brain.Tuple{
-						{Prefix: []string{""}, Suffix: "a"},
-						{Prefix: []string{"a"}, Suffix: "c"},
-						{Prefix: []string{"c"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "bocchi\x00",
+					suffix: "",
 				},
 			},
-			tag:    "madoka",
-			prompt: []string{""},
-			want: [][]string{
-				{"a", "b"},
-			},
+			tag:    "kessoku",
+			prompt: []string{"kikuri"},
+			w:      nil,
+			// We should only ever get nil from the brain,
+			// but that converts to the empty string.
+			want: []string{""},
 		},
 		{
-			name:  "include-2",
-			order: 2,
-			insert: []insert{
+			name: "single",
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "a"},
-						{Prefix: []string{"", "a"}, Suffix: "b"},
-						{Prefix: []string{"a", "b"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi\x00",
+					suffix: "",
 				},
 			},
-			tag:    "madoka",
-			prompt: []string{"", ""},
-			want: [][]string{
-				{"a", "b"},
-			},
+			tag:    "kessoku",
+			prompt: nil,
+			w:      nil,
+			want:   []string{"bocchi "},
 		},
 		{
-			name:  "branch-2",
-			order: 2,
-			insert: []insert{
+			name: "several",
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "a"},
-						{Prefix: []string{"", "a"}, Suffix: "b"},
-						{Prefix: []string{"", "a"}, Suffix: "c"},
-						{Prefix: []string{"a", "b"}, Suffix: ""},
-						{Prefix: []string{"a", "c"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo\x00bocchi\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika\x00ryo\x00bocchi\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
+					suffix: "",
 				},
 			},
-			tag:    "madoka",
-			prompt: []string{"", ""},
-			want: [][]string{
-				{"a", "b"},
-				{"a", "c"},
-			},
+			tag:    "kessoku",
+			prompt: nil,
+			w:      nil,
+			want:   []string{"bocchi ryo nijika kita "},
 		},
 		{
-			name:  "tagged-2",
-			order: 2,
-			insert: []insert{
+			name: "append",
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "a"},
-						{Prefix: []string{"", "a"}, Suffix: "b"},
-						{Prefix: []string{"a", "b"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "bocchi",
 				},
 				{
-					tag: "homura",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", ""}, Suffix: "a"},
-						{Prefix: []string{"", "a"}, Suffix: "c"},
-						{Prefix: []string{"a", "c"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "bocchi\x00",
+					suffix: "",
 				},
 			},
-			tag:    "madoka",
-			prompt: []string{"", ""},
-			want: [][]string{
-				{"a", "b"},
-			},
+			tag:    "kessoku",
+			prompt: nil,
+			w:      []byte("member "),
+			want:   []string{"member bocchi "},
 		},
 		{
-			name:  "long",
-			order: 4,
-			insert: []insert{
+			name: "multi",
+			know: []know{
 				{
-					tag: "madoka",
-					tuples: []brain.Tuple{
-						{Prefix: []string{"", "", "", ""}, Suffix: "a"},
-						{Prefix: []string{"", "", "", "a"}, Suffix: "b"},
-						{Prefix: []string{"", "", "a", "b"}, Suffix: "c"},
-						{Prefix: []string{"", "a", "b", "c"}, Suffix: "d"},
-						{Prefix: []string{"a", "b", "c", "d"}, Suffix: "e"},
-						{Prefix: []string{"b", "c", "d", "e"}, Suffix: "f"},
-						{Prefix: []string{"c", "d", "e", "f"}, Suffix: ""},
-					},
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "kita\x00member\x00",
+					suffix: "",
 				},
 			},
-			tag:    "madoka",
-			prompt: []string{"", "", "", ""},
-			want: [][]string{
-				{"a", "b", "c", "d", "e", "f"},
+			tag:    "kessoku",
+			prompt: nil,
+			w:      nil,
+			want:   []string{"member bocchi ", "member ryo ", "member nijika ", "member kita "},
+		},
+		{
+			name: "multi-tagged",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "kita",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "kita\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "member\x00",
+					suffix: "kikuri",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "kikuri\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "member\x00",
+					suffix: "eliza",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "eliza\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "member\x00",
+					suffix: "shima",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "shima\x00member\x00",
+					suffix: "",
+				},
 			},
+			tag:    "sickhack",
+			prompt: nil,
+			w:      nil,
+			want:   []string{"member kikuri ", "member eliza ", "member shima "},
+		},
+		{
+			name: "forgort",
+			know: []know{
+				{
+					tag:     "kessoku",
+					prefix:  "",
+					suffix:  "member",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "bocchi",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "ryo",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member\x00",
+					suffix: "nijika",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika\x00member\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "",
+					suffix: "member",
+				},
+				{
+					tag:     "kessoku",
+					prefix:  "member\x00",
+					suffix:  "kita",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:     "kessoku",
+					prefix:  "kita\x00member\x00",
+					suffix:  "",
+					deleted: ref("FORGET"),
+				},
+			},
+			tag:    "kessoku",
+			prompt: nil,
+			w:      nil,
+			want:   []string{"member bocchi ", "member ryo ", "member nijika "},
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			db := testDB(c.order)
+			db := testDB(ctx)
 			br, err := sqlbrain.Open(ctx, db)
 			if err != nil {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
-			for _, v := range c.insert {
-				err := addTuples(ctx, db, tagged(v.tag), v.tuples)
+			conn, err := db.Take(ctx)
+			defer db.Put(conn)
+			if err != nil {
+				t.Fatalf("couldn't get conn: %v", err)
+			}
+			insert(t, conn, c.know, nil)
+			slices.Sort(c.want)
+			got := make([]string, 0, len(c.want))
+			for range 10000 {
+				w, err := br.Speak(ctx, c.tag, c.prompt, slices.Clone(c.w))
 				if err != nil {
-					t.Fatal(err)
+					t.Errorf("couldn't speak: %v", err)
 				}
-			}
-			var got [][]string
-			for i := 0; i < 100; i++ {
-				msg, err := br.Speak(ctx, c.tag, c.prompt)
-				if err != nil {
-					t.Errorf("err from speak: %v", err)
-				}
-				got = lexset(got, trim(msg))
-			}
-			if diff := cmp.Diff(c.want, got); diff != "" {
-				t.Errorf("wrong prompts: (-want/+got)\n%s", diff)
-			}
-			if t.Failed() {
-				dumpdb(ctx, t, db)
-			}
-		})
-	}
-}
-
-// addTuples inserts tuples into a test db.
-func addTuples(ctx context.Context, db sqlbrain.DB, msg brain.MessageMeta, tuples []brain.Tuple) error {
-	order := len(tuples[0].Prefix)
-	tx, err := db.Begin(ctx, nil)
-	if err != nil {
-		panic(err)
-	}
-	defer tx.Rollback()
-	_, err = tx.Exec(ctx, "INSERT INTO Message(id, user, tag, time) VALUES (?, ?, ?, ?)", msg.ID, msg.User[:], msg.Tag, msg.Time.UnixMilli())
-	if err != nil {
-		return fmt.Errorf("couldn't add message: %v", err)
-	}
-	var b strings.Builder
-	for _, tup := range tuples {
-		b.Reset()
-		b.WriteString("INSERT INTO Tuple(msg")
-		for i := 0; i < order; i++ {
-			fmt.Fprintf(&b, ", p%d", i)
-		}
-		b.WriteString(", suffix) VALUES (?, ?")
-		b.WriteString(strings.Repeat(", ?", order))
-		b.WriteByte(')')
-		args := []any{msg.ID}
-		for _, w := range tup.Prefix {
-			args = append(args, w)
-		}
-		args = append(args, tup.Suffix)
-		_, err := tx.Exec(ctx, b.String(), args...)
-		if err != nil {
-			return fmt.Errorf("couldn't add tuples %q with query %q: %w", tuples, b.String(), err)
-		}
-	}
-	return tx.Commit()
-}
-
-// tagged is a shortcut to create message metadata holding only a given tag
-// and a random UUID.
-func tagged(tag string) brain.MessageMeta {
-	return brain.MessageMeta{
-		ID:  uuid.New(),
-		Tag: tag,
-	}
-}
-
-// lexset adds a []string to a [][]string such that the latter remains in
-// sorted order without duplicates.
-func lexset(dst [][]string, n []string) [][]string {
-	k, ok := slices.BinarySearchFunc(dst, n, slices.Compare[[]string])
-	if ok {
-		return dst
-	}
-	return slices.Insert(dst, k, n)
-}
-
-func trim(r []string) []string {
-	for k := len(r) - 1; k >= 0; k-- {
-		if r[k] != "" {
-			r = r[:k+1]
-			break
-		}
-	}
-	for k, v := range r {
-		if v != "" {
-			return r[k:]
-		}
-	}
-	return nil
-}
-
-func dumpdb(ctx context.Context, t *testing.T, db sqlbrain.DB) {
-	t.Helper()
-	t.Log("db content:")
-	rows, err := db.Query(ctx, "SELECT m.user, m.tag, m.time, m.deleted, Tuple.* FROM Message AS m JOIN Tuple ON m.id = Tuple.msg")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-	cols, err := rows.Columns()
-	if err != nil {
-		panic(err)
-	}
-	t.Log(cols)
-	for rows.Next() {
-		r := make([]any, len(cols))
-		for i := range r {
-			r[i] = &r[i]
-		}
-		if err := rows.Scan(r...); err != nil {
-			panic(err)
-		}
-		t.Logf("%q", r)
-	}
-	if rows.Err() != nil {
-		t.Log(rows.Err())
-	}
-}
-
-func BenchmarkSpeak(b *testing.B) {
-	dir := filepath.ToSlash(b.TempDir())
-	for _, order := range []int{2, 4, 6} {
-		b.Run(strconv.Itoa(order), func(b *testing.B) {
-			new := func(ctx context.Context, b *testing.B) braintest.Interface {
-				dsn := fmt.Sprintf("file:%s/benchmark_learn_%d.db?_journal=WAL&_mutex=full", dir, order)
-				db, err := sq.Open("sqlite3", dsn)
-				if err != nil {
-					b.Fatal(err)
-				}
-				// The benchmark function will run this multiple times to
-				// estimate iteration count, so we need to drop tables and
-				// views if they exist.
-				stmts := []string{
-					`DROP VIEW IF EXISTS MessageTuple`,
-					`DROP TABLE IF EXISTS Tuple`,
-					`DROP TABLE IF EXISTS Message`,
-					`DROP TABLE IF EXISTS Config`,
-				}
-				for _, s := range stmts {
-					_, err := db.Exec(context.Background(), s)
-					if err != nil {
-						b.Fatal(err)
+				s := string(w)
+				k, ok := slices.BinarySearch(got, s)
+				if !ok {
+					got = slices.Insert(got, k, s)
+					if len(got) == len(c.want) {
+						break
 					}
 				}
-				if err := sqlbrain.Create(context.Background(), db, order); err != nil {
-					b.Fatal(err)
-				}
-				br, err := sqlbrain.Open(ctx, db)
-				if err != nil {
-					b.Fatalf("couldn't open brain: %v", err)
-				}
-				return br
 			}
-			braintest.BenchSpeak(context.Background(), b, new, func(br braintest.Interface) { br.(*sqlbrain.Brain).Close() })
+			if !slices.Equal(c.want, got) {
+				t.Errorf("wrong results:\nwant %q\ngot  %q", c.want, got)
+			}
 		})
+	}
+}
+
+func insert(t *testing.T, conn *sqlite.Conn, know []know, msgs []msg) {
+	t.Helper()
+	for _, v := range know {
+		opts := sqlitex.ExecOptions{
+			Named: map[string]any{
+				":tag":    v.tag,
+				":id":     v.id[:],
+				":prefix": []byte(v.prefix),
+				":suffix": []byte(v.suffix),
+			},
+		}
+		var err error
+		if v.deleted != nil {
+			opts.Named[":deleted"] = *v.deleted
+			err = sqlitex.Execute(conn, `INSERT INTO knowledge(tag, id, prefix, suffix, deleted) VALUES (:tag, :id, :prefix, :suffix, :deleted)`, &opts)
+		} else {
+			err = sqlitex.Execute(conn, `INSERT INTO knowledge(tag, id, prefix, suffix) VALUES (:tag, :id, :prefix, :suffix)`, &opts)
+		}
+		if err != nil {
+			t.Errorf("couldn't learn knowledge %v %q %q: %v", v.id, v.prefix, v.suffix, err)
+		}
+	}
+	for _, v := range msgs {
+		opts := sqlitex.ExecOptions{
+			Named: map[string]any{
+				":tag":  v.tag,
+				":id":   v.id[:],
+				":time": v.time,
+				":user": v.user[:],
+			},
+		}
+		var err error
+		if v.deleted != nil {
+			opts.Named[":deleted"] = *v.deleted
+			err = sqlitex.Execute(conn, `INSERT INTO message(tag, id, time, user, deleted) VALUES (:tag, :id, time, :user, :deleted)`, &opts)
+		} else {
+			err = sqlitex.Execute(conn, `INSERT INTO message(tag, id, time, user) VALUES (:tag, :id, time, :user)`, &opts)
+		}
+		if err != nil {
+			t.Errorf("couldn't learn message %v: %v", v.id, err)
+		}
 	}
 }

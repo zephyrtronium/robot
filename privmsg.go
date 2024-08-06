@@ -178,13 +178,7 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 		// Continue on with a zero UUID.
 	}
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
-	meta := &brain.MessageMeta{
-		ID:   id,
-		User: *user,
-		Tag:  ch.Learn,
-		Time: msg.Time(),
-	}
-	if err := brain.Learn(ctx, robo.brain, meta, brain.Tokens(nil, msg.Text)); err != nil {
+	if err := brain.Learn(ctx, robo.brain, ch.Learn, *user, id, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
 		slog.ErrorContext(ctx, "failed to learn", slog.String("err", err.Error()))
 	}
 }

@@ -2,82 +2,65 @@ package sqlbrain
 
 import (
 	"context"
-	"database/sql"
-	_ "embed"
 	"fmt"
-	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"zombiezen.com/go/sqlite/sqlitex"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/userhash"
 )
 
-// Learn learns a message.
-func (br *Brain) Learn(ctx context.Context, meta *brain.MessageMeta, tuples []brain.Tuple) error {
-	s := br.tupleInsert(tuples)
-	// Convert the tuples to SQL parameters. The first parameter to the SQL
-	// statement is the message ID, and all the rest are the tuple terms in
-	// sequence. Since the parameters are passed as ...any, we need to build a
-	// slice of all of them. Using pointers to the strings instead of the
-	// strings directly avoids extra allocations.
-	p := make([]any, 1, 1+len(tuples)*br.order)
-	p[0] = &meta.ID
-	for i := range tuples {
-		tuple := &tuples[i]
-		for i := range tuple.Prefix {
-			p = append(p, &tuple.Prefix[i])
-		}
-		p = append(p, &tuple.Suffix)
-	}
-	// Now execute SQL statements.
-	tx, err := br.db.Begin(ctx, nil)
+// Learn records a set of tuples.
+func (br *Brain) Learn(ctx context.Context, tag string, user userhash.Hash, id uuid.UUID, t time.Time, tuples []brain.Tuple) (err error) {
+	conn, err := br.db.Take(ctx)
+	defer br.db.Put(conn)
 	if err != nil {
-		return fmt.Errorf("couldn't open transaction: %w", err)
+		return fmt.Errorf("couldn't get connection to learn: %w", err)
 	}
-	defer tx.Rollback()
-	// We must insert the message first because tuples use it as an FK.
-	// The INSERT returns the delete reason, which is probably but not
-	// certainly NULL.
-	var deleted sql.NullString
-	id := &meta.ID
-	user := meta.User[:]
-	err = tx.QueryRow(ctx, insertMessage, id, user, meta.Tag, meta.Time.UnixMilli()).Scan(&deleted)
+	defer sqlitex.Transaction(conn)(&err)
+
+	st, err := conn.Prepare(`INSERT INTO knowledge(tag, id, prefix, suffix) VALUES (:tag, :id, :prefix, :suffix)`)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare tuple insert: %w", err)
+	}
+	p := make([]byte, 0, 256)
+	s := make([]byte, 0, 32)
+	for _, tt := range tuples {
+		p = prefix(p[:0], tt.Prefix)
+		s = append(s[:0], tt.Suffix...)
+		st.SetText(":tag", tag)
+		st.SetBytes(":id", id[:])
+		st.SetBytes(":prefix", p)
+		st.SetBytes(":suffix", s)
+		_, err := st.Step()
+		if err != nil {
+			return fmt.Errorf("couldn't insert tuple: %w", err)
+		}
+		st.Reset()
+	}
+
+	sm, err := conn.Prepare(`INSERT INTO messages(tag, id, time, user) VALUES (:tag, :id, :time, :user)`)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare message insert: %w", err)
+	}
+	sm.SetText(":tag", tag)
+	sm.SetBytes(":id", id[:])
+	sm.SetInt64(":time", t.UnixNano())
+	sm.SetBytes(":user", user[:])
+	_, err = sm.Step()
 	if err != nil {
 		return fmt.Errorf("couldn't insert message: %w", err)
 	}
-	if deleted.Valid {
-		return fmt.Errorf("message %v was already deleted: %s", meta.ID, deleted.String)
-	}
-	// Now insert tuples.
-	_, err = tx.Exec(ctx, s, p...)
-	if err != nil {
-		return fmt.Errorf("couldn't insert tuples: %w", err)
-	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("couldn't commit tuples: %w", err)
-	}
 	return nil
 }
 
-// tupleInsert formats the tuple insert message for the given tuples.
-func (br *Brain) tupleInsert(tuples []brain.Tuple) string {
-	data := struct {
-		Iter []struct{}
-		// We don't actually have to pass the tuples to the template, we just
-		// need the right number of elements.
-		Tuples []struct{}
-	}{
-		Iter:   make([]struct{}, br.order),
-		Tuples: make([]struct{}, len(tuples)),
+func prefix(b []byte, tup []string) []byte {
+	for _, w := range tup {
+		b = append(b, w...)
+		b = append(b, 0)
 	}
-	var b strings.Builder
-	if err := br.tpl.ExecuteTemplate(&b, "tuple.insert.sql", &data); err != nil {
-		panic(err)
-	}
-	return b.String()
+	return b
 }
-
-//go:embed templates/message.insert.sql
-var insertMessage string
-
-//go:embed templates/tuple.insert.sql
-var insertTuple string

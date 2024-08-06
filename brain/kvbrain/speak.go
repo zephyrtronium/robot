@@ -8,63 +8,50 @@ import (
 	"github.com/dgraph-io/badger/v4"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/prepend"
+	"github.com/zephyrtronium/robot/tpool"
 )
 
-// New finds a prompt to begin a random message. When a message is
-// generated with no prompt, the result from New is passed directly to
-// Speak; it is the speaker's responsibility to ensure it meets
-// requirements with regard to length and matchable content. Only data
-// originally learned with the given tag should be used to generate a
-// prompt.
-func (br *Brain) New(ctx context.Context, tag string) ([]string, error) {
-	return br.Speak(ctx, tag, nil)
-}
+var prependerPool tpool.Pool[*prepend.List[string]]
 
-// Speak generates a full message from the given prompt. The prompt is
-// guaranteed to have length equal to the value returned from Order, unless
-// it is a prompt returned from New. If the number of tokens in the prompt
-// is smaller than Order, the difference is made up by prepending empty
-// strings to the prompt. The speaker should use ReduceEntropy on all
-// tokens, including those in the prompt, when generating a message.
-// Empty strings at the start and end of the result will be trimmed. Only
-// data originally learned with the given tag should be used to generate a
-// message.
-func (br *Brain) Speak(ctx context.Context, tag string, prompt []string) ([]string, error) {
-	terms := make([]string, 0, len(prompt))
-	for i, s := range prompt {
-		if s == "" {
-			continue
-		}
-		terms = append(terms, s)
-		prompt[i] = brain.ReduceEntropy(s)
-	}
-	var b []byte
+// Speak generates a full message and appends it to w.
+// The prompt is in reverse order and has entropy reduction applied.
+func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w []byte) ([]byte, error) {
+	search := prependerPool.Get().Set(prompt...)
+	defer func() { prependerPool.Put(search) }()
+
+	tb := hashTag(make([]byte, 0, tagHashLen), tag)
+	b := make([]byte, 0, 128)
 	opts := badger.DefaultIteratorOptions
 	// We don't actually need to iterate over values, only the single value
 	// that we decide to use per suffix. So, we can disable value prefetch.
 	opts.PrefetchValues = false
 	opts.Prefix = hashTag(nil, tag)
-	for {
+	for range 1024 {
 		var err error
-		var s string
-		b = hashTag(b[:0], tag)
-		s, b, prompt, err = br.next(b, prompt, opts)
+		var l int
+		b = append(b[:0], tb...)
+		b, l, err = br.next(b, search.Slice(), opts)
 		if err != nil {
 			return nil, err
 		}
-		if s == "" {
-			return terms, nil
+		if len(b) == 0 {
+			break
 		}
-		terms = append(terms, s)
-		prompt = append(prompt, brain.ReduceEntropy(s))
+		w = append(w, b...)
+		w = append(w, ' ')
+		search = search.Drop(search.Len() - l - 1).Prepend(brain.ReduceEntropy(string(b)))
 	}
+	return w, nil
 }
 
 // next finds a single token to continue a prompt.
-// The returned values are, in order, the new term, b with possibly appended
-// memory, the suffix of prompt which matched to produce the new term, and
-// any error. If the returned term is the empty string, generation should end.
-func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) (string, []byte, []string, error) {
+// The returned values are, in order,
+// b with its contents replaced with the new term,
+// the number of terms of the prompt which matched to produce the new term,
+// and any error.
+// If the returned term is the empty string, generation should end.
+func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([]byte, int, error) {
 	// These definitions are outside the loop to ensure we don't bias toward
 	// smaller contexts.
 	var (
@@ -86,6 +73,7 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) (s
 			for it.ValidForPrefix(b) {
 				// We generate a uniform variate per key, then choose the key
 				// that gets the maximum variate.
+				// TODO(zeph): gumbel distribution
 				u := rand.Uint64()
 				if m <= u {
 					item := it.Item()
@@ -100,22 +88,19 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) (s
 			return nil
 		})
 		if err != nil {
-			return "", b, prompt, fmt.Errorf("couldn't read knowledge: %w", err)
+			return nil, len(prompt), fmt.Errorf("couldn't read knowledge: %w", err)
 		}
 		if picked < 3 && len(prompt) > 1 {
 			// We haven't seen enough options, and we have context we could
 			// lose. Do so and try again from the beginning.
-			// TODO(zeph): we could save the start of the prompt so we don't
-			// reallocate, and we could construct the next key to use by
-			// trimming off the end of the current one
-			prompt = prompt[1:]
-			b = appendPrefix(b[:8], prompt)
+			prompt = prompt[:len(prompt)-1]
+			b = appendPrefix(b[:tagHashLen], prompt)
 			continue
 		}
 		if key == nil {
 			// We never saw any options. Since we always select the first, this
 			// means there were no options. Don't look for nothing in the DB.
-			return "", b, prompt, nil
+			return b[:0], len(prompt), nil
 		}
 		err = br.knowledge.View(func(txn *badger.Txn) error {
 			item, err := txn.Get(key)
@@ -128,9 +113,6 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) (s
 			}
 			return nil
 		})
-		if err != nil {
-			return "", b, prompt, err
-		}
-		return string(b), b, prompt, nil
+		return b, len(prompt), err
 	}
 }

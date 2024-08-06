@@ -3,6 +3,7 @@ package kvbrain
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -108,14 +109,13 @@ func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) e
 		return p
 	})
 	err := br.knowledge.Update(func(txn *badger.Txn) error {
+		var errs error
 		opts := badger.DefaultIteratorOptions
-		opts.Prefix = hashTag(nil, tag)
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		it := txn.NewIterator(opts)
 		defer it.Close()
-		var b []byte
+		b := hashTag(nil, tag)
 		for _, t := range tuples {
-			b = hashTag(b[:0], tag)
-			b = append(appendPrefix(b, t.Prefix), '\xff') // terminate the prefix
+			b = append(appendPrefix(b[:tagHashLen], t.Prefix), '\xff') // terminate the prefix
 			it.Seek(b)
 			for it.ValidForPrefix(b) {
 				v := it.Item()
@@ -123,22 +123,23 @@ func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) e
 				if v.IsDeletedOrExpired() {
 					continue
 				}
-				var err error
-				b, err = v.ValueCopy(b[:0])
+				u, err := v.ValueCopy(nil)
 				if err != nil {
-					// TODO(zeph): collect and continue
-					return err
+					errs = errors.Join(errs, err)
+					continue
 				}
-				if string(b) != t.Suffix {
+				if string(u) != t.Suffix {
 					continue
 				}
 				if err := txn.Delete(v.KeyCopy(nil)); err != nil {
-					// TODO(zeph): collect and continue
-					return err
+					errs = errors.Join(errs, err)
+					continue
 				}
+				// Only delete a single instance of each tuple.
+				break
 			}
 		}
-		return nil
+		return errs
 	})
 	if err != nil {
 		return fmt.Errorf("couldn't forget: %w", err)
