@@ -2,12 +2,15 @@ package sqlbrain_test
 
 import (
 	"context"
+	"fmt"
 	"slices"
+	"sync/atomic"
 	"testing"
 
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 
+	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 )
 
@@ -480,4 +483,28 @@ func insert(t *testing.T, conn *sqlite.Conn, know []know, msgs []msg) {
 			t.Errorf("couldn't learn message %v: %v", v.id, err)
 		}
 	}
+}
+
+func BenchmarkSpeak(b *testing.B) {
+	var dbs atomic.Uint64
+	new := func(ctx context.Context, b *testing.B) braintest.Interface {
+		k := dbs.Add(1)
+		db, err := sqlitex.NewPool(fmt.Sprintf("file:%s/bench-%d.sql", b.TempDir(), k), sqlitex.PoolOptions{})
+		if err != nil {
+			b.Fatal(err)
+		}
+		if err := sqlbrain.Create(ctx, db); err != nil {
+			b.Fatal(err)
+		}
+		br, err := sqlbrain.Open(ctx, db)
+		if err != nil {
+			b.Fatal(err)
+		}
+		return br
+	}
+	cleanup := func(l braintest.Interface) {
+		br := l.(*sqlbrain.Brain)
+		br.Close()
+	}
+	braintest.BenchSpeak(context.Background(), b, new, cleanup)
 }
