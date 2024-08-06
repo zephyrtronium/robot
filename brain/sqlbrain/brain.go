@@ -51,3 +51,31 @@ func Create[DB *sqlite.Conn | *sqlitex.Pool](ctx context.Context, db DB) error {
 func (br *Brain) Close() error {
 	return br.db.Close()
 }
+
+// RecommendedPrep is an [sqlitex.ConnPrepareFunc] that sets options recommended
+// for a brain.
+func RecommendedPrep(conn *sqlite.Conn) error {
+	// Performance pragmas.
+	// These need to be run per connection.
+	pragmas := []string{
+		"PRAGMA journal_mode = WAL", // Should be set by the connection, but make really sure.
+		"PRAGMA synchronous = NORMAL",
+	}
+	for _, p := range pragmas {
+		s, _, err := conn.PrepareTransient(p)
+		if err != nil {
+			// If this function just returns an error, then the pool
+			// will continue to invoke it for every connection.
+			// Explode violently instead.
+			panic(fmt.Errorf("couldn't set %s: %w", p, err))
+		}
+		if err := allsteps(s); err != nil {
+			// This one is probably ok to retry, though.
+			return fmt.Errorf("couldn't run %s: %w", p, err)
+		}
+		if err := s.Finalize(); err != nil {
+			panic(fmt.Errorf("couldn't finalize statement for %s: %w", p, err))
+		}
+	}
+	return nil
+}

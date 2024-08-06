@@ -395,7 +395,7 @@ func BenchmarkLearn(b *testing.B) {
 	dir := filepath.ToSlash(b.TempDir())
 	new := func(ctx context.Context, b *testing.B) brain.Learner {
 		dsn := fmt.Sprintf("file:%s/benchmark_learn.db?_journal=WAL", dir)
-		db, err := sqlitex.NewPool(dsn, sqlitex.PoolOptions{Flags: sqlite.OpenCreate | sqlite.OpenReadWrite | sqlite.OpenURI | sqlite.OpenWAL})
+		db, err := sqlitex.NewPool(dsn, sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
 		if err != nil {
 			b.Fatal(err)
 		}

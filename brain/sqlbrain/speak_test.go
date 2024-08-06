@@ -489,7 +489,7 @@ func BenchmarkSpeak(b *testing.B) {
 	var dbs atomic.Uint64
 	new := func(ctx context.Context, b *testing.B) braintest.Interface {
 		k := dbs.Add(1)
-		db, err := sqlitex.NewPool(fmt.Sprintf("file:%s/bench-%d.sql", b.TempDir(), k), sqlitex.PoolOptions{})
+		db, err := sqlitex.NewPool(fmt.Sprintf("file:%s/bench-%d.sql", b.TempDir(), k), sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
 		if err != nil {
 			b.Fatal(err)
 		}
