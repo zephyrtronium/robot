@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v3"
+
 	"github.com/zephyrtronium/robot/privacy"
 )
 
@@ -70,7 +71,7 @@ func cliInit(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("couldn't load config: %w", err)
 	}
-	_, priv, err := loadDBs(ctx, cfg.DB)
+	_, priv, err := loadDBs(cfg.DB)
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 	if err := robo.SetSecrets(cfg.SecretFile); err != nil {
 		return err
 	}
-	brain, priv, err := loadDBs(ctx, cfg.DB)
+	brain, priv, err := loadDBs(cfg.DB)
 	if err != nil {
 		return err
 	}

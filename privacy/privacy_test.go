@@ -2,29 +2,26 @@ package privacy_test
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"testing"
 
-	"gitlab.com/zephyrtronium/sq"
+	"zombiezen.com/go/sqlite"
+	"zombiezen.com/go/sqlite/sqlitex"
 
+	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/privacy"
-
-	_ "github.com/mattn/go-sqlite3" // driver
 )
 
-func testConn() *sq.Conn {
-	db, err := sq.Open("sqlite3", ":memory:")
+var dbcount atomic.Uint64
+
+func testConn() *sqlitex.Pool {
+	k := dbcount.Add(1)
+	pool, err := sqlitex.NewPool(fmt.Sprintf("file:%d.db?mode=memory&cache=shared", k), sqlitex.PoolOptions{Flags: sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenMemory | sqlite.OpenSharedCache | sqlite.OpenURI})
 	if err != nil {
 		panic(err)
 	}
-	ctx := context.Background()
-	if err := db.Ping(ctx); err != nil {
-		panic(err)
-	}
-	conn, err := db.Conn(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return conn
+	return pool
 }
 
 func TestInit(t *testing.T) {
@@ -38,15 +35,14 @@ func TestInit(t *testing.T) {
 // TestCohabitant tests that a privacy list and an sqlbrain can exist in the
 // same database.
 func TestCohabitant(t *testing.T) {
-	t.Skip("package needs update to support new sqlite provider")
-	// ctx := context.Background()
-	// db := testConn()
-	// if err := sqlbrain.Create(ctx, db); err != nil {
-	// 	t.Errorf("couldn't create sqlbrain in the first place: %v", err)
-	// }
-	// if err := privacy.Init(ctx, db); err != nil {
-	// 	t.Errorf("couldn't create privacy list together with sqlbrain: %v", err)
-	// }
+	ctx := context.Background()
+	db := testConn()
+	if err := sqlbrain.Create(ctx, db); err != nil {
+		t.Errorf("couldn't create sqlbrain in the first place: %v", err)
+	}
+	if err := privacy.Init(ctx, db); err != nil {
+		t.Errorf("couldn't create privacy list together with sqlbrain: %v", err)
+	}
 }
 
 func TestList(t *testing.T) {

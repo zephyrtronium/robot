@@ -14,12 +14,12 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/dgraph-io/badger/v4/options"
 	"gitlab.com/zephyrtronium/pick"
-	"gitlab.com/zephyrtronium/sq"
 	"gitlab.com/zephyrtronium/tmi"
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
+	"zombiezen.com/go/sqlite/sqlitex"
 
 	"github.com/zephyrtronium/robot/auth"
 	"github.com/zephyrtronium/robot/brain/kvbrain"
@@ -62,7 +62,7 @@ func (robo *Robot) SetSecrets(file string) error {
 
 // SetSources opens the brain and privacy list wrappers around the respective
 // databases. Use [loadDBs] to open the databases themselves from DSNs.
-func (robo *Robot) SetSources(ctx context.Context, brain *badger.DB, priv *sq.DB) error {
+func (robo *Robot) SetSources(ctx context.Context, brain *badger.DB, priv *sqlitex.Pool) error {
 	var err error
 	robo.brain = kvbrain.New(brain)
 	robo.privacy, err = privacy.Open(ctx, priv)
@@ -151,7 +151,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 	return nil
 }
 
-func loadDBs(ctx context.Context, cfg DBCfg) (brain *badger.DB, priv *sq.DB, err error) {
+func loadDBs(cfg DBCfg) (brain *badger.DB, priv *sqlitex.Pool, err error) {
 	opts := badger.DefaultOptions(cfg.Brain)
 	// TODO(zeph): logger?
 	opts = opts.WithLogger(nil)
@@ -162,12 +162,9 @@ func loadDBs(ctx context.Context, cfg DBCfg) (brain *badger.DB, priv *sq.DB, err
 		return nil, nil, fmt.Errorf("couldn't open brain db: %w", err)
 	}
 
-	priv, err = sq.Open("sqlite3", cfg.Privacy)
+	priv, err = sqlitex.NewPool(cfg.Privacy, sqlitex.PoolOptions{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
-	}
-	if err := priv.Ping(ctx); err != nil {
-		return nil, nil, fmt.Errorf("couldn't connect to privacy db: %w", err)
 	}
 
 	return brain, priv, nil
