@@ -68,8 +68,6 @@ github.com/klauspost/compress v1.17.7 h1:ehO88t2UGzQK66LMdE8tibEd1ErmzZjNEqWkjLA
 github.com/klauspost/compress v1.17.7/go.mod h1:Di0epgTjJY877eYKx5yC51cX2A2Vl2ibi7bDH9ttBbw=
 github.com/mattn/go-isatty v0.0.16 h1:bq3VjFmv/sOjHtdEhmkEV4x1AJtvUvOJ2PFAZ5+peKQ=
 github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
-github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
-github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
 github.com/ncruces/go-strftime v0.1.9 h1:bY0MQC28UADQmHmaF5dgpLmImcShSi2kHU9XLdhx/f4=
 github.com/ncruces/go-strftime v0.1.9/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJmn9CehxcKcls=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
@@ -97,8 +95,6 @@ github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9dec
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 gitlab.com/zephyrtronium/pick v1.0.0 h1:69HZtpcbLu9gl5UoKl9YcwdiSuZ3BIuGQkHp2NmG5hI=
 gitlab.com/zephyrtronium/pick v1.0.0/go.mod h1:jWZNNgIzAdXRkR0LFbpYckLo4ikhoQRXNm/vJuXUmVI=
-gitlab.com/zephyrtronium/sq v1.0.1 h1:adEgr3pNIrpeUTn8pf4l5bzCZU3P+lZ71shhQpTtU3k=
-gitlab.com/zephyrtronium/sq v1.0.1/go.mod h1:1PixOalEEwM8B2bR0JHkH0kqE4eaqG47DRFn4mWOtaQ=
 gitlab.com/zephyrtronium/tmi v0.0.0-20240325132202-7adf62e91c49 h1:o9bho6E5B8uhpSSvyGnM/ds52dzJowGNJESJ9EQn5X0=
 gitlab.com/zephyrtronium/tmi v0.0.0-20240325132202-7adf62e91c49/go.mod h1:OnGsPoEWvq0Kh20CPT2Aoa9bxmzX5imtWpZ+9Qiltik=
 go.opencensus.io v0.24.0 h1:y73uSU6J157QMP2kn2r30vwW1A2W2WFwSCGnAVxeaD0=

@@ -1,67 +1,11 @@
 package userhash_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
-	"gitlab.com/zephyrtronium/sq"
-
 	"github.com/zephyrtronium/robot/userhash"
-
-	_ "github.com/mattn/go-sqlite3" // driver
 )
-
-// TestHashSQL tests that userhashes round-trip in an SQL database.
-func TestHashSQL(t *testing.T) {
-	cases := []struct {
-		driver string
-		dsn    string
-		create string
-	}{
-		{
-			driver: "sqlite3",
-			dsn:    ":memory:",
-			create: `CREATE TABLE test (x BLOB) STRICT`,
-		},
-	}
-	for _, c := range cases {
-		c := c
-		t.Run(c.driver, func(t *testing.T) {
-			t.Parallel()
-			ctx := context.Background()
-			db, err := sq.Open(c.driver, c.dsn)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := db.Ping(ctx); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := db.Exec(ctx, c.create); err != nil {
-				t.Fatal(err)
-			}
-			in := &userhash.Hash{}
-			for i := range in {
-				in[i] = 0x55
-			}
-			r, err := db.Exec(ctx, `INSERT INTO test (x) VALUES (?)`, in)
-			if err != nil {
-				t.Errorf("couldn't insert userhash: %v", err)
-			}
-			n, _ := r.RowsAffected()
-			if n != 1 {
-				t.Errorf("wrong number of rows affected: want 1, got %d", n)
-			}
-			var out userhash.Hash
-			if err := db.QueryRow(ctx, `SELECT x FROM test`).Scan(&out); err != nil {
-				t.Errorf("couldn't scan userhash: %v", err)
-			}
-			if out != *in {
-				t.Errorf("wrong scan result: want %x, got %x", *in, out)
-			}
-		})
-	}
-}
 
 func TestHasher(t *testing.T) {
 	t.Parallel()

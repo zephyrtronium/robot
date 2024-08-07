@@ -12,7 +12,6 @@ package userhash
 
 import (
 	"crypto/hmac"
-	"database/sql/driver"
 	"encoding/binary"
 	"errors"
 	"hash"
@@ -52,11 +51,6 @@ func (h *Hash) Scan(src any) error {
 		return ErrHashType
 	}
 	return nil
-}
-
-// Value implements sql/driver.Valuer.
-func (h *Hash) Value() (driver.Value, error) {
-	return h[:], nil
 }
 
 // A Hasher creates Hash values.

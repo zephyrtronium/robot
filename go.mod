@@ -7,10 +7,8 @@ require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
-	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/urfave/cli/v3 v3.0.0-alpha9
 	gitlab.com/zephyrtronium/pick v1.0.0
-	gitlab.com/zephyrtronium/sq v1.0.1
 	gitlab.com/zephyrtronium/tmi v0.0.0-20240325132202-7adf62e91c49
 	golang.org/x/crypto v0.21.0
 	golang.org/x/oauth2 v0.18.0
