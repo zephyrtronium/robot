@@ -16,7 +16,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/zephyrtronium/robot/auth"
-	"github.com/zephyrtronium/robot/brain/kvbrain"
+	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/twitch"
@@ -25,7 +25,7 @@ import (
 // Robot is the overall configuration for the bot.
 type Robot struct {
 	// brain is the brain.
-	brain *kvbrain.Brain
+	brain brain.Brain
 	// privacy is the privacy.
 	privacy *privacy.List
 	// channels are the channels.

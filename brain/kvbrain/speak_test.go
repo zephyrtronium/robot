@@ -13,6 +13,7 @@ import (
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/google/uuid"
 
+	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
 )
 
@@ -157,14 +158,14 @@ func TestSpeak(t *testing.T) {
 }
 
 func BenchmarkSpeak(b *testing.B) {
-	new := func(ctx context.Context, b *testing.B) braintest.Interface {
+	new := func(ctx context.Context, b *testing.B) brain.Brain {
 		db, err := badger.Open(badger.DefaultOptions(b.TempDir()).WithLogger(nil).WithCompression(options.None).WithBloomFalsePositive(1.0 / 32).WithNumMemtables(16).WithLevelSizeMultiplier(4))
 		if err != nil {
 			b.Fatal(err)
 		}
 		return New(db)
 	}
-	cleanup := func(l braintest.Interface) {
+	cleanup := func(l brain.Brain) {
 		br := l.(*Brain)
 		if err := br.knowledge.DropAll(); err != nil {
 			b.Fatal(err)

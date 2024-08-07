@@ -15,16 +15,10 @@ import (
 	"github.com/zephyrtronium/robot/userhash"
 )
 
-// Interface is a merged learner and speaker for testing.
-type Interface interface {
-	brain.Learner
-	brain.Speaker
-}
-
 // Test runs the integration test suite against brains produced by new.
 //
 // If a brain cannot be created without error, new should call t.Fatal.
-func Test(ctx context.Context, t *testing.T, new func(context.Context) Interface) {
+func Test(ctx context.Context, t *testing.T, new func(context.Context) brain.Brain) {
 	t.Run("speak", testSpeak(ctx, new(ctx)))
 	t.Run("forget", testForget(ctx, new(ctx)))
 	t.Run("forgetMessage", testForgetMessage(ctx, new(ctx)))
@@ -133,7 +127,7 @@ func speak(ctx context.Context, t *testing.T, br brain.Speaker, tag, prompt stri
 }
 
 // testSpeak tests that a brain can speak what it has learned.
-func testSpeak(ctx context.Context, br Interface) func(t *testing.T) {
+func testSpeak(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
 		got := speak(ctx, t, br, "kessoku", "", 256)
@@ -168,7 +162,7 @@ func testSpeak(ctx context.Context, br Interface) func(t *testing.T) {
 }
 
 // testForget tests that a brain forgets what it forgets.
-func testForget(ctx context.Context, br Interface) func(t *testing.T) {
+func testForget(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
 		if err := brain.Forget(ctx, br, "kessoku", messages[0].Tokens()); err != nil {
@@ -197,7 +191,7 @@ func testForget(ctx context.Context, br Interface) func(t *testing.T) {
 }
 
 // testForgetMessage tests that a brain can forget messages by ID.
-func testForgetMessage(ctx context.Context, br Interface) func(t *testing.T) {
+func testForgetMessage(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
 		if err := br.ForgetMessage(ctx, "kessoku", messages[0].ID); err != nil {
@@ -227,7 +221,7 @@ func testForgetMessage(ctx context.Context, br Interface) func(t *testing.T) {
 }
 
 // testForgetDuring tests that a brain can forget messages in a time range.
-func testForgetDuring(ctx context.Context, br Interface) func(t *testing.T) {
+func testForgetDuring(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
 		if err := br.ForgetDuring(ctx, "kessoku", time.Unix(1, 0).Add(-time.Millisecond), time.Unix(2, 0).Add(time.Millisecond)); err != nil {
@@ -259,7 +253,7 @@ func testForgetDuring(ctx context.Context, br Interface) func(t *testing.T) {
 
 // testCombinatoric tests that chains can generate even with substantial
 // overlap in learned material.
-func testCombinatoric(ctx context.Context, br Interface) func(t *testing.T) {
+func testCombinatoric(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	return func(t *testing.T) {
 		u := userhash.Hash{2}
 		band := []string{"bocchi", "ryou", "nijika", "kita"}

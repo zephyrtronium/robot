@@ -91,7 +91,7 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 
 // BenchSpeak runs benchmarks on a brain's speed with generating messages
 // from tuples. The brain returned by new must be safe for concurrent use.
-func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context, b *testing.B) Interface, cleanup func(Interface)) {
+func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context, b *testing.B) brain.Brain, cleanup func(brain.Brain)) {
 	sizes := []int64{1e3, 1e4, 1e5}
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("similar-new-%d", size), func(b *testing.B) {

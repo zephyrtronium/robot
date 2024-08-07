@@ -39,7 +39,7 @@ var _ brain.Speaker = (*sqlbrain.Brain)(nil)
 func TestIntegrated(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	new := func(ctx context.Context) braintest.Interface {
+	new := func(ctx context.Context) brain.Brain {
 		db := testDB(ctx)
 		br, err := sqlbrain.Open(ctx, db)
 		if err != nil {

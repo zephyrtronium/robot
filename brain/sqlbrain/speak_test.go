@@ -10,6 +10,7 @@ import (
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 
+	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 )
@@ -487,7 +488,7 @@ func insert(t *testing.T, conn *sqlite.Conn, know []know, msgs []msg) {
 
 func BenchmarkSpeak(b *testing.B) {
 	var dbs atomic.Uint64
-	new := func(ctx context.Context, b *testing.B) braintest.Interface {
+	new := func(ctx context.Context, b *testing.B) brain.Brain {
 		k := dbs.Add(1)
 		db, err := sqlitex.NewPool(fmt.Sprintf("file:%s/bench-%d.sql", b.TempDir(), k), sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
 		if err != nil {
@@ -502,7 +503,7 @@ func BenchmarkSpeak(b *testing.B) {
 		}
 		return br
 	}
-	cleanup := func(l braintest.Interface) {
+	cleanup := func(l brain.Brain) {
 		br := l.(*sqlbrain.Brain)
 		br.Close()
 	}
