@@ -1,12 +1,10 @@
 package channel_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/zephyrtronium/robot/channel"
-	"gitlab.com/zephyrtronium/sq"
 )
 
 func TestMemeDetector(t *testing.T) {
@@ -103,37 +101,8 @@ func TestMemeDetector(t *testing.T) {
 				err := d.Check(time.UnixMilli(m.when), m.who, m.text)
 				if err != m.err {
 					t.Errorf("wrong error for %+v: want %v, got %v", m, m.err, err)
-					dumpdb(context.Background(), t, d.DB())
 				}
 			}
 		})
-	}
-}
-
-func dumpdb(ctx context.Context, t *testing.T, db *sq.Conn) {
-	t.Helper()
-	t.Log("db content:")
-	rows, err := db.Query(ctx, "SELECT * FROM Message")
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-	cols, err := rows.Columns()
-	if err != nil {
-		panic(err)
-	}
-	t.Log(cols)
-	for rows.Next() {
-		r := make([]any, len(cols))
-		for i := range r {
-			r[i] = &r[i]
-		}
-		if err := rows.Scan(r...); err != nil {
-			panic(err)
-		}
-		t.Logf("%q", r)
-	}
-	if rows.Err() != nil {
-		t.Log(rows.Err())
 	}
 }
