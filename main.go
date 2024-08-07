@@ -12,6 +12,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
+	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/privacy"
 )
 
@@ -71,9 +72,14 @@ func cliInit(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("couldn't load config: %w", err)
 	}
-	_, priv, err := loadDBs(cfg.DB)
+	_, sql, priv, err := loadDBs(cfg.DB)
 	if err != nil {
 		return err
+	}
+	if sql != nil {
+		if err := sqlbrain.Create(ctx, sql); err != nil {
+			return fmt.Errorf("couldn't initialize sqlbrain: %w", err)
+		}
 	}
 	if err := privacy.Init(ctx, priv); err != nil {
 		return fmt.Errorf("couldn't initialize privacy list: %w", err)
@@ -97,11 +103,11 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 	if err := robo.SetSecrets(cfg.SecretFile); err != nil {
 		return err
 	}
-	brain, priv, err := loadDBs(cfg.DB)
+	kv, sql, priv, err := loadDBs(cfg.DB)
 	if err != nil {
 		return err
 	}
-	if err := robo.SetSources(ctx, brain, priv); err != nil {
+	if err := robo.SetSources(ctx, kv, sql, priv); err != nil {
 		return err
 	}
 	if md.IsDefined("tmi") {

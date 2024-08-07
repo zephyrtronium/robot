@@ -3,7 +3,6 @@ package main_test
 import (
 	"context"
 	_ "embed"
-	"os"
 	"strings"
 	"testing"
 
@@ -28,7 +27,8 @@ func TestExampleConfig(t *testing.T) {
 
 	eqcase(t, "Owner.Name", cfg.Owner.Name, `zephyrtronium`)
 	eqcase(t, "Owner.Contact", cfg.Owner.Contact, `/w zephyrtronium`)
-	eqcase(t, "DB.Brain", cfg.DB.Brain, os.Getenv("ROBOT_KNOWLEDGE"))
+	eqcase(t, "DB.KVBrain", cfg.DB.KVBrain, "")
+	eqcase(t, "DB.KVFlag", cfg.DB.KVFlag, "")
 	eqcase(t, "Global.Block", cfg.Global.Block, `(?i)bad\s+stuff[^$x]`)
 	eqcase(t, "Global.Emotes[``]", cfg.Global.Emotes[``], 4)
 	eqcase(t, "Global.Emotes[`;)`]", cfg.Global.Emotes[`;)`], 1)
@@ -57,6 +57,7 @@ func TestExampleConfig(t *testing.T) {
 		has  string
 	}{
 		{"SecretFile", cfg.SecretFile, "/key"},
+		{"DB.SQLBrain", cfg.DB.SQLBrain, "file:"},
 		{"DB.Privacy", cfg.DB.Privacy, "file:"},
 		{"TMI.SecretFile", cfg.TMI.SecretFile, "/twitch_client_secret"},
 	}

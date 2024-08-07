@@ -17,11 +17,17 @@ name = 'zephyrtronium'
 contact = '/w zephyrtronium'
 
 # db is a table of databases used by the bot.
+# Exactly one of sqlbrain and kvbrain must be defined.
 [db]
-# brain is the directory in which learned knowledge is stored.
-brain = '$ROBOT_KNOWLEDGE'
-# brainflag configures the brain database as a Badger "superflag" string.
-brainflag = ''
+# sqlbrain is an SQLite3 connection string for the brain database.
+# If sqlbrain is defined, the SQLite3 implementation is used.
+sqlbrain = 'file:$ROBOT_SQLITE'
+# kvbrain is the directory in which learned knowledge is stored.
+# If kvbrain is defined, the Badger implementation is used.
+#kvbrain = '$ROBOT_KNOWLEDGE'
+# kvflag configures the brain database as a Badger "superflag" string.
+# It is ignored when not using the Badger implementation.
+#kvflag = ''
 # privacy is an SQLite3 connection string for the database where privacy
 # information is stored.
 privacy = 'file:$ROBOT_SQLITE'

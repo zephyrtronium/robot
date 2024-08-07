@@ -23,6 +23,7 @@ import (
 
 	"github.com/zephyrtronium/robot/auth"
 	"github.com/zephyrtronium/robot/brain/kvbrain"
+	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/privacy"
@@ -62,9 +63,20 @@ func (robo *Robot) SetSecrets(file string) error {
 
 // SetSources opens the brain and privacy list wrappers around the respective
 // databases. Use [loadDBs] to open the databases themselves from DSNs.
-func (robo *Robot) SetSources(ctx context.Context, brain *badger.DB, priv *sqlitex.Pool) error {
+// Panics if both kv and sql are nil.
+func (robo *Robot) SetSources(ctx context.Context, kv *badger.DB, sql, priv *sqlitex.Pool) error {
 	var err error
-	robo.brain = kvbrain.New(brain)
+	if sql == nil {
+		if kv == nil {
+			panic("robot: no brain")
+		}
+		robo.brain = kvbrain.New(kv)
+	} else {
+		robo.brain, err = sqlbrain.Open(ctx, sql)
+	}
+	if err != nil {
+		return fmt.Errorf("couldn't open brain: %w", err)
+	}
 	robo.privacy, err = privacy.Open(ctx, priv)
 	if err != nil {
 		return fmt.Errorf("couldn't open privacy list: %w", err)
@@ -151,23 +163,41 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 	return nil
 }
 
-func loadDBs(cfg DBCfg) (brain *badger.DB, priv *sqlitex.Pool, err error) {
-	opts := badger.DefaultOptions(cfg.Brain)
-	// TODO(zeph): logger?
-	opts = opts.WithLogger(nil)
-	opts = opts.WithCompression(options.None)
-	opts = opts.WithBloomFalsePositive(0)
-	brain, err = badger.Open(opts.FromSuperFlag(cfg.Brainflag))
-	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't open brain db: %w", err)
+func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv *sqlitex.Pool, err error) {
+	if cfg.KVBrain != "" && cfg.SQLBrain != "" {
+		return nil, nil, nil, fmt.Errorf("multiple brain backends requested; use exactly one")
+	}
+	if cfg.KVBrain == "" && cfg.SQLBrain == "" {
+		return nil, nil, nil, fmt.Errorf("no brain backends requested; use exactly one")
+	}
+
+	if cfg.KVBrain != "" {
+		opts := badger.DefaultOptions(cfg.KVBrain)
+		// TODO(zeph): logger?
+		opts = opts.WithLogger(nil)
+		opts = opts.WithCompression(options.None)
+		opts = opts.WithBloomFalsePositive(0)
+		kv, err = badger.Open(opts.FromSuperFlag(cfg.KVFlag))
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("couldn't open kvbrain db: %w", err)
+		}
+	}
+	if cfg.SQLBrain != "" {
+		sql, err = sqlitex.NewPool(cfg.SQLBrain, sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("couldn't open sqlbrain db: %w", err)
+		}
+		if cfg.Privacy == cfg.SQLBrain {
+			return nil, sql, sql, nil
+		}
 	}
 
 	priv, err = sqlitex.NewPool(cfg.Privacy, sqlitex.PoolOptions{})
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
+		return nil, nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
 	}
 
-	return brain, priv, nil
+	return kv, sql, priv, nil
 }
 
 func mergemaps(ms ...map[string]int) map[string]int {
@@ -334,9 +364,10 @@ type Privilege struct {
 
 // DBCfg is the configuration of databases.
 type DBCfg struct {
-	Brain     string `toml:"brain"`
-	Brainflag string `toml:"brainflag"`
-	Privacy   string `toml:"privacy"`
+	SQLBrain string `toml:"sqlbrain"`
+	KVBrain  string `toml:"kvbrain"`
+	KVFlag   string `toml:"kvflag"`
+	Privacy  string `toml:"privacy"`
 }
 
 // Rate is a rate limit configuration.
@@ -356,7 +387,9 @@ func expandcfg(cfg *Config, expand func(s string) string) {
 		&cfg.SecretFile,
 		&cfg.Owner.Name,
 		&cfg.Owner.Contact,
-		&cfg.DB.Brain,
+		&cfg.DB.SQLBrain,
+		&cfg.DB.KVBrain,
+		&cfg.DB.KVFlag,
 		&cfg.DB.Privacy,
 		&cfg.TMI.User,
 		&cfg.TMI.CID,
