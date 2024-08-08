@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -18,6 +21,7 @@ import (
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/sha3"
 	"golang.org/x/oauth2"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 	"zombiezen.com/go/sqlite/sqlitex"
 
@@ -27,6 +31,7 @@ import (
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/privacy"
+	"github.com/zephyrtronium/robot/twitch"
 )
 
 // Load loads Robot from a TOML configuration.
@@ -108,6 +113,104 @@ func (robo *Robot) SetTMI(ctx context.Context, cfg ClientCfg) error {
 		return fmt.Errorf("couldn't load TMI client: %w", err)
 	}
 	robo.tmi = tmi
+	return nil
+}
+
+// InitTwitchUsers resolves Twitch usernames in the configuration to user IDs.
+// It must be called after SetTMI.
+func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channels map[string]*ChannelCfg) error {
+	tok, err := twitchToken(ctx, robo.tmi.tokens)
+	if err != nil {
+		return err
+	}
+	var r []twitch.User
+	switch {
+	case owner == nil:
+		// do nothing
+	case owner.ID == "":
+		if owner.Name == "" {
+			slog.WarnContext(ctx, "no owner information; continuing with owner commands disabled")
+			break
+		}
+		r, err = twitch.UsersByLogin(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, owner.Name)
+	case owner.Name == "":
+		if owner.ID != "" {
+			break
+		}
+		r, err = twitch.UsersByID(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, owner.ID)
+	}
+	if err != nil {
+		return fmt.Errorf("couldn't resolve owner info: %w", err)
+	}
+	if len(r) > 0 {
+		u := &r[0]
+		slog.InfoContext(ctx, "Twitch owner",
+			slog.String("id", u.ID),
+			slog.String("login", u.Login),
+			slog.String("display", u.DisplayName),
+		)
+		owner.ID = u.ID
+		owner.Name = u.Login
+	}
+	var lookup []string
+	to := map[string]*string{}
+	var tomu sync.Mutex
+	// TODO(zeph): need to add global privs to lookup
+	for _, ch := range channels {
+		for i, p := range ch.Privileges {
+			if p.ID == "" && p.Name != "" {
+				s := strings.ToLower(p.Name)
+				k, ok := slices.BinarySearch(lookup, s)
+				if ok {
+					// Deduplicate.
+					// TODO(zeph): we could also remove names that have IDs elsewhere
+					continue
+				}
+				lookup = slices.Insert(lookup, k, s)
+				to[s] = &ch.Privileges[i].ID
+			}
+		}
+	}
+	// We create a new errgroup instead of adding to the global one because
+	// we need to wait separately.
+	group, ctx := errgroup.WithContext(ctx)
+	for len(lookup) > 0 {
+		l := lookup[:min(len(lookup), 100)]
+		lookup = lookup[len(l):]
+		group.Go(func() error {
+			// TODO(zeph): rate limit
+			r, err := twitch.UsersByLogin(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, l...)
+			if err != nil {
+				return err
+			}
+			slog.InfoContext(ctx, "resolved users", slog.Int("count", len(r)))
+			slog.DebugContext(ctx, "resolved users", slog.Any("users", r))
+			tomu.Lock()
+			defer tomu.Unlock()
+			for _, u := range r {
+				s := strings.ToLower(u.Login)
+				p := to[s]
+				if p == nil {
+					slog.ErrorContext(ctx, "Twitch user for no one (continuing)",
+						slog.String("id", u.ID),
+						slog.String("login", u.Login),
+						slog.String("display", u.DisplayName),
+					)
+					continue
+				}
+				slog.DebugContext(ctx, "Twitch user",
+					slog.String("id", u.ID),
+					slog.String("login", u.Login),
+					slog.String("display", u.DisplayName),
+				)
+				*p = u.ID
+			}
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return fmt.Errorf("couldn't resolve config Twitch users: %w", err)
+	}
 	return nil
 }
 
@@ -241,8 +344,9 @@ func loadClient[Send, Receive any](
 	return &client[Send, Receive]{
 		send:   send,
 		recv:   recv,
+		id:     t.CID,
 		me:     t.User,
-		owner:  t.Owner.ID, // TODO(zeph): resolve username
+		owner:  t.Owner.ID,
 		rate:   rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
 		tokens: tokens(cfg, stor),
 	}, nil

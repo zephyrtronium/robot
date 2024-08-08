@@ -50,6 +50,8 @@ type client[Send, Receive any] struct {
 	send chan Send
 	// recv is the channel on which received messages are communicated.
 	recv chan Receive
+	// id is the application client ID.
+	id string
 	// me is the bot's username. The interpretation of this is domain-specific.
 	me string
 	// owner is the user ID of the owner. The interpretation of this is
