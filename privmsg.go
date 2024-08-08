@@ -56,6 +56,8 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			// Meme detected. Copypasta.
 			text := m.Text
 			// TODO(zeph): effects; once we apply them, we also need to check block
+			// and we need to prevent copypastaing the effected version
+			slog.InfoContext(ctx, "copypasta", slog.String("text", text))
 			msg := message.Format("", ch.Name, "%s", text)
 			robo.sendTMI(ctx, send, msg)
 			return
@@ -72,6 +74,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			return
 		}
 		e := ch.Emotes.Pick(rand.Uint32())
+		slog.InfoContext(ctx, "speak", slog.String("text", s), slog.String("emote", e))
 		s = strings.TrimSpace(s + " " + e)
 		// TODO(zeph): effect
 		if ch.Block.MatchString(s) {
