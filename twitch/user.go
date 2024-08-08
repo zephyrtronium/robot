@@ -16,7 +16,7 @@ type User struct {
 	Description     string `json:"description"`
 	ProfileImageURL string `json:"profile_image_url"`
 	OfflineImageURL string `json:"offline_image_url"`
-	ViewCount       string `json:"view_count"`
+	ViewCount       int    `json:"view_count"`
 	Email           string `json:"email"`
 	CreatedAt       string `json:"created_at"`
 }
