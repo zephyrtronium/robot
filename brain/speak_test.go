@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/zephyrtronium/robot/brain"
 )
 
@@ -69,7 +71,7 @@ func TestSpeak(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-			if diff := cmp.Diff(c.want, s.prompt); diff != "" {
+			if diff := cmp.Diff(c.want, s.prompt, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("wrong prompt from %q:\n%s", c.prompt, diff)
 			}
 			if diff := cmp.Diff(c.say, r); diff != "" {
