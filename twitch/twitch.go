@@ -13,8 +13,13 @@ import (
 
 // Client holds the context for requests to the Twitch API.
 type Client struct {
-	HTTP  *http.Client
+	// HTTP is the HTTP client for performing requests.
+	// If nil, http.DefaultClient is used.
+	HTTP *http.Client
+	// Token is the OAuth2 token authorizing requests.
 	Token *oauth2.Token
+	// ID is the application's client ID.
+	ID string
 }
 
 // reqjson performs an HTTP request and decodes the response as JSON.
@@ -25,7 +30,12 @@ func reqjson[Resp any](ctx context.Context, client Client, method, url string, b
 		return fmt.Errorf("couldn't make request: %w", err)
 	}
 	client.Token.SetAuthHeader(req)
-	resp, err := client.HTTP.Do(req)
+	req.Header.Set("Client-Id", client.ID)
+	hc := client.HTTP
+	if hc == nil {
+		hc = http.DefaultClient
+	}
+	resp, err := hc.Do(req)
 	if err != nil {
 		return fmt.Errorf("couldn't %s: %w", method, err)
 	}
