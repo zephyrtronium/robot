@@ -56,8 +56,9 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 	// smaller contexts.
 	var (
 		key    []byte
-		m      uint64
+		skip   brain.Skip
 		picked int
+		n      uint64
 	)
 	b = appendPrefix(b, prompt)
 	if len(prompt) == 0 {
@@ -71,19 +72,15 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 			defer it.Close()
 			it.Seek(b)
 			for it.ValidForPrefix(b) {
-				// We generate a uniform variate per key, then choose the key
-				// that gets the maximum variate.
-				// TODO(zeph): gumbel distribution
-				u := rand.Uint64()
-				if m <= u {
+				if n == 0 {
 					item := it.Item()
 					// TODO(zeph): for #43, check deleted uuids so we never
 					// pick a message that has been deleted
 					key = item.KeyCopy(key[:0])
-					m = u
-					picked++
+					n = skip.N(rand.Uint64(), rand.Uint64())
 				}
 				it.Next()
+				n--
 			}
 			return nil
 		})
