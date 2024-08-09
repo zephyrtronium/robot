@@ -1,0 +1,24 @@
+{
+	"data": [
+		{
+			"id": "40952121085",
+			"user_id": "101051819",
+			"user_login": "afro",
+			"user_name": "Afro",
+			"game_id": "32982",
+			"game_name": "Grand Theft Auto V",
+			"type": "live",
+			"title": "Jacob: Digital Den Laptops & Routers | NoPixel | !MAINGEAR !FCF",
+			"tags": [
+				"English"
+			],
+			"viewer_count": 1490,
+			"started_at": "2021-03-10T03:18:11Z",
+			"language": "en",
+			"thumbnail_url": "https://static-cdn.jtvnw.net/previews-ttv/live_user_afro-{width}x{height}.jpg",
+			"tag_ids": [],
+			"is_mature": false
+		}
+	],
+	"pagination": {}
+}

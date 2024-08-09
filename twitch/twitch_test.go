@@ -2,10 +2,11 @@ package twitch
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"errors"
 	"io"
 	"net/http"
+	"path"
 	"strings"
 	"testing"
 
@@ -25,6 +26,23 @@ func (r *reqspy) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	r.got = req
 	return r.respond, nil
+}
+
+//go:embed testdata/*.json
+var jsonFiles embed.FS
+
+// apiresp creates a reqspy responding with the given testdata document.
+func apiresp(status int, file string) *reqspy {
+	f, err := jsonFiles.Open(path.Join("testdata/", file))
+	if err != nil {
+		panic(err)
+	}
+	return &reqspy{
+		respond: &http.Response{
+			StatusCode: status,
+			Body:       f,
+		},
+	}
 }
 
 func TestReqJSON(t *testing.T) {
