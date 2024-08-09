@@ -92,7 +92,6 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 	if err != nil {
 		return err
 	}
-	// TODO(zeph): resolve usernames in configs to user ids
 	cfg := tmi.ConnectConfig{
 		Dial:         new(tls.Dialer).DialContext,
 		RetryWait:    tmi.RetryList(true, 0, time.Second, time.Minute, 5*time.Minute),
@@ -104,6 +103,9 @@ func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
 	group.Go(func() error {
 		robo.tmiLoop(ctx, group, robo.tmi.send, robo.tmi.recv)
 		return nil
+	})
+	group.Go(func() error {
+		return robo.streamsLoop(ctx, robo.channels)
 	})
 	tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
 	return ctx.Err()
@@ -197,6 +199,126 @@ func (robo *Robot) join(ctx context.Context, send chan<- *tmi.Message) {
 			// attempts per ten seconds. Use a slightly longer delay to ensure
 			// we don't get globaled by clock drift.
 			time.Sleep(11 * time.Second)
+		}
+	}
+}
+
+func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel.Channel) error {
+	// TODO(zeph): one day we should switch to eventsub
+	// TODO(zeph): remove anything learned since the last check when offline
+	tok, err := robo.tmi.tokens.Token(ctx)
+	if err != nil {
+		return err
+	}
+	cl := twitch.Client{
+		HTTP:  &http.Client{Timeout: 30 * time.Second},
+		Token: tok,
+		ID:    robo.tmi.id,
+	}
+	streams := make([]twitch.Stream, 0, len(channels))
+	m := make(map[string]bool, len(channels))
+	// Run once at the start so we start learning in online streams immediately.
+	streams = streams[:0]
+	for _, ch := range channels {
+		n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
+		streams = append(streams, twitch.Stream{UserLogin: n})
+	}
+	for range 5 {
+		// TODO(zeph): limit to 100
+		streams, err = twitch.UserStreams(ctx, cl, streams)
+		switch err {
+		case nil:
+			slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
+			// Mark online streams as enabled.
+			// First map names to online status.
+			for _, s := range streams {
+				slog.DebugContext(ctx, "stream",
+					slog.String("login", s.UserLogin),
+					slog.String("display", s.UserName),
+					slog.String("id", s.UserID),
+					slog.String("type", s.Type),
+				)
+				n := strings.ToLower(s.UserLogin)
+				m[n] = true
+			}
+			// Now loop all streams.
+			for _, ch := range channels {
+				n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
+				ch.Enabled.Store(m[n])
+			}
+		case twitch.ErrNeedRefresh:
+			tok, err := twitchToken(ctx, robo.tmi.tokens)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to refresh token", slog.Any("err", err))
+				return fmt.Errorf("couldn't get valid access token: %w", err)
+			}
+			cl.Token = tok
+			continue
+		default:
+			slog.ErrorContext(ctx, "failed to query online broadcasters", slog.Any("streams", streams), slog.Any("err", err))
+			// All streams are already offline.
+		}
+		break
+	}
+	streams = streams[:0]
+	clear(m)
+
+	tick := time.NewTicker(time.Minute)
+	go func() {
+		<-ctx.Done()
+		tick.Stop()
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tick.C:
+			for _, ch := range channels {
+				n := strings.TrimPrefix(ch.Name, "#")
+				streams = append(streams, twitch.Stream{UserLogin: n})
+			}
+			for range 5 {
+				// TODO(zeph): limit to 100
+				streams, err = twitch.UserStreams(ctx, cl, streams)
+				switch err {
+				case nil:
+					slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
+					// Mark online streams as enabled.
+					// First map names to online status.
+					for _, s := range streams {
+						slog.DebugContext(ctx, "stream",
+							slog.String("login", s.UserLogin),
+							slog.String("display", s.UserName),
+							slog.String("id", s.UserID),
+							slog.String("type", s.Type),
+						)
+						n := strings.ToLower(s.UserLogin)
+						m[n] = true
+					}
+					// Now loop all streams.
+					for _, ch := range channels {
+						n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
+						ch.Enabled.Store(m[n])
+					}
+				case twitch.ErrNeedRefresh:
+					tok, err := twitchToken(ctx, robo.tmi.tokens)
+					if err != nil {
+						slog.ErrorContext(ctx, "failed to refresh token", slog.Any("err", err))
+						return fmt.Errorf("couldn't get valid access token: %w", err)
+					}
+					cl.Token = tok
+					continue
+				default:
+					slog.ErrorContext(ctx, "failed to query online broadcasters", slog.Any("streams", streams), slog.Any("err", err))
+					// Set all streams as offline.
+					for _, ch := range channels {
+						ch.Enabled.Store(false)
+					}
+				}
+				break
+			}
+			streams = streams[:0]
+			clear(m)
 		}
 	}
 }

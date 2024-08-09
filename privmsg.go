@@ -155,7 +155,8 @@ func worker(ctx context.Context, works chan chan func(context.Context), ch chan 
 
 // learn learns a given message's text if it passes ch's filters.
 func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received) {
-	if !ch.Enabled {
+	if !ch.Enabled.Load() {
+		slog.DebugContext(ctx, "not learning in disabled channel", slog.String("in", ch.Name))
 		return
 	}
 	switch err := robo.privacy.Check(ctx, msg.Sender); err {

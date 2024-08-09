@@ -3,6 +3,7 @@ package channel
 import (
 	"context"
 	"regexp"
+	"sync/atomic"
 
 	"gitlab.com/zephyrtronium/pick"
 	"golang.org/x/time/rate"
@@ -35,5 +36,5 @@ type Channel struct {
 	// Effects is the distribution of effects.
 	Effects *pick.Dist[string]
 	// Enabled indicates whether a channel is allowed to learn messages.
-	Enabled bool
+	Enabled atomic.Bool
 }

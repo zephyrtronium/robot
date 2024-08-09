@@ -240,8 +240,6 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				Mod:       mod,
 				Memery:    channel.NewMemeDetector(ch.Copypasta.Need, fseconds(ch.Copypasta.Within)),
 				Emotes:    emotes,
-				// TODO(zeph): check channel online status for enabled
-				Enabled: true,
 			}
 			v.Message = func(ctx context.Context, reply, text string) {
 				msg := message.Format(reply, v.Name, "%s", text)
