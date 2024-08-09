@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 )
 
 // User is the response type from https://dev.twitch.tv/docs/api/reference/#get-users.
@@ -21,24 +22,33 @@ type User struct {
 	CreatedAt       string `json:"created_at"`
 }
 
-func UsersByLogin(ctx context.Context, client Client, names ...string) ([]User, error) {
-	v := url.Values{"login": names}
-	u := make([]User, 0, 100)
+// Users gets user information for a list of up to 100 users.
+// For each user in the given list, if the ID is provided, then the query is
+// made by ID, and otherwise it is made by login.
+// Logins used to search are normalized to lower case.
+// The result reuses the memory in users, but may be of different length.
+//
+// If a given user has both an ID and a login, the ID is used and the login
+// is replaced with the result from the API.
+// If a user has neither, it is ignored.
+func Users(ctx context.Context, client Client, users []User) ([]User, error) {
+	v := url.Values{
+		"id":    nil,
+		"login": nil,
+	}
+	for _, u := range users {
+		if u.ID != "" {
+			v["id"] = append(v["id"], u.ID)
+			continue
+		}
+		if u.Login != "" {
+			v["login"] = append(v["login"], strings.ToLower(u.Login))
+		}
+	}
 	url := apiurl("/helix/users", v)
-	err := reqjson(ctx, client, "GET", url, nil, &u)
+	err := reqjson(ctx, client, "GET", url, nil, &users)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get users info: %w", err)
 	}
-	return u, nil
-}
-
-func UsersByID(ctx context.Context, client Client, ids ...string) ([]User, error) {
-	v := url.Values{"id": ids}
-	u := make([]User, 0, 100)
-	url := apiurl("/helix/users", v)
-	err := reqjson(ctx, client, "GET", url, nil, &u)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get users info: %w", err)
-	}
-	return u, nil
+	return users, nil
 }

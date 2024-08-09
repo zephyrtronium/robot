@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -123,93 +122,81 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 	if err != nil {
 		return err
 	}
-	var r []twitch.User
 	switch {
 	case owner == nil:
-		// do nothing
-	case owner.ID == "":
-		if owner.Name == "" {
-			slog.WarnContext(ctx, "no owner information; continuing with owner commands disabled")
-			break
+		// Make it a fake pointer instead.
+		owner = new(Privilege)
+	default:
+		r := []twitch.User{{ID: owner.ID, Login: owner.Name}}
+		r, err := twitch.Users(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, r)
+		if err != nil {
+			return fmt.Errorf("couldn't resolve owner info: %w", err)
 		}
-		r, err = twitch.UsersByLogin(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, owner.Name)
-	case owner.Name == "":
-		if owner.ID != "" {
-			break
-		}
-		r, err = twitch.UsersByID(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, owner.ID)
-	}
-	if err != nil {
-		return fmt.Errorf("couldn't resolve owner info: %w", err)
-	}
-	if len(r) > 0 {
-		u := &r[0]
+		*owner = Privilege{ID: r[0].ID, Name: r[0].Login, Level: "admin"}
 		slog.InfoContext(ctx, "Twitch owner",
-			slog.String("id", u.ID),
-			slog.String("login", u.Login),
-			slog.String("display", u.DisplayName),
+			slog.String("id", r[0].ID),
+			slog.String("login", r[0].Login),
+			slog.String("display", r[0].DisplayName),
 		)
-		owner.ID = u.ID
-		owner.Name = u.Login
 	}
-	var lookup []string
-	to := map[string]*string{}
-	var tomu sync.Mutex
-	// TODO(zeph): need to add global privs to lookup
+	if owner.ID == "" {
+		slog.ErrorContext(ctx, "no owner information; continuing with owner commands disabled")
+	}
+
+	var in, out []twitch.User
+	id := make(map[string]*Privilege)
+	login := make(map[string]*Privilege)
+	var mu sync.Mutex
+	// TODO(zeph): need global privs
 	for _, ch := range channels {
 		for i, p := range ch.Privileges {
-			if p.ID == "" && p.Name != "" {
-				s := strings.ToLower(p.Name)
-				k, ok := slices.BinarySearch(lookup, s)
-				if ok {
-					// Deduplicate.
-					// TODO(zeph): we could also remove names that have IDs elsewhere
-					continue
-				}
-				lookup = slices.Insert(lookup, k, s)
-				to[s] = &ch.Privileges[i].ID
-			}
+			s := strings.ToLower(p.Name)
+			in = append(in, twitch.User{ID: p.ID, Login: p.Name})
+			id[s] = &ch.Privileges[i]
+			login[s] = &ch.Privileges[i]
 		}
 	}
-	// We create a new errgroup instead of adding to the global one because
-	// we need to wait separately.
 	group, ctx := errgroup.WithContext(ctx)
-	for len(lookup) > 0 {
-		l := lookup[:min(len(lookup), 100)]
-		lookup = lookup[len(l):]
+	for len(in) > 0 {
+		l := in[:min(len(in), 100)]
+		in = in[len(l):]
 		group.Go(func() error {
 			// TODO(zeph): rate limit
-			r, err := twitch.UsersByLogin(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, l...)
+			l, err := twitch.Users(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, l)
 			if err != nil {
 				return err
 			}
-			slog.InfoContext(ctx, "resolved users", slog.Int("count", len(r)))
-			slog.DebugContext(ctx, "resolved users", slog.Any("users", r))
-			tomu.Lock()
-			defer tomu.Unlock()
-			for _, u := range r {
-				s := strings.ToLower(u.Login)
-				p := to[s]
-				if p == nil {
-					slog.ErrorContext(ctx, "Twitch user for no one (continuing)",
-						slog.String("id", u.ID),
-						slog.String("login", u.Login),
-						slog.String("display", u.DisplayName),
-					)
-					continue
-				}
-				slog.DebugContext(ctx, "Twitch user",
-					slog.String("id", u.ID),
-					slog.String("login", u.Login),
-					slog.String("display", u.DisplayName),
-				)
-				*p = u.ID
-			}
+			slog.InfoContext(ctx, "resolved users", slog.Int("count", len(l)))
+			slog.DebugContext(ctx, "resolved users", slog.Any("users", l))
+			mu.Lock()
+			defer mu.Unlock()
+			out = append(out, l...)
 			return nil
 		})
 	}
 	if err := group.Wait(); err != nil {
 		return fmt.Errorf("couldn't resolve config Twitch users: %w", err)
+	}
+	for _, u := range out {
+		slog.DebugContext(ctx, "Twitch user",
+			slog.String("id", u.ID),
+			slog.String("login", u.Login),
+			slog.String("display", u.DisplayName),
+		)
+		p := id[u.ID]
+		if p == nil {
+			p = login[strings.ToLower(u.Login)]
+			if p == nil {
+				slog.ErrorContext(ctx, "Twitch user for no one (continuing)",
+					slog.String("id", u.ID),
+					slog.String("login", u.Login),
+					slog.String("display", u.DisplayName),
+				)
+				continue
+			}
+		}
+		p.ID = u.ID
+		p.Name = u.Login
 	}
 	return nil
 }
