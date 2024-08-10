@@ -33,10 +33,9 @@ func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, error) {
 		builderPool.Put(w[:0])
 		tokensPool.Put(toks[:0])
 	}()
-	w = slices.Grow(w, len(prompt))
+	w = slices.Grow(w, len(prompt)+1)
 	for i, t := range toks {
 		w = append(w, t...)
-		w = append(w, ' ')
 		toks[i] = ReduceEntropy(t)
 	}
 	slices.Reverse(toks)

@@ -27,25 +27,31 @@ func TestWords(t *testing.T) {
 			name: "single",
 			msg:  "bocchi",
 			in:   nil,
-			want: s("bocchi"),
+			want: s("bocchi "),
 		},
 		{
 			name: "append",
 			msg:  "ryo",
 			in:   s("bocchi"),
-			want: s("bocchi", "ryo"),
+			want: s("bocchi", "ryo "),
 		},
 		{
 			name: "split",
 			msg:  "bocchi ryo nijika kita",
 			in:   nil,
-			want: s("bocchi", "ryo", "nijika", "kita"),
+			want: s("bocchi ", "ryo ", "nijika ", "kita "),
+		},
+		{
+			name: "punct",
+			msg:  "'bocchi' 'ryo'",
+			in:   nil,
+			want: s("'", "bocchi", "' ", "'", "ryo", "' "),
 		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			got := brain.Tokens(c.in, c.msg)
-			if diff := cmp.Diff(got, c.want); diff != "" {
+			if diff := cmp.Diff(c.want, got); diff != "" {
 				t.Errorf("wrong result (+got/-want):\n%s", diff)
 			}
 		})

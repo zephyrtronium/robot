@@ -38,7 +38,6 @@ func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w []byt
 			break
 		}
 		w = append(w, b...)
-		w = append(w, ' ')
 		search = search.Drop(search.Len() - l - 1).Prepend(brain.ReduceEntropy(string(b)))
 	}
 	return w, nil

@@ -127,7 +127,6 @@ func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w []b
 		}
 		t := u[rand.IntN(len(u))]
 		w = append(w, t...)
-		w = append(w, ' ')
 		s = brain.ReduceEntropy(t)
 	} else {
 		s = brain.ReduceEntropy(prompt[len(prompt)-1])
@@ -142,7 +141,6 @@ func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w []b
 			break
 		}
 		w = append(w, t...)
-		w = append(w, ' ')
 		s = brain.ReduceEntropy(t)
 	}
 	return w, nil
