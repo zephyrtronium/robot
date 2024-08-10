@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/uuid"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
@@ -18,7 +17,7 @@ type testLearner struct {
 	err     error
 }
 
-func (t *testLearner) Learn(ctx context.Context, tag string, user userhash.Hash, id uuid.UUID, tm time.Time, tuples []brain.Tuple) error {
+func (t *testLearner) Learn(ctx context.Context, tag, id string, user userhash.Hash, tm time.Time, tuples []brain.Tuple) error {
 	t.learned = append(t.learned, tuples...)
 	return t.err
 }
@@ -28,7 +27,7 @@ func (t *testLearner) Forget(ctx context.Context, tag string, tuples []brain.Tup
 	return nil
 }
 
-func (t *testLearner) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error {
+func (t *testLearner) ForgetMessage(ctx context.Context, tag, id string) error {
 	return nil
 }
 
@@ -79,7 +78,7 @@ func TestLearn(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			var l testLearner
-			err := brain.Learn(context.Background(), &l, "", userhash.Hash{}, uuid.UUID{}, time.Unix(0, 0), c.msg)
+			err := brain.Learn(context.Background(), &l, "", "", userhash.Hash{}, time.Unix(0, 0), c.msg)
 			if err != nil {
 				t.Error(err)
 			}

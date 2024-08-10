@@ -4,7 +4,7 @@ CREATE TABLE knowledge (
 	-- Tag or tenant for the entry.
 	tag TEXT NOT NULL,
 	-- Message ID, particularly UUID.
-	id BLOB NOT NULL,
+	id TEXT NOT NULL,
 	-- Prefix stored with entropy-reduced tokens in reverse order,
 	-- with each token terminated by \x00 in the string.
 	prefix BLOB NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE messages (
 	-- Tag or tenant for the message.
 	tag TEXT NOT NULL,
 	-- Message ID, particularly UUID.
-	id BLOB NOT NULL,
+	id TEXT NOT NULL,
 	-- Message timestamp as nanoseconds from the UNIX epoch.
 	-- May be null for messages imported from other sources or for messages
 	-- deleted before being fully learned.

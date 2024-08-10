@@ -6,18 +6,17 @@ import (
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
-	"github.com/google/uuid"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
-func mkey(tag, toks string, id uuid.UUID) string {
+func mkey(tag, toks, id string) string {
 	b := make([]byte, 0, 8+len(toks)+len(id))
 	b = hashTag(b, tag)
 	b = append(b, toks...)
-	b = append(b, id[:]...)
+	b = append(b, id...)
 	return string(b)
 }
 
@@ -51,11 +50,11 @@ func dbcheck(t *testing.T, db *badger.DB, want map[string]string) {
 }
 
 func TestLearn(t *testing.T) {
-	uu := uuid.UUID{':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')'}
+	uu := ":)"
 	h := userhash.Hash{2}
 	cases := []struct {
 		name string
-		id   uuid.UUID
+		id   string
 		user userhash.Hash
 		tag  string
 		time time.Time
@@ -129,7 +128,7 @@ func TestLearn(t *testing.T) {
 				t.Fatal(err)
 			}
 			br := New(db)
-			if err := br.Learn(ctx, c.tag, c.user, c.id, c.time, c.tups); err != nil {
+			if err := br.Learn(ctx, c.tag, c.id, c.user, c.time, c.tups); err != nil {
 				t.Errorf("failed to learn: %v", err)
 			}
 			dbcheck(t, db, c.want)

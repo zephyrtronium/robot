@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 
@@ -21,14 +20,14 @@ import (
 type learn struct {
 	tag  string
 	user userhash.Hash
-	id   uuid.UUID
+	id   string
 	t    int64
 	tups []brain.Tuple
 }
 
 type know struct {
 	tag     string
-	id      uuid.UUID
+	id      string
 	prefix  string
 	suffix  string
 	deleted *string
@@ -36,7 +35,7 @@ type know struct {
 
 type msg struct {
 	tag     string
-	id      uuid.UUID
+	id      string
 	time    int64
 	user    userhash.Hash
 	deleted *string
@@ -50,7 +49,7 @@ func contents(t *testing.T, conn *sqlite.Conn, know []know, msgs []msg) {
 		opts := sqlitex.ExecOptions{
 			Named: map[string]any{
 				":tag":    want.tag,
-				":id":     want.id[:],
+				":id":     want.id,
 				":prefix": []byte(want.prefix),
 				":suffix": []byte(want.suffix),
 			},
@@ -79,7 +78,7 @@ func contents(t *testing.T, conn *sqlite.Conn, know []know, msgs []msg) {
 		opts := sqlitex.ExecOptions{
 			Named: map[string]any{
 				":tag":  want.tag,
-				":id":   want.id[:],
+				":id":   want.id,
 				":time": want.time,
 				":user": want.user[:],
 			},
@@ -125,7 +124,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "kessoku",
 					user: userhash.Hash{1},
-					id:   uuid.UUID{2},
+					id:   "2",
 					t:    3,
 					tups: []brain.Tuple{
 						{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
@@ -139,31 +138,31 @@ func TestLearn(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "nijika\x00ryo\x00bocchi\x00",
 					suffix: "kita",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ryo\x00bocchi\x00",
 					suffix: "nijika",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "ryo",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
@@ -171,7 +170,7 @@ func TestLearn(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -183,7 +182,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "結束",
 					user: userhash.Hash{1},
-					id:   uuid.UUID{2},
+					id:   "2",
 					t:    3,
 					tups: []brain.Tuple{
 						{Prefix: strings.Fields("喜多 虹夏 リョウ ぼっち"), Suffix: ""},
@@ -197,31 +196,31 @@ func TestLearn(t *testing.T) {
 			know: []know{
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "喜多",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "リョウ\x00ぼっち\x00",
 					suffix: "虹夏",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ぼっち\x00",
 					suffix: "リョウ",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "ぼっち",
 				},
@@ -229,7 +228,7 @@ func TestLearn(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "結束",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -241,7 +240,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "kessoku",
 					user: userhash.Hash{1},
-					id:   uuid.UUID{2},
+					id:   "2",
 					t:    3,
 					tups: []brain.Tuple{
 						{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -251,7 +250,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "kessoku",
 					user: userhash.Hash{4},
-					id:   uuid.UUID{5},
+					id:   "5",
 					t:    6,
 					tups: []brain.Tuple{
 						{Prefix: []string{"ryo"}, Suffix: ""},
@@ -262,25 +261,25 @@ func TestLearn(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "ryo\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "ryo",
 				},
@@ -288,13 +287,13 @@ func TestLearn(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{5},
+					id:   "5",
 					time: 6,
 					user: userhash.Hash{4},
 				},
@@ -306,7 +305,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "kessoku",
 					user: userhash.Hash{1},
-					id:   uuid.UUID{2},
+					id:   "2",
 					t:    3,
 					tups: []brain.Tuple{
 						{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -316,7 +315,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "sickhack",
 					user: userhash.Hash{1},
-					id:   uuid.UUID{2},
+					id:   "2",
 					t:    3,
 					tups: []brain.Tuple{
 						{Prefix: []string{"kikuri"}, Suffix: ""},
@@ -327,25 +326,25 @@ func TestLearn(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kikuri\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "kikuri",
 				},
@@ -353,13 +352,13 @@ func TestLearn(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:  "sickhack",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -376,7 +375,7 @@ func TestLearn(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, m := range c.learn {
-				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
+				err := br.Learn(ctx, m.tag, m.id, m.user, time.Unix(0, m.t), m.tups)
 				if err != nil {
 					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}

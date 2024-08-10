@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
@@ -18,7 +16,7 @@ import (
 // denote the start of the message and end with one empty suffix to denote
 // the end; all other tokens are non-empty. Each tuple's prefix has entropy
 // reduction transformations applied.
-func (br *Brain) Learn(ctx context.Context, tag string, user userhash.Hash, id uuid.UUID, t time.Time, tuples []brain.Tuple) error {
+func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []brain.Tuple) error {
 	if len(tuples) == 0 {
 		return errors.New("no tuples to learn")
 	}

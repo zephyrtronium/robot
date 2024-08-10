@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/userhash"
@@ -18,7 +16,7 @@ func TestForget(t *testing.T) {
 		{
 			tag:  "結束",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: strings.Fields("喜多 虹夏 リョウ ぼっち"), Suffix: ""},
@@ -31,7 +29,7 @@ func TestForget(t *testing.T) {
 		{
 			tag:  "結束",
 			user: userhash.Hash{4},
-			id:   uuid.UUID{5},
+			id:   "5",
 			t:    6,
 			tups: []brain.Tuple{
 				{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -41,7 +39,7 @@ func TestForget(t *testing.T) {
 		{
 			tag:  "結束",
 			user: userhash.Hash{7},
-			id:   uuid.UUID{8},
+			id:   "8",
 			t:    9,
 			tups: []brain.Tuple{
 				{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -51,7 +49,7 @@ func TestForget(t *testing.T) {
 		{
 			tag:  "sickhack",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -62,67 +60,67 @@ func TestForget(t *testing.T) {
 	initKnow := []know{
 		{
 			tag:    "結束",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
 			suffix: "",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "虹夏\x00リョウ\x00ぼっち\x00",
 			suffix: "喜多",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "リョウ\x00ぼっち\x00",
 			suffix: "虹夏",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "ぼっち\x00",
 			suffix: "リョウ",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "ぼっち",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{8},
+			id:     "8",
 			prefix: "bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "結束",
-			id:     uuid.UUID{8},
+			id:     "8",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "bocchi",
 		},
@@ -130,25 +128,25 @@ func TestForget(t *testing.T) {
 	initMsgs := []msg{
 		{
 			tag:  "結束",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{1},
 		},
 		{
 			tag:  "結束",
-			id:   uuid.UUID{5},
+			id:   "5",
 			time: 6,
 			user: userhash.Hash{4},
 		},
 		{
 			tag:  "結束",
-			id:   uuid.UUID{8},
+			id:   "8",
 			time: 9,
 			user: userhash.Hash{7},
 		},
 		{
 			tag:  "sickhack",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{1},
 		},
@@ -198,68 +196,68 @@ func TestForget(t *testing.T) {
 			know: []know{
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "喜多",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "リョウ\x00ぼっち\x00",
 					suffix: "虹夏",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ぼっち\x00",
 					suffix: "リョウ",
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "ぼっち",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
@@ -283,72 +281,72 @@ func TestForget(t *testing.T) {
 			know: []know{
 				{
 					tag:     "結束",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
 					suffix:  "",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "虹夏\x00リョウ\x00ぼっち\x00",
 					suffix:  "喜多",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "リョウ\x00ぼっち\x00",
 					suffix:  "虹夏",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "ぼっち\x00",
 					suffix:  "リョウ",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "ぼっち",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
@@ -368,68 +366,68 @@ func TestForget(t *testing.T) {
 			know: []know{
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "喜多",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "リョウ\x00ぼっち\x00",
 					suffix: "虹夏",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ぼっち\x00",
 					suffix: "リョウ",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "ぼっち",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
@@ -455,69 +453,69 @@ func TestForget(t *testing.T) {
 			know: []know{
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "喜多",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "リョウ\x00ぼっち\x00",
 					suffix: "虹夏",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ぼっち\x00",
 					suffix: "リョウ",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "ぼっち",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:     "結束",
-					id:      uuid.UUID{8},
+					id:      "8",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("FORGET"),
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
@@ -537,67 +535,67 @@ func TestForget(t *testing.T) {
 			know: []know{
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "喜多\x00虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "虹夏\x00リョウ\x00ぼっち\x00",
 					suffix: "喜多",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "リョウ\x00ぼっち\x00",
 					suffix: "虹夏",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ぼっち\x00",
 					suffix: "リョウ",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "ぼっち",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "結束",
-					id:     uuid.UUID{8},
+					id:     "8",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:     "sickhack",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("FORGET"),
@@ -616,7 +614,7 @@ func TestForget(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, m := range learn {
-				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
+				err := br.Learn(ctx, m.tag, m.id, m.user, time.Unix(0, m.t), m.tups)
 				if err != nil {
 					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}
@@ -646,7 +644,7 @@ func TestForgetMessage(t *testing.T) {
 		{
 			tag:  "kessoku",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
@@ -659,7 +657,7 @@ func TestForgetMessage(t *testing.T) {
 		{
 			tag:  "kessoku",
 			user: userhash.Hash{4},
-			id:   uuid.UUID{5},
+			id:   "5",
 			t:    6,
 			tups: []brain.Tuple{
 				{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -669,7 +667,7 @@ func TestForgetMessage(t *testing.T) {
 		{
 			tag:  "sickhack",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: []string{"kikuri"}, Suffix: ""},
@@ -680,55 +678,55 @@ func TestForgetMessage(t *testing.T) {
 	initKnow := []know{
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "nijika\x00ryo\x00bocchi\x00",
 			suffix: "kita",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "ryo\x00bocchi\x00",
 			suffix: "nijika",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "bocchi\x00",
 			suffix: "ryo",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "kikuri\x00",
 			suffix: "",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "kikuri",
 		},
@@ -736,19 +734,19 @@ func TestForgetMessage(t *testing.T) {
 	initMsgs := []msg{
 		{
 			tag:  "kessoku",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{1},
 		},
 		{
 			tag:  "kessoku",
-			id:   uuid.UUID{5},
+			id:   "5",
 			time: 6,
 			user: userhash.Hash{4},
 		},
 		{
 			tag:  "sickhack",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{1},
 		},
@@ -756,78 +754,78 @@ func TestForgetMessage(t *testing.T) {
 	cases := []struct {
 		name string
 		tag  string
-		id   uuid.UUID
+		id   string
 		know []know
 		msgs []msg
 	}{
 		{
 			name: "none",
 			tag:  "kessoku",
-			id:   uuid.UUID{},
+			id:   "",
 			know: initKnow,
 			msgs: initMsgs,
 		},
 		{
 			name: "first",
 			tag:  "kessoku",
-			id:   uuid.UUID{2},
+			id:   "2",
 			know: []know{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix:  "",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "nijika\x00ryo\x00bocchi\x00",
 					suffix:  "kita",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "ryo\x00bocchi\x00",
 					suffix:  "nijika",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "bocchi\x00",
 					suffix:  "ryo",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kikuri\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "kikuri",
 				},
@@ -835,20 +833,20 @@ func TestForgetMessage(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					time:    3,
 					user:    userhash.Hash{1},
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{5},
+					id:   "5",
 					time: 6,
 					user: userhash.Hash{4},
 				},
 				{
 					tag:  "sickhack",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -857,61 +855,61 @@ func TestForgetMessage(t *testing.T) {
 		{
 			name: "second",
 			tag:  "kessoku",
-			id:   uuid.UUID{5},
+			id:   "5",
 			know: []know{
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "nijika\x00ryo\x00bocchi\x00",
 					suffix: "kita",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ryo\x00bocchi\x00",
 					suffix: "nijika",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "ryo",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "bocchi\x00",
 					suffix:  "",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kikuri\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "kikuri",
 				},
@@ -919,20 +917,20 @@ func TestForgetMessage(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					time:    6,
 					user:    userhash.Hash{4},
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:  "sickhack",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -941,60 +939,60 @@ func TestForgetMessage(t *testing.T) {
 		{
 			name: "tagged",
 			tag:  "sickhack",
-			id:   uuid.UUID{2},
+			id:   "2",
 			know: []know{
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "nijika\x00ryo\x00bocchi\x00",
 					suffix: "kita",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ryo\x00bocchi\x00",
 					suffix: "nijika",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "ryo",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:     "sickhack",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "kikuri\x00",
 					suffix:  "",
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:     "sickhack",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "kikuri",
 					deleted: ref("CLEARMSG"),
@@ -1003,19 +1001,19 @@ func TestForgetMessage(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{5},
+					id:   "5",
 					time: 6,
 					user: userhash.Hash{4},
 				},
 				{
 					tag:     "sickhack",
-					id:      uuid.UUID{2},
+					id:      "2",
 					time:    3,
 					user:    userhash.Hash{1},
 					deleted: ref("CLEARMSG"),
@@ -1033,7 +1031,7 @@ func TestForgetMessage(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, m := range learn {
-				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
+				err := br.Learn(ctx, m.tag, m.id, m.user, time.Unix(0, m.t), m.tups)
 				if err != nil {
 					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}
@@ -1060,7 +1058,7 @@ func TestForgetDuring(t *testing.T) {
 		{
 			tag:  "kessoku",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
@@ -1073,7 +1071,7 @@ func TestForgetDuring(t *testing.T) {
 		{
 			tag:  "kessoku",
 			user: userhash.Hash{4},
-			id:   uuid.UUID{5},
+			id:   "5",
 			t:    6,
 			tups: []brain.Tuple{
 				{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -1083,7 +1081,7 @@ func TestForgetDuring(t *testing.T) {
 		{
 			tag:  "sickhack",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: []string{"kikuri"}, Suffix: ""},
@@ -1094,55 +1092,55 @@ func TestForgetDuring(t *testing.T) {
 	initKnow := []know{
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "nijika\x00ryo\x00bocchi\x00",
 			suffix: "kita",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "ryo\x00bocchi\x00",
 			suffix: "nijika",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "bocchi\x00",
 			suffix: "ryo",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "kikuri\x00",
 			suffix: "",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "kikuri",
 		},
@@ -1150,19 +1148,19 @@ func TestForgetDuring(t *testing.T) {
 	initMsgs := []msg{
 		{
 			tag:  "kessoku",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{1},
 		},
 		{
 			tag:  "kessoku",
-			id:   uuid.UUID{5},
+			id:   "5",
 			time: 6,
 			user: userhash.Hash{4},
 		},
 		{
 			tag:  "sickhack",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{1},
 		},
@@ -1191,60 +1189,60 @@ func TestForgetDuring(t *testing.T) {
 			know: []know{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix:  "",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "nijika\x00ryo\x00bocchi\x00",
 					suffix:  "kita",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "ryo\x00bocchi\x00",
 					suffix:  "nijika",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "bocchi\x00",
 					suffix:  "ryo",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kikuri\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "kikuri",
 				},
@@ -1252,20 +1250,20 @@ func TestForgetDuring(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					time:    3,
 					user:    userhash.Hash{1},
 					deleted: ref("TIME"),
 				},
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{5},
+					id:   "5",
 					time: 6,
 					user: userhash.Hash{4},
 				},
 				{
 					tag:  "sickhack",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -1279,57 +1277,57 @@ func TestForgetDuring(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "nijika\x00ryo\x00bocchi\x00",
 					suffix: "kita",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ryo\x00bocchi\x00",
 					suffix: "nijika",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "ryo",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "bocchi\x00",
 					suffix:  "",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kikuri\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "kikuri",
 				},
@@ -1337,20 +1335,20 @@ func TestForgetDuring(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					time:    6,
 					user:    userhash.Hash{4},
 					deleted: ref("TIME"),
 				},
 				{
 					tag:  "sickhack",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -1364,62 +1362,62 @@ func TestForgetDuring(t *testing.T) {
 			know: []know{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix:  "",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "nijika\x00ryo\x00bocchi\x00",
 					suffix:  "kita",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "ryo\x00bocchi\x00",
 					suffix:  "nijika",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "bocchi\x00",
 					suffix:  "ryo",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "bocchi\x00",
 					suffix:  "",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kikuri\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "kikuri",
 				},
@@ -1427,21 +1425,21 @@ func TestForgetDuring(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					time:    3,
 					user:    userhash.Hash{1},
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					time:    6,
 					user:    userhash.Hash{4},
 					deleted: ref("TIME"),
 				},
 				{
 					tag:  "sickhack",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
@@ -1455,56 +1453,56 @@ func TestForgetDuring(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "nijika\x00ryo\x00bocchi\x00",
 					suffix: "kita",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "ryo\x00bocchi\x00",
 					suffix: "nijika",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "bocchi\x00",
 					suffix: "ryo",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "bocchi\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					id:     uuid.UUID{5},
+					id:     "5",
 					prefix: "",
 					suffix: "bocchi",
 				},
 				{
 					tag:     "sickhack",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "kikuri\x00",
 					suffix:  "",
 					deleted: ref("TIME"),
 				},
 				{
 					tag:     "sickhack",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "kikuri",
 					deleted: ref("TIME"),
@@ -1513,19 +1511,19 @@ func TestForgetDuring(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:  "kessoku",
-					id:   uuid.UUID{5},
+					id:   "5",
 					time: 6,
 					user: userhash.Hash{4},
 				},
 				{
 					tag:     "sickhack",
-					id:      uuid.UUID{2},
+					id:      "2",
 					time:    3,
 					user:    userhash.Hash{1},
 					deleted: ref("TIME"),
@@ -1543,7 +1541,7 @@ func TestForgetDuring(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, m := range learn {
-				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
+				err := br.Learn(ctx, m.tag, m.id, m.user, time.Unix(0, m.t), m.tups)
 				if err != nil {
 					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}
@@ -1571,7 +1569,7 @@ func TestForgetUser(t *testing.T) {
 		{
 			tag:  "kessoku",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
@@ -1584,7 +1582,7 @@ func TestForgetUser(t *testing.T) {
 		{
 			tag:  "kessoku",
 			user: userhash.Hash{1},
-			id:   uuid.UUID{5},
+			id:   "5",
 			t:    6,
 			tups: []brain.Tuple{
 				{Prefix: []string{"bocchi"}, Suffix: ""},
@@ -1594,7 +1592,7 @@ func TestForgetUser(t *testing.T) {
 		{
 			tag:  "sickhack",
 			user: userhash.Hash{4},
-			id:   uuid.UUID{2},
+			id:   "2",
 			t:    3,
 			tups: []brain.Tuple{
 				{Prefix: []string{"kikuri"}, Suffix: ""},
@@ -1605,55 +1603,55 @@ func TestForgetUser(t *testing.T) {
 	initKnow := []know{
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "kita\x00nijika\x00ryo\x00bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "nijika\x00ryo\x00bocchi\x00",
 			suffix: "kita",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "ryo\x00bocchi\x00",
 			suffix: "nijika",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "bocchi\x00",
 			suffix: "ryo",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "bocchi\x00",
 			suffix: "",
 		},
 		{
 			tag:    "kessoku",
-			id:     uuid.UUID{5},
+			id:     "5",
 			prefix: "",
 			suffix: "bocchi",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "kikuri\x00",
 			suffix: "",
 		},
 		{
 			tag:    "sickhack",
-			id:     uuid.UUID{2},
+			id:     "2",
 			prefix: "",
 			suffix: "kikuri",
 		},
@@ -1661,19 +1659,19 @@ func TestForgetUser(t *testing.T) {
 	initMsgs := []msg{
 		{
 			tag:  "kessoku",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{1},
 		},
 		{
 			tag:  "kessoku",
-			id:   uuid.UUID{5},
+			id:   "5",
 			time: 6,
 			user: userhash.Hash{1},
 		},
 		{
 			tag:  "sickhack",
-			id:   uuid.UUID{2},
+			id:   "2",
 			time: 3,
 			user: userhash.Hash{4},
 		},
@@ -1696,62 +1694,62 @@ func TestForgetUser(t *testing.T) {
 			know: []know{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "kita\x00nijika\x00ryo\x00bocchi\x00",
 					suffix:  "",
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "nijika\x00ryo\x00bocchi\x00",
 					suffix:  "kita",
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "ryo\x00bocchi\x00",
 					suffix:  "nijika",
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "bocchi\x00",
 					suffix:  "ryo",
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "bocchi\x00",
 					suffix:  "",
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					prefix:  "",
 					suffix:  "bocchi",
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "kikuri\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					id:     uuid.UUID{2},
+					id:     "2",
 					prefix: "",
 					suffix: "kikuri",
 				},
@@ -1759,21 +1757,21 @@ func TestForgetUser(t *testing.T) {
 			msgs: []msg{
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{2},
+					id:      "2",
 					time:    3,
 					user:    userhash.Hash{1},
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:     "kessoku",
-					id:      uuid.UUID{5},
+					id:      "5",
 					time:    6,
 					user:    userhash.Hash{1},
 					deleted: ref("CLEARCHAT"),
 				},
 				{
 					tag:  "sickhack",
-					id:   uuid.UUID{2},
+					id:   "2",
 					time: 3,
 					user: userhash.Hash{4},
 				},
@@ -1790,7 +1788,7 @@ func TestForgetUser(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, m := range learn {
-				err := br.Learn(ctx, m.tag, m.user, m.id, time.Unix(0, m.t), m.tups)
+				err := br.Learn(ctx, m.tag, m.id, m.user, time.Unix(0, m.t), m.tups)
 				if err != nil {
 					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}

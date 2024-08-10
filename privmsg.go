@@ -9,7 +9,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
 	"gitlab.com/zephyrtronium/tmi"
 	"golang.org/x/sync/errgroup"
 
@@ -176,13 +175,8 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 		slog.DebugContext(ctx, "no learn tag", slog.String("in", ch.Name))
 		return
 	}
-	id, err := uuid.Parse(msg.ID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to parse message id", slog.String("err", err.Error()), slog.String("id", msg.ID))
-		// Continue on with a zero UUID.
-	}
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
-	if err := brain.Learn(ctx, robo.brain, ch.Learn, *user, id, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
+	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
 		slog.ErrorContext(ctx, "failed to learn", slog.String("err", err.Error()))
 	}
 }

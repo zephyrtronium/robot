@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"zombiezen.com/go/sqlite/sqlitex"
 
 	"github.com/zephyrtronium/robot/brain"
@@ -13,7 +12,7 @@ import (
 )
 
 // Learn records a set of tuples.
-func (br *Brain) Learn(ctx context.Context, tag string, user userhash.Hash, id uuid.UUID, t time.Time, tuples []brain.Tuple) (err error) {
+func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []brain.Tuple) (err error) {
 	conn, err := br.db.Take(ctx)
 	defer br.db.Put(conn)
 	if err != nil {
@@ -31,7 +30,7 @@ func (br *Brain) Learn(ctx context.Context, tag string, user userhash.Hash, id u
 		p = prefix(p[:0], tt.Prefix)
 		s = append(s[:0], tt.Suffix...)
 		st.SetText(":tag", tag)
-		st.SetBytes(":id", id[:])
+		st.SetText(":id", id)
 		st.SetBytes(":prefix", p)
 		st.SetBytes(":suffix", s)
 		_, err := st.Step()
@@ -46,7 +45,7 @@ func (br *Brain) Learn(ctx context.Context, tag string, user userhash.Hash, id u
 		return fmt.Errorf("couldn't prepare message insert: %w", err)
 	}
 	sm.SetText(":tag", tag)
-	sm.SetBytes(":id", id[:])
+	sm.SetText(":id", id)
 	sm.SetInt64(":time", t.UnixNano())
 	sm.SetBytes(":user", user[:])
 	_, err = sm.Step()

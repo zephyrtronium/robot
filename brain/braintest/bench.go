@@ -10,11 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
+
+func randid() string {
+	return strconv.FormatUint(rand.Uint64(), 16) + "-" + strconv.FormatUint(rand.Uint64(), 16)
+}
 
 // BenchLearn runs benchmarks on the brain's speed with recording new tuples.
 // The learner returned by new must be safe for concurrent use.
@@ -40,9 +42,9 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			for pb.Next() {
 				t++
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
-				id := uuid.New()
+				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, l, "bocchi", u, id, time.Unix(t, 0), toks)
+				err := brain.Learn(ctx, l, "bocchi", id, u, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -78,9 +80,9 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			for pb.Next() {
 				t++
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				id := uuid.New()
+				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, l, "bocchi", u, id, time.Unix(t, 0), toks[:8])
+				err := brain.Learn(ctx, l, "bocchi", id, u, time.Unix(t, 0), toks[:8])
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -112,9 +114,9 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			}
 			for t := range size {
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
-				id := uuid.New()
+				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
+				err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -157,9 +159,9 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			}
 			for t := range size {
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				id := uuid.New()
+				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
+				err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -202,9 +204,9 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			}
 			for t := range size {
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
-				id := uuid.New()
+				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(t, 0), toks)
+				err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(t, 0), toks)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}

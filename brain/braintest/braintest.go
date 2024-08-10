@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
@@ -33,70 +31,70 @@ func these(s ...string) func() []string {
 }
 
 var messages = [...]struct {
-	ID     uuid.UUID
+	ID     string
 	User   userhash.Hash
 	Tag    string
 	Time   time.Time
 	Tokens func() []string
 }{
 	{
-		ID:     uuid.UUID{1},
+		ID:     "1",
 		User:   userhash.Hash{2},
 		Tag:    "kessoku",
 		Time:   time.Unix(0, 0),
 		Tokens: these("member ", "bocchi "),
 	},
 	{
-		ID:     uuid.UUID{2},
+		ID:     "2",
 		User:   userhash.Hash{2},
 		Tag:    "kessoku",
 		Time:   time.Unix(1, 0),
 		Tokens: these("member ", "ryou "),
 	},
 	{
-		ID:     uuid.UUID{3},
+		ID:     "3",
 		User:   userhash.Hash{3},
 		Tag:    "kessoku",
 		Time:   time.Unix(2, 0),
 		Tokens: these("member ", "nijika "),
 	},
 	{
-		ID:     uuid.UUID{4},
+		ID:     "4",
 		User:   userhash.Hash{3},
 		Tag:    "kessoku",
 		Time:   time.Unix(3, 0),
 		Tokens: these("member ", "kita "),
 	},
 	{
-		ID:     uuid.UUID{5},
+		ID:     "5",
 		User:   userhash.Hash{2},
 		Tag:    "sickhack",
 		Time:   time.Unix(0, 0),
 		Tokens: these("member ", "bocchi "),
 	},
 	{
-		ID:     uuid.UUID{6},
+		ID:     "6",
 		User:   userhash.Hash{2},
 		Tag:    "sickhack",
 		Time:   time.Unix(1, 0),
 		Tokens: these("member ", "ryou "),
 	},
 	{
-		ID:     uuid.UUID{7},
+		ID:     "7",
 		User:   userhash.Hash{3},
 		Tag:    "sickhack",
 		Time:   time.Unix(2, 0),
 		Tokens: these("member ", "nijika "),
 	},
 	{
-		ID:     uuid.UUID{8},
+		ID:     "8",
 		User:   userhash.Hash{3},
 		Tag:    "sickhack",
 		Time:   time.Unix(3, 0),
 		Tokens: these("member ", "kita "),
 	},
 	{
-		ID:     uuid.UUID{9},
+		ID:     "9",
 		User:   userhash.Hash{4},
 		Tag:    "sickhack",
 		Time:   time.Unix(43, 0),
@@ -107,7 +105,7 @@ var messages = [...]struct {
 func learn(ctx context.Context, t *testing.T, br brain.Learner) {
 	t.Helper()
 	for _, m := range messages {
-		if err := brain.Learn(ctx, br, m.Tag, m.User, m.ID, m.Time, m.Tokens()); err != nil {
+		if err := brain.Learn(ctx, br, m.Tag, m.ID, m.User, m.Time, m.Tokens()); err != nil {
 			t.Fatalf("couldn't learn message %v: %v", m.ID, err)
 		}
 	}
@@ -266,8 +264,8 @@ func testCombinatoric(ctx context.Context, br brain.Brain) func(t *testing.T) {
 							for _, toks[5] = range band {
 								toks := toks
 								for len(toks) > 1 {
-									id := uuid.New()
-									err := brain.Learn(ctx, br, "bocchi", u, id, time.Unix(0, 0), toks)
+									id := randid()
+									err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(0, 0), toks)
 									if err != nil {
 										t.Fatalf("couldn't learn init: %v", err)
 									}

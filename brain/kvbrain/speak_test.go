@@ -9,14 +9,13 @@ import (
 
 	"github.com/dgraph-io/badger/v4"
 	"github.com/dgraph-io/badger/v4/options"
-	"github.com/google/uuid"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
 )
 
 func TestSpeak(t *testing.T) {
-	uu := uuid.UUID{':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')', ':', ')'}
+	uu := ":)"
 	cases := []struct {
 		name   string
 		kvs    [][2]string
@@ -102,15 +101,15 @@ func TestSpeak(t *testing.T) {
 		{
 			name: "uniform",
 			kvs: [][2]string{
-				{mkey("kessoku", "\xff", uuid.UUID{1}), "bocchi "},
-				{mkey("kessoku", "bocchi \xff\xff", uuid.UUID{1}), "ryou "},
-				{mkey("kessoku", "ryou \xffbocchi \xff\xff", uuid.UUID{1}), ""},
-				{mkey("kessoku", "\xff", uuid.UUID{2}), "bocchi "},
-				{mkey("kessoku", "bocchi \xff\xff", uuid.UUID{2}), "nijika "},
-				{mkey("kessoku", "nijika \xffbocchi \xff\xff", uuid.UUID{2}), ""},
-				{mkey("kessoku", "\xff", uuid.UUID{3}), "bocchi "},
-				{mkey("kessoku", "bocchi \xff\xff", uuid.UUID{3}), "kita "},
-				{mkey("kessoku", "kita \xffbocchi \xff\xff", uuid.UUID{3}), ""},
+				{mkey("kessoku", "\xff", "1"), "bocchi "},
+				{mkey("kessoku", "bocchi \xff\xff", "1"), "ryou "},
+				{mkey("kessoku", "ryou \xffbocchi \xff\xff", "1"), ""},
+				{mkey("kessoku", "\xff", "2"), "bocchi "},
+				{mkey("kessoku", "bocchi \xff\xff", "2"), "nijika "},
+				{mkey("kessoku", "nijika \xffbocchi \xff\xff", "2"), ""},
+				{mkey("kessoku", "\xff", "3"), "bocchi "},
+				{mkey("kessoku", "bocchi \xff\xff", "3"), "kita "},
+				{mkey("kessoku", "kita \xffbocchi \xff\xff", "3"), ""},
 			},
 			want: []string{
 				"bocchi ryou ",

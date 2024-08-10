@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
 	"github.com/zephyrtronium/robot/userhash"
@@ -20,21 +18,21 @@ import (
 // to verify that the integration tests test the correct things.
 type membrain struct {
 	mu    sync.Mutex
-	tups  map[string]map[string][]string       // map of tags to map of prefixes to suffixes
-	users map[userhash.Hash][][3]string        // map of hashes to tag and prefix+suffix
-	ids   map[string]map[uuid.UUID][][2]string // map of tags to map of ids to prefix+suffix
-	tms   map[string]map[int64][][2]string     // map of tags to map of timestamps to prefix+suffix
+	tups  map[string]map[string][]string    // map of tags to map of prefixes to suffixes
+	users map[userhash.Hash][][3]string     // map of hashes to tag and prefix+suffix
+	ids   map[string]map[string][][2]string // map of tags to map of ids to prefix+suffix
+	tms   map[string]map[int64][][2]string  // map of tags to map of timestamps to prefix+suffix
 }
 
 var _ brain.Brain = (*membrain)(nil)
 
-func (m *membrain) Learn(ctx context.Context, tag string, user userhash.Hash, id uuid.UUID, t time.Time, tuples []brain.Tuple) error {
+func (m *membrain) Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []brain.Tuple) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.tups == nil {
 		m.tups = make(map[string]map[string][]string)
 		m.users = make(map[userhash.Hash][][3]string)
-		m.ids = make(map[string]map[uuid.UUID][][2]string)
+		m.ids = make(map[string]map[string][][2]string)
 		m.tms = make(map[string]map[int64][][2]string)
 	}
 	if m.tups[tag] == nil {
@@ -42,7 +40,7 @@ func (m *membrain) Learn(ctx context.Context, tag string, user userhash.Hash, id
 	}
 	r := m.tups[tag]
 	if m.ids[tag] == nil {
-		m.ids[tag] = make(map[uuid.UUID][][2]string)
+		m.ids[tag] = make(map[string][][2]string)
 	}
 	ids := m.ids[tag]
 	if m.tms[tag] == nil {
@@ -79,14 +77,14 @@ func (m *membrain) Forget(ctx context.Context, tag string, tuples []brain.Tuple)
 	return nil
 }
 
-func (m *membrain) ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error {
+func (m *membrain) ForgetMessage(ctx context.Context, tag, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	u := m.ids[tag][msg]
+	u := m.ids[tag][id]
 	for _, v := range u {
 		m.forgetLocked(tag, v[0], v[1])
 	}
-	delete(m.ids[tag], msg)
+	delete(m.ids[tag], id)
 	return nil
 }
 

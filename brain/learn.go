@@ -5,8 +5,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/zephyrtronium/robot/tpool"
 	"github.com/zephyrtronium/robot/userhash"
 )
@@ -28,7 +26,7 @@ type Learner interface {
 	// of the message. The positions of each in the argument are not guaranteed.
 	// Each tuple's prefix has entropy reduction transformations applied.
 	// Tuples in the argument may share storage for prefixes.
-	Learn(ctx context.Context, tag string, user userhash.Hash, id uuid.UUID, t time.Time, tuples []Tuple) error
+	Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []Tuple) error
 	// Forget removes a set of recorded tuples.
 	// The tuples provided are as for Learn.
 	// If a tuple has been recorded multiple times, only the first
@@ -37,7 +35,7 @@ type Learner interface {
 	Forget(ctx context.Context, tag string, tuples []Tuple) error
 	// ForgetMessage forgets everything learned from a single given message.
 	// If nothing has been learned from the message, it should be ignored.
-	ForgetMessage(ctx context.Context, tag string, msg uuid.UUID) error
+	ForgetMessage(ctx context.Context, tag, id string) error
 	// ForgetDuring forgets all messages learned in the given time span.
 	ForgetDuring(ctx context.Context, tag string, since, before time.Time) error
 	// ForgetUser forgets all messages associated with a userhash.
@@ -47,7 +45,7 @@ type Learner interface {
 var tuplesPool tpool.Pool[[]Tuple]
 
 // Learn records tokens into a Learner.
-func Learn(ctx context.Context, l Learner, tag string, user userhash.Hash, id uuid.UUID, t time.Time, toks []string) error {
+func Learn(ctx context.Context, l Learner, tag, id string, user userhash.Hash, t time.Time, toks []string) error {
 	if len(toks) == 0 {
 		return nil
 	}
@@ -55,7 +53,7 @@ func Learn(ctx context.Context, l Learner, tag string, user userhash.Hash, id uu
 	defer func() { tuplesPool.Put(tt[:0]) }()
 	tt = slices.Grow(tt, len(toks)+1)
 	tt = tupleToks(tt, toks)
-	return l.Learn(ctx, tag, user, id, t, tt)
+	return l.Learn(ctx, tag, id, user, t, tt)
 }
 
 // Forget removes tokens from a Learner.
