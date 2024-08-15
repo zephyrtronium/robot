@@ -18,10 +18,9 @@ import (
 // to verify that the integration tests test the correct things.
 type membrain struct {
 	mu    sync.Mutex
-	tups  map[string]map[string][]string    // map of tags to map of prefixes to suffixes
-	users map[userhash.Hash][][3]string     // map of hashes to tag and prefix+suffix
-	ids   map[string]map[string][][2]string // map of tags to map of ids to prefix+suffix
-	tms   map[string]map[int64][][2]string  // map of tags to map of timestamps to prefix+suffix
+	tups  map[string]map[string][][2]string // map of tags to map of prefixes to id and suffix
+	users map[userhash.Hash][][2]string     // map of hashes to tag and id
+	tms   map[string]map[int64][]string     // map of tags to map of timestamps to ids
 }
 
 var _ brain.Brain = (*membrain)(nil)
@@ -29,42 +28,42 @@ var _ brain.Brain = (*membrain)(nil)
 func (m *membrain) Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []brain.Tuple) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.tups == nil {
-		m.tups = make(map[string]map[string][]string)
-		m.users = make(map[userhash.Hash][][3]string)
-		m.ids = make(map[string]map[string][][2]string)
-		m.tms = make(map[string]map[int64][][2]string)
-	}
 	if m.tups[tag] == nil {
-		m.tups[tag] = make(map[string][]string)
+		if m.tups == nil {
+			m.tups = make(map[string]map[string][][2]string)
+			m.users = make(map[userhash.Hash][][2]string)
+			m.tms = make(map[string]map[int64][]string)
+		}
+		m.tups[tag] = make(map[string][][2]string)
+		m.tms[tag] = make(map[int64][]string)
 	}
-	r := m.tups[tag]
-	if m.ids[tag] == nil {
-		m.ids[tag] = make(map[string][][2]string)
-	}
-	ids := m.ids[tag]
-	if m.tms[tag] == nil {
-		m.tms[tag] = make(map[int64][][2]string)
-	}
+	m.users[user] = append(m.users[user], [2]string{tag, id})
 	tms := m.tms[tag]
+	tms[t.UnixNano()] = append(tms[t.UnixNano()], id)
+	r := m.tups[tag]
 	for _, tup := range tuples {
 		p := strings.Join(tup.Prefix, "\xff")
-		r[p] = append(r[p], tup.Suffix)
-		m.users[user] = append(m.users[user], [3]string{tag, p, tup.Suffix})
-		ids[id] = append(ids[id], [2]string{p, tup.Suffix})
-		tms[t.UnixNano()] = append(tms[t.UnixNano()], [2]string{p, tup.Suffix})
+		r[p] = append(r[p], [2]string{id, tup.Suffix})
 	}
 	return nil
 }
 
-func (m *membrain) forgetLocked(tag, p, s string) {
-	u := m.tups[tag][p]
-	k := slices.Index(u, s)
-	if k < 0 {
-		return
+func (m *membrain) forgetIDLocked(tag, id string) {
+	for p, u := range m.tups[tag] {
+		for len(u) > 0 {
+			k := slices.IndexFunc(u, func(v [2]string) bool { return v[0] == id })
+			if k < 0 {
+				break
+			}
+			u[k], u[len(u)-1] = u[len(u)-1], u[k]
+			u = u[:len(u)-1]
+		}
+		if len(u) != 0 {
+			m.tups[tag][p] = u
+		} else {
+			delete(m.tups[tag], p)
+		}
 	}
-	u[k], u[len(u)-1] = u[len(u)-1], u[k]
-	m.tups[tag][p] = u[:len(u)-1]
 }
 
 func (m *membrain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
@@ -72,7 +71,13 @@ func (m *membrain) Forget(ctx context.Context, tag string, tuples []brain.Tuple)
 	defer m.mu.Unlock()
 	for _, tup := range tuples {
 		p := strings.Join(tup.Prefix, "\xff")
-		m.forgetLocked(tag, p, tup.Suffix)
+		u := m.tups[tag][p]
+		k := slices.IndexFunc(u, func(v [2]string) bool { return v[1] == tup.Suffix })
+		if k < 0 {
+			continue
+		}
+		u[k], u[len(u)-1] = u[len(u)-1], u[k]
+		m.tups[tag][p] = u[:len(u)-1]
 	}
 	return nil
 }
@@ -80,11 +85,7 @@ func (m *membrain) Forget(ctx context.Context, tag string, tuples []brain.Tuple)
 func (m *membrain) ForgetMessage(ctx context.Context, tag, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	u := m.ids[tag][id]
-	for _, v := range u {
-		m.forgetLocked(tag, v[0], v[1])
-	}
-	delete(m.ids[tag], id)
+	m.forgetIDLocked(tag, id)
 	return nil
 }
 
@@ -97,7 +98,7 @@ func (m *membrain) ForgetDuring(ctx context.Context, tag string, since, before t
 			continue
 		}
 		for _, v := range u {
-			m.forgetLocked(tag, v[0], v[1])
+			m.forgetIDLocked(tag, v)
 		}
 		delete(m.tms[tag], tm) // yea i modify the map during iteration, yea i'm cool
 	}
@@ -108,24 +109,24 @@ func (m *membrain) ForgetUser(ctx context.Context, user *userhash.Hash) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, v := range m.users[*user] {
-		m.forgetLocked(v[0], v[1], v[2])
+		m.forgetIDLocked(v[0], v[1])
 	}
 	delete(m.users, *user)
 	return nil
 }
 
-func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w []byte) ([]byte, error) {
+func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var s string
 	if len(prompt) == 0 {
 		u := m.tups[tag][""]
 		if len(u) == 0 {
-			return nil, nil
+			return nil
 		}
 		t := u[rand.IntN(len(u))]
-		w = append(w, t...)
-		s = brain.ReduceEntropy(t)
+		w.Append(t[0], []byte(t[1]))
+		s = brain.ReduceEntropy(t[1])
 	} else {
 		s = brain.ReduceEntropy(prompt[len(prompt)-1])
 	}
@@ -135,13 +136,13 @@ func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w []b
 			break
 		}
 		t := u[rand.IntN(len(u))]
-		if t == "" {
+		if t[1] == "" {
 			break
 		}
-		w = append(w, t...)
-		s = brain.ReduceEntropy(t)
+		w.Append(t[0], []byte(t[1]))
+		s = brain.ReduceEntropy(t[1])
 	}
-	return w, nil
+	return nil
 }
 
 func TestTests(t *testing.T) {

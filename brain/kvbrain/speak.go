@@ -1,6 +1,7 @@
 package kvbrain
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"math/rand/v2"
@@ -16,12 +17,13 @@ var prependerPool tpool.Pool[*prepend.List[string]]
 
 // Speak generates a full message and appends it to w.
 // The prompt is in reverse order and has entropy reduction applied.
-func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w []byte) ([]byte, error) {
+func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
 	search := prependerPool.Get().Set(prompt...)
 	defer func() { prependerPool.Put(search) }()
 
 	tb := hashTag(make([]byte, 0, tagHashLen), tag)
 	b := make([]byte, 0, 128)
+	var id string
 	opts := badger.DefaultIteratorOptions
 	// We don't actually need to iterate over values, only the single value
 	// that we decide to use per suffix. So, we can disable value prefetch.
@@ -31,26 +33,27 @@ func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w []byt
 		var err error
 		var l int
 		b = append(b[:0], tb...)
-		b, l, err = br.next(b, search.Slice(), opts)
+		b, id, l, err = br.next(b, search.Slice(), opts)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if len(b) == 0 {
 			break
 		}
-		w = append(w, b...)
+		w.Append(id, b)
 		search = search.Drop(search.Len() - l - 1).Prepend(brain.ReduceEntropy(string(b)))
 	}
-	return w, nil
+	return nil
 }
 
 // next finds a single token to continue a prompt.
 // The returned values are, in order,
 // b with its contents replaced with the new term,
+// the ID of the message used for the term,
 // the number of terms of the prompt which matched to produce the new term,
 // and any error.
 // If the returned term is the empty string, generation should end.
-func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([]byte, int, error) {
+func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([]byte, string, int, error) {
 	// These definitions are outside the loop to ensure we don't bias toward
 	// smaller contexts.
 	var (
@@ -84,7 +87,7 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 			return nil
 		})
 		if err != nil {
-			return nil, len(prompt), fmt.Errorf("couldn't read knowledge: %w", err)
+			return nil, "", len(prompt), fmt.Errorf("couldn't read knowledge: %w", err)
 		}
 		if picked < 3 && len(prompt) > 1 {
 			// We haven't seen enough options, and we have context we could
@@ -96,7 +99,7 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 		if key == nil {
 			// We never saw any options. Since we always select the first, this
 			// means there were no options. Don't look for nothing in the DB.
-			return b[:0], len(prompt), nil
+			return b[:0], "", len(prompt), nil
 		}
 		err = br.knowledge.View(func(txn *badger.Txn) error {
 			item, err := txn.Get(key)
@@ -109,6 +112,12 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 			}
 			return nil
 		})
-		return b, len(prompt), err
+		// The id is everything after the first byte following the hash for
+		// empty prefixes, and everything after the first \xff\xff otherwise.
+		id := key[tagHashLen+1:]
+		if len(prompt) > 0 {
+			_, id, _ = bytes.Cut(key, []byte{0xff, 0xff})
+		}
+		return b, string(id), len(prompt), err
 	}
 }

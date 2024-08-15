@@ -3,12 +3,12 @@ package braintest
 
 import (
 	"context"
-	"maps"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
@@ -111,15 +111,15 @@ func learn(ctx context.Context, t *testing.T, br brain.Learner) {
 	}
 }
 
-func speak(ctx context.Context, t *testing.T, br brain.Speaker, tag, prompt string, iters int) map[string]bool {
+func speak(ctx context.Context, t *testing.T, br brain.Speaker, tag, prompt string, iters int) map[string]struct{} {
 	t.Helper()
-	got := make(map[string]bool, 5)
+	got := make(map[string]struct{}, 20)
 	for range iters {
-		s, err := brain.Speak(ctx, br, tag, prompt)
+		s, trace, err := brain.Speak(ctx, br, tag, prompt)
 		if err != nil {
 			t.Errorf("couldn't speak: %v", err)
 		}
-		got[s] = true
+		got[strings.Join(trace, " ")+"#"+s] = struct{}{}
 	}
 	return got
 }
@@ -128,33 +128,57 @@ func speak(ctx context.Context, t *testing.T, br brain.Speaker, tag, prompt stri
 func testSpeak(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
-		got := speak(ctx, t, br, "kessoku", "", 256)
-		want := map[string]bool{
-			"member bocchi": true,
-			"member ryou":   true,
-			"member nijika": true,
-			"member kita":   true,
+		got := speak(ctx, t, br, "kessoku", "", 2048)
+		want := map[string]struct{}{
+			"1#member bocchi":   {},
+			"1 2#member bocchi": {},
+			"1 3#member bocchi": {},
+			"1 4#member bocchi": {},
+			"1 2#member ryou":   {},
+			"2#member ryou":     {},
+			"2 3#member ryou":   {},
+			"2 4#member ryou":   {},
+			"1 3#member nijika": {},
+			"2 3#member nijika": {},
+			"3#member nijika":   {},
+			"3 4#member nijika": {},
+			"1 4#member kita":   {},
+			"2 4#member kita":   {},
+			"3 4#member kita":   {},
+			"4#member kita":     {},
 		}
-		if !maps.Equal(got, want) {
-			t.Errorf("wrong spoken messages for kessoku: want %v, got %v", want, got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong spoken messages for kessoku (+got/-want):\n%s", diff)
 		}
-		got = speak(ctx, t, br, "sickhack", "", 256)
-		want = map[string]bool{
-			"member bocchi": true,
-			"member ryou":   true,
-			"member nijika": true,
-			"member kita":   true,
-			"manager seika": true,
+		got = speak(ctx, t, br, "sickhack", "", 2048)
+		want = map[string]struct{}{
+			"5#member bocchi":   {},
+			"5 6#member bocchi": {},
+			"5 7#member bocchi": {},
+			"5 8#member bocchi": {},
+			"5 6#member ryou":   {},
+			"6#member ryou":     {},
+			"6 7#member ryou":   {},
+			"6 8#member ryou":   {},
+			"5 7#member nijika": {},
+			"6 7#member nijika": {},
+			"7#member nijika":   {},
+			"7 8#member nijika": {},
+			"5 8#member kita":   {},
+			"6 8#member kita":   {},
+			"7 8#member kita":   {},
+			"8#member kita":     {},
+			"9#manager seika":   {},
 		}
-		if !maps.Equal(got, want) {
-			t.Errorf("wrong spoken messages for sickhack: want %v, got %v", want, got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong spoken messages for sickhack (+got/-want):\n%s", diff)
 		}
 		got = speak(ctx, t, br, "sickhack", "manager", 32)
-		want = map[string]bool{
-			"manager seika": true,
+		want = map[string]struct{}{
+			"9#manager seika": {},
 		}
-		if !maps.Equal(got, want) {
-			t.Errorf("wrong prompted messages for sickhack: want %v, got %v", want, got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong prompted messages for sickhack (+got/-want):\n%s", diff)
 		}
 	}
 }
@@ -167,16 +191,19 @@ func testForget(ctx context.Context, br brain.Brain) func(t *testing.T) {
 			t.Errorf("couldn't forget: %v", err)
 		}
 		for range 100 {
-			s, err := brain.Speak(ctx, br, "kessoku", "")
+			s, trace, err := brain.Speak(ctx, br, "kessoku", "")
 			if err != nil {
 				t.Errorf("couldn't speak: %v", err)
 			}
 			if strings.Contains(s, "bocchi") {
 				t.Errorf("remembered that which must be forgotten: %q", s)
 			}
+			if trace[len(trace)-1] == messages[0].ID {
+				t.Errorf("id %q should have been forgotten but was used in %q", messages[0].ID, trace)
+			}
 		}
 		for range 10000 {
-			s, err := brain.Speak(ctx, br, "sickhack", "")
+			s, _, err := brain.Speak(ctx, br, "sickhack", "")
 			if err != nil {
 				t.Errorf("couldn't speak: %v", err)
 			}
@@ -195,25 +222,46 @@ func testForgetMessage(ctx context.Context, br brain.Brain) func(t *testing.T) {
 		if err := br.ForgetMessage(ctx, "kessoku", messages[0].ID); err != nil {
 			t.Errorf("failed to forget first message: %v", err)
 		}
-		got := speak(ctx, t, br, "kessoku", "", 256)
-		want := map[string]bool{
-			"member ryou":   true,
-			"member nijika": true,
-			"member kita":   true,
+		got := speak(ctx, t, br, "kessoku", "", 2048)
+		want := map[string]struct{}{
+			// The current brains should delete the "member" with ID 1, but we
+			// don't strictly require it.
+			// This should change anyway once we stop deleting by tuples.
+			"2#member ryou":     {},
+			"2 3#member ryou":   {},
+			"2 4#member ryou":   {},
+			"2 3#member nijika": {},
+			"3#member nijika":   {},
+			"3 4#member nijika": {},
+			"2 4#member kita":   {},
+			"3 4#member kita":   {},
+			"4#member kita":     {},
 		}
-		if !maps.Equal(got, want) {
-			t.Errorf("wrong messages after forgetting: want %v, got %v", want, got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong messages after forgetting (+got/-want):\n%s", diff)
 		}
-		got = speak(ctx, t, br, "sickhack", "", 256)
-		want = map[string]bool{
-			"member bocchi": true,
-			"member ryou":   true,
-			"member nijika": true,
-			"member kita":   true,
-			"manager seika": true,
+		got = speak(ctx, t, br, "sickhack", "", 2048)
+		want = map[string]struct{}{
+			"5#member bocchi":   {},
+			"5 6#member bocchi": {},
+			"5 7#member bocchi": {},
+			"5 8#member bocchi": {},
+			"5 6#member ryou":   {},
+			"6#member ryou":     {},
+			"6 7#member ryou":   {},
+			"6 8#member ryou":   {},
+			"5 7#member nijika": {},
+			"6 7#member nijika": {},
+			"7#member nijika":   {},
+			"7 8#member nijika": {},
+			"5 8#member kita":   {},
+			"6 8#member kita":   {},
+			"7 8#member kita":   {},
+			"8#member kita":     {},
+			"9#manager seika":   {},
 		}
-		if !maps.Equal(got, want) {
-			t.Errorf("wrong messages in other tag after forgetting: want %v, got %v", want, got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong messages in other tag after forgetting (+got/-want):\n%s", diff)
 		}
 	}
 }
@@ -225,24 +273,38 @@ func testForgetDuring(ctx context.Context, br brain.Brain) func(t *testing.T) {
 		if err := br.ForgetDuring(ctx, "kessoku", time.Unix(1, 0).Add(-time.Millisecond), time.Unix(2, 0).Add(time.Millisecond)); err != nil {
 			t.Errorf("failed to forget: %v", err)
 		}
-		got := speak(ctx, t, br, "kessoku", "", 256)
-		want := map[string]bool{
-			"member bocchi": true,
-			"member kita":   true,
+		got := speak(ctx, t, br, "kessoku", "", 2048)
+		want := map[string]struct{}{
+			"1#member bocchi":   {},
+			"1 4#member bocchi": {},
+			"1 4#member kita":   {},
+			"4#member kita":     {},
 		}
-		if !maps.Equal(got, want) {
-			t.Errorf("wrong messages after forgetting: want %v, got %v", want, got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong messages after forgetting (+got/-want):\n%s", diff)
 		}
-		got = speak(ctx, t, br, "sickhack", "", 256)
-		want = map[string]bool{
-			"member bocchi": true,
-			"member ryou":   true,
-			"member nijika": true,
-			"member kita":   true,
-			"manager seika": true,
+		got = speak(ctx, t, br, "sickhack", "", 2048)
+		want = map[string]struct{}{
+			"5#member bocchi":   {},
+			"5 6#member bocchi": {},
+			"5 7#member bocchi": {},
+			"5 8#member bocchi": {},
+			"5 6#member ryou":   {},
+			"6#member ryou":     {},
+			"6 7#member ryou":   {},
+			"6 8#member ryou":   {},
+			"5 7#member nijika": {},
+			"6 7#member nijika": {},
+			"7#member nijika":   {},
+			"7 8#member nijika": {},
+			"5 8#member kita":   {},
+			"6 8#member kita":   {},
+			"7 8#member kita":   {},
+			"8#member kita":     {},
+			"9#manager seika":   {},
 		}
-		if !maps.Equal(got, want) {
-			t.Errorf("wrong spoken messages for sickhack: want %v, got %v", want, got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("wrong spoken messages for sickhack (+got/-want):\n%s", diff)
 		}
 	}
 }
@@ -278,7 +340,7 @@ func testCombinatoric(ctx context.Context, br brain.Brain) func(t *testing.T) {
 			}
 		}
 		allocs := testing.AllocsPerRun(10, func() {
-			_, err := brain.Speak(ctx, br, "bocchi", "")
+			_, _, err := brain.Speak(ctx, br, "bocchi", "")
 			if err != nil {
 				t.Errorf("couldn't speak: %v", err)
 			}

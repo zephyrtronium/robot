@@ -19,7 +19,8 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation) string {
 		cancel()
 		return ""
 	}
-	m, err := brain.Speak(ctx, robo.Brain, call.Channel.Send, call.Args["prompt"])
+	// TODO(zeph): record trace
+	m, _, err := brain.Speak(ctx, robo.Brain, call.Channel.Send, call.Args["prompt"])
 	if err != nil {
 		robo.Log.ErrorContext(ctx, "couldn't speak", "err", err.Error())
 		cancel()

@@ -67,7 +67,8 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		if rand.Float64() > ch.Responses {
 			return
 		}
-		s, err := brain.Speak(ctx, robo.brain, ch.Send, "")
+		// TODO(zeph): record trace
+		s, _, err := brain.Speak(ctx, robo.brain, ch.Send, "")
 		if err != nil {
 			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
 			return

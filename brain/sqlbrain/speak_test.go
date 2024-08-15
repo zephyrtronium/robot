@@ -21,7 +21,6 @@ func TestSpeak(t *testing.T) {
 		know   []know
 		tag    string
 		prompt []string
-		w      []byte
 		want   []string
 	}{
 		{
@@ -29,7 +28,6 @@ func TestSpeak(t *testing.T) {
 			know:   nil,
 			tag:    "kessoku",
 			prompt: nil,
-			w:      nil,
 			// We should only ever get nil from the brain,
 			// but that converts to the empty string.
 			want: []string{""},
@@ -50,7 +48,6 @@ func TestSpeak(t *testing.T) {
 			},
 			tag:    "sickhack",
 			prompt: nil,
-			w:      nil,
 			// We should only ever get nil from the brain,
 			// but that converts to the empty string.
 			want: []string{""},
@@ -71,7 +68,6 @@ func TestSpeak(t *testing.T) {
 			},
 			tag:    "kessoku",
 			prompt: []string{"kikuri "},
-			w:      nil,
 			// We should only ever get nil from the brain,
 			// but that converts to the empty string.
 			want: []string{""},
@@ -92,7 +88,6 @@ func TestSpeak(t *testing.T) {
 			},
 			tag:    "kessoku",
 			prompt: nil,
-			w:      nil,
 			want:   []string{"bocchi "},
 		},
 		{
@@ -126,27 +121,7 @@ func TestSpeak(t *testing.T) {
 			},
 			tag:    "kessoku",
 			prompt: nil,
-			w:      nil,
 			want:   []string{"bocchi ryo nijika kita "},
-		},
-		{
-			name: "append",
-			know: []know{
-				{
-					tag:    "kessoku",
-					prefix: "",
-					suffix: "bocchi ",
-				},
-				{
-					tag:    "kessoku",
-					prefix: "bocchi \x00",
-					suffix: "",
-				},
-			},
-			tag:    "kessoku",
-			prompt: nil,
-			w:      []byte("member "),
-			want:   []string{"member bocchi "},
 		},
 		{
 			name: "multi",
@@ -214,7 +189,6 @@ func TestSpeak(t *testing.T) {
 			},
 			tag:    "kessoku",
 			prompt: nil,
-			w:      nil,
 			want:   []string{"member bocchi ", "member ryo ", "member nijika ", "member kita "},
 		},
 		{
@@ -328,7 +302,6 @@ func TestSpeak(t *testing.T) {
 			},
 			tag:    "sickhack",
 			prompt: nil,
-			w:      nil,
 			want:   []string{"member kikuri ", "member eliza ", "member shima "},
 		},
 		{
@@ -400,7 +373,6 @@ func TestSpeak(t *testing.T) {
 			},
 			tag:    "kessoku",
 			prompt: nil,
-			w:      nil,
 			want:   []string{"member bocchi ", "member ryo ", "member nijika "},
 		},
 	}
@@ -421,12 +393,14 @@ func TestSpeak(t *testing.T) {
 			insert(t, conn, c.know, nil)
 			slices.Sort(c.want)
 			got := make([]string, 0, len(c.want))
+			var w brain.Builder
 			for range 10000 {
-				w, err := br.Speak(ctx, c.tag, c.prompt, slices.Clone(c.w))
+				w.Reset()
+				err := br.Speak(ctx, c.tag, c.prompt, &w)
 				if err != nil {
 					t.Errorf("couldn't speak: %v", err)
 				}
-				s := string(w)
+				s := w.String()
 				k, ok := slices.BinarySearch(got, s)
 				if !ok {
 					got = slices.Insert(got, k, s)

@@ -140,12 +140,14 @@ func TestSpeak(t *testing.T) {
 				want[v] = true
 			}
 			got := make(map[string]bool, len(c.want))
+			var w brain.Builder
 			for range 256 {
-				m, err := br.Speak(ctx, "kessoku", slices.Clone(c.prompt), nil)
+				w.Reset()
+				err := br.Speak(ctx, "kessoku", slices.Clone(c.prompt), &w)
 				if err != nil {
 					t.Errorf("failed to speak: %v", err)
 				}
-				got[string(m)] = true
+				got[w.String()] = true
 			}
 			if !maps.Equal(want, got) {
 				t.Errorf("wrong results: want %v, got %v", want, got)
