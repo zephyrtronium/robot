@@ -66,6 +66,46 @@ func Record[DB *sqlitex.Pool | *sqlite.Conn](ctx context.Context, db DB, tag, me
 	return nil
 }
 
+// Trace obtains the trace and time of the most recent instance of a message.
+// If the message has not been recorded, the results are empty with a nil error.
+func Trace[DB *sqlitex.Pool | *sqlite.Conn](ctx context.Context, db DB, tag, msg string) ([]string, time.Time, error) {
+	var conn *sqlite.Conn
+	switch db := any(db).(type) {
+	case *sqlite.Conn:
+		conn = db
+	case *sqlitex.Pool:
+		var err error
+		conn, err = db.Take(ctx)
+		defer db.Put(conn)
+		if err != nil {
+			return nil, time.Time{}, fmt.Errorf("couldn't get conn to find trace: %w", err)
+		}
+	}
+	const sel = `SELECT JSON(trace), time FROM spoken WHERE tag=:tag AND msg=:msg ORDER BY time DESC LIMIT 1`
+	st, err := conn.Prepare(sel)
+	if err != nil {
+		return nil, time.Time{}, fmt.Errorf("couldn't prepare statement to find trace: %w", err)
+	}
+	st.SetText(":tag", tag)
+	st.SetText(":msg", msg)
+	ok, err := st.Step()
+	if err != nil {
+		return nil, time.Time{}, fmt.Errorf("couldn't find trace: %w", err)
+	}
+	if !ok {
+		return nil, time.Time{}, nil
+	}
+	tr := st.ColumnText(0)
+	tm := st.ColumnInt64(1)
+	var trace []string
+	if err := json.Unmarshal([]byte(tr), &trace); err != nil {
+		return nil, time.Time{}, fmt.Errorf("couldn't decode trace: %w", err)
+	}
+	// Clean up the statement.
+	st.Step()
+	return trace, time.Unix(0, tm), nil
+}
+
 //go:embed schema.sql
 var schemaSQL string
 

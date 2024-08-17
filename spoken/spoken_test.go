@@ -86,3 +86,99 @@ func TestRecord(t *testing.T) {
 		t.Errorf("failed to scan: %v", err)
 	}
 }
+
+func TestTrace(t *testing.T) {
+	// Create test fixture first.
+	ctx := context.Background()
+	db := testDB(ctx)
+	insert := []struct {
+		tag   string
+		msg   string
+		trace string
+		time  int64
+	}{
+		{"kessoku", "bocchi", `["1"]`, 1},
+		{"kessoku", "ryo", `["2"]`, 2},
+		{"sickhack", "bocchi", `["3"]`, 3},
+		{"kessoku", "ryo", `["4"]`, 4},
+	}
+	{
+		conn, err := db.Take(ctx)
+		if err != nil {
+			t.Fatalf("couldn't get conn: %v", err)
+		}
+		st, err := conn.Prepare("INSERT INTO spoken (tag, msg, trace, time, meta) VALUES (:tag, :msg, JSONB(:trace), :time, JSONB('{}'))")
+		if err != nil {
+			t.Fatalf("couldn't prep insert: %v", err)
+		}
+		for _, r := range insert {
+			st.SetText(":tag", r.tag)
+			st.SetText(":msg", r.msg)
+			st.SetText(":trace", r.trace)
+			st.SetInt64(":time", r.time)
+			_, err := st.Step()
+			if err != nil {
+				t.Errorf("failed to insert %v: %v", r, err)
+			}
+			if err := st.Reset(); err != nil {
+				t.Errorf("couldn't reset: %v", err)
+			}
+		}
+		if err := st.Finalize(); err != nil {
+			t.Fatalf("couldn't finalize insert: %v", err)
+		}
+		db.Put(conn)
+	}
+
+	cases := []struct {
+		name string
+		tag  string
+		msg  string
+		want []string
+		time time.Time
+	}{
+		{
+			name: "none",
+			tag:  "kessoku",
+			msg:  "nijika",
+			want: nil,
+			time: time.Time{},
+		},
+		{
+			name: "single",
+			tag:  "kessoku",
+			msg:  "bocchi",
+			want: []string{"1"},
+			time: time.Unix(0, 1),
+		},
+		{
+			name: "latest",
+			tag:  "kessoku",
+			msg:  "ryo",
+			want: []string{"4"},
+			time: time.Unix(0, 4),
+		},
+		{
+			name: "tagged",
+			tag:  "sickhack",
+			msg:  "bocchi",
+			want: []string{"3"},
+			time: time.Unix(0, 3),
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			trace, tm, err := spoken.Trace(context.Background(), db, c.tag, c.msg)
+			if err != nil {
+				t.Errorf("couldn't get trace: %v", err)
+			}
+			if !slices.Equal(trace, c.want) {
+				t.Errorf("wrong trace: want %q, got %q", c.want, trace)
+			}
+			if !tm.Equal(c.time) {
+				t.Errorf("wrong time: want %v, got %v", c.time, tm.UnixNano())
+			}
+		})
+	}
+}
