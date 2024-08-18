@@ -37,7 +37,11 @@ func TestRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("couldn't get conn: %v", err)
 	}
-	err = spoken.Record(ctx, db, "kessoku", "bocchi ryo", []string{"1", "2"}, time.Unix(1, 0), time.Second, "xD", "o")
+	h, err := spoken.Open(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = h.Record(ctx, "kessoku", "bocchi ryo", []string{"1", "2"}, time.Unix(1, 0), time.Second, "xD", "o")
 	if err != nil {
 		t.Errorf("couldn't record: %v", err)
 	}
@@ -91,6 +95,10 @@ func TestTrace(t *testing.T) {
 	// Create test fixture first.
 	ctx := context.Background()
 	db := testDB(ctx)
+	h, err := spoken.Open(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
 	insert := []struct {
 		tag   string
 		msg   string
@@ -169,7 +177,7 @@ func TestTrace(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			trace, tm, err := spoken.Trace(context.Background(), db, c.tag, c.msg)
+			trace, tm, err := h.Trace(context.Background(), c.tag, c.msg)
 			if err != nil {
 				t.Errorf("couldn't get trace: %v", err)
 			}
