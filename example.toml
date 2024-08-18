@@ -31,6 +31,9 @@ sqlbrain = 'file:$ROBOT_SQLITE'
 # privacy is an SQLite3 connection string for the database where privacy
 # information is stored.
 privacy = 'file:$ROBOT_SQLITE'
+# spoken is an SQLite3 connection string for the database where generated
+# message traces are stored.
+spoken = 'file:$ROBOT_SQLITE'
 
 # global includes chat settings that apply to all channels.
 [global]

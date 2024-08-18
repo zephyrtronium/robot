@@ -30,6 +30,7 @@ import (
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/privacy"
+	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/twitch"
 )
 
@@ -68,7 +69,7 @@ func (robo *Robot) SetSecrets(file string) error {
 // SetSources opens the brain and privacy list wrappers around the respective
 // databases. Use [loadDBs] to open the databases themselves from DSNs.
 // Panics if both kv and sql are nil.
-func (robo *Robot) SetSources(ctx context.Context, kv *badger.DB, sql, priv *sqlitex.Pool) error {
+func (robo *Robot) SetSources(ctx context.Context, kv *badger.DB, sql, priv, spoke *sqlitex.Pool) error {
 	var err error
 	if sql == nil {
 		if kv == nil {
@@ -84,6 +85,10 @@ func (robo *Robot) SetSources(ctx context.Context, kv *badger.DB, sql, priv *sql
 	robo.privacy, err = privacy.Open(ctx, priv)
 	if err != nil {
 		return fmt.Errorf("couldn't open privacy list: %w", err)
+	}
+	robo.spoken, err = spoken.Open(ctx, spoke)
+	if err != nil {
+		return fmt.Errorf("couldn't open spoken history: %w", err)
 	}
 	return nil
 }
@@ -251,12 +256,12 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 	return nil
 }
 
-func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv *sqlitex.Pool, err error) {
+func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv, spoke *sqlitex.Pool, err error) {
 	if cfg.KVBrain != "" && cfg.SQLBrain != "" {
-		return nil, nil, nil, fmt.Errorf("multiple brain backends requested; use exactly one")
+		return nil, nil, nil, nil, fmt.Errorf("multiple brain backends requested; use exactly one")
 	}
 	if cfg.KVBrain == "" && cfg.SQLBrain == "" {
-		return nil, nil, nil, fmt.Errorf("no brain backends requested; use exactly one")
+		return nil, nil, nil, nil, fmt.Errorf("no brain backends requested; use exactly one")
 	}
 
 	if cfg.KVBrain != "" {
@@ -267,25 +272,39 @@ func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv *sqlitex.Pool, err error) {
 		opts = opts.WithBloomFalsePositive(0)
 		kv, err = badger.Open(opts.FromSuperFlag(cfg.KVFlag))
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("couldn't open kvbrain db: %w", err)
+			return nil, nil, nil, nil, fmt.Errorf("couldn't open kvbrain db: %w", err)
 		}
 	}
 	if cfg.SQLBrain != "" {
 		sql, err = sqlitex.NewPool(cfg.SQLBrain, sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("couldn't open sqlbrain db: %w", err)
-		}
-		if cfg.Privacy == cfg.SQLBrain {
-			return nil, sql, sql, nil
+			return nil, nil, nil, nil, fmt.Errorf("couldn't open sqlbrain db: %w", err)
 		}
 	}
 
-	priv, err = sqlitex.NewPool(cfg.Privacy, sqlitex.PoolOptions{})
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
+	switch cfg.Privacy {
+	case cfg.SQLBrain:
+		priv = sql
+	default:
+		priv, err = sqlitex.NewPool(cfg.Privacy, sqlitex.PoolOptions{})
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
+		}
 	}
 
-	return kv, sql, priv, nil
+	switch cfg.Spoken {
+	case cfg.SQLBrain:
+		spoke = sql
+	case cfg.Privacy:
+		spoke = priv
+	default:
+		spoke, err = sqlitex.NewPool(cfg.Spoken, sqlitex.PoolOptions{})
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("couldn't open spoken history db: %w", err)
+		}
+	}
+
+	return kv, sql, priv, spoke, nil
 }
 
 func mergemaps(ms ...map[string]int) map[string]int {
@@ -457,6 +476,7 @@ type DBCfg struct {
 	KVBrain  string `toml:"kvbrain"`
 	KVFlag   string `toml:"kvflag"`
 	Privacy  string `toml:"privacy"`
+	Spoken   string `toml:"spoken"`
 }
 
 // Rate is a rate limit configuration.

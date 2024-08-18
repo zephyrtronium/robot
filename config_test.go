@@ -59,6 +59,7 @@ func TestExampleConfig(t *testing.T) {
 		{"SecretFile", cfg.SecretFile, "/key"},
 		{"DB.SQLBrain", cfg.DB.SQLBrain, "file:"},
 		{"DB.Privacy", cfg.DB.Privacy, "file:"},
+		{"DB.Spoken", cfg.DB.Spoken, "file:"},
 		{"TMI.SecretFile", cfg.TMI.SecretFile, "/twitch_client_secret"},
 	}
 	for _, c := range substrings {

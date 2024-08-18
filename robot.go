@@ -19,6 +19,7 @@ import (
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/privacy"
+	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/twitch"
 )
 
@@ -28,6 +29,8 @@ type Robot struct {
 	brain brain.Brain
 	// privacy is the privacy.
 	privacy *privacy.List
+	// spoken is the history of generated messages.
+	spoken *spoken.History
 	// channels are the channels.
 	channels map[string]*channel.Channel // TODO(zeph): syncmap[string]channel.Channel
 	// works is the worker queue.

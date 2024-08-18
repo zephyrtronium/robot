@@ -14,6 +14,7 @@ import (
 
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/privacy"
+	"github.com/zephyrtronium/robot/spoken"
 )
 
 var app = cli.Command{
@@ -72,7 +73,7 @@ func cliInit(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("couldn't load config: %w", err)
 	}
-	_, sql, priv, err := loadDBs(cfg.DB)
+	_, sql, priv, spoke, err := loadDBs(cfg.DB)
 	if err != nil {
 		return err
 	}
@@ -83,6 +84,9 @@ func cliInit(ctx context.Context, cmd *cli.Command) error {
 	}
 	if err := privacy.Init(ctx, priv); err != nil {
 		return fmt.Errorf("couldn't initialize privacy list: %w", err)
+	}
+	if err := spoken.Init(ctx, spoke); err != nil {
+		return fmt.Errorf("couldn't initialize spoken history: %w", err)
 	}
 	return nil
 }
@@ -103,11 +107,11 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 	if err := robo.SetSecrets(cfg.SecretFile); err != nil {
 		return err
 	}
-	kv, sql, priv, err := loadDBs(cfg.DB)
+	kv, sql, priv, spoke, err := loadDBs(cfg.DB)
 	if err != nil {
 		return err
 	}
-	if err := robo.SetSources(ctx, kv, sql, priv); err != nil {
+	if err := robo.SetSources(ctx, kv, sql, priv, spoke); err != nil {
 		return err
 	}
 	if md.IsDefined("tmi") {
