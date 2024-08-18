@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -68,20 +69,24 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			return
 		}
 		// TODO(zeph): record trace
-		s, _, err := brain.Speak(ctx, robo.brain, ch.Send, "")
+		s, trace, err := brain.Speak(ctx, robo.brain, ch.Send, "")
 		if err != nil {
 			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
 			return
 		}
 		e := ch.Emotes.Pick(rand.Uint32())
 		slog.InfoContext(ctx, "speak", slog.String("text", s), slog.String("emote", e))
-		s = strings.TrimSpace(s + " " + e)
+		se := strings.TrimSpace(s + " " + e)
 		// TODO(zeph): effect
-		if ch.Block.MatchString(s) {
-			slog.WarnContext(ctx, "wanted to send blocked message", slog.String("in", ch.Name), slog.String("text", s))
+		if err := robo.spoken.Record(ctx, ch.Send, s, trace, time.Now(), 0, e, ""); err != nil {
+			slog.ErrorContext(ctx, "record trace failed", slog.Any("err", err))
 			return
 		}
-		msg := message.Format("", ch.Name, "%s", s)
+		if ch.Block.MatchString(se) {
+			slog.WarnContext(ctx, "wanted to send blocked message", slog.String("in", ch.Name), slog.String("text", se))
+			return
+		}
+		msg := message.Format("", ch.Name, "%s", se)
 		robo.sendTMI(ctx, send, msg)
 	}
 	robo.enqueue(ctx, group, work)
