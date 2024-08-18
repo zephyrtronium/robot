@@ -10,7 +10,7 @@ import (
 	"github.com/zephyrtronium/robot/brain"
 )
 
-func speakCmd(ctx context.Context, robo *Robot, call *Invocation) string {
+func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string) string {
 	t := call.Message.Time()
 	r := call.Channel.Rate.ReserveN(call.Message.Time(), 1)
 	cancel := func() { r.CancelAt(t) }
@@ -19,28 +19,34 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation) string {
 		cancel()
 		return ""
 	}
-	// TODO(zeph): record trace
-	m, _, err := brain.Speak(ctx, robo.Brain, call.Channel.Send, call.Args["prompt"])
+	m, trace, err := brain.Speak(ctx, robo.Brain, call.Channel.Send, call.Args["prompt"])
 	if err != nil {
 		robo.Log.ErrorContext(ctx, "couldn't speak", "err", err.Error())
 		cancel()
 		return ""
 	}
-	if call.Channel.Block.MatchString(m) {
+	e := call.Channel.Emotes.Pick(rand.Uint32())
+	s := m + " " + e
+	if err := robo.Spoken.Record(ctx, call.Channel.Send, m, trace, call.Message.Time(), 0, e, effect); err != nil {
+		robo.Log.ErrorContext(ctx, "couldn't record trace", slog.Any("err", err))
+		cancel()
+		return ""
+	}
+	if call.Channel.Block.MatchString(s) {
 		robo.Log.WarnContext(ctx, "generated blocked message",
 			slog.String("in", call.Channel.Name),
 			slog.String("text", m),
+			slog.String("emote", e),
 		)
 		cancel()
 		return ""
 	}
-	e := call.Channel.Emotes.Pick(rand.Uint32())
 	slog.InfoContext(ctx, "speak", "in", call.Channel.Name, "text", m, "emote", e)
 	return m + " " + e
 }
 
 func Speak(ctx context.Context, robo *Robot, call *Invocation) {
-	u := speakCmd(ctx, robo, call)
+	u := speakCmd(ctx, robo, call, "")
 	if u == "" {
 		return
 	}
@@ -53,7 +59,7 @@ func Speak(ctx context.Context, robo *Robot, call *Invocation) {
 }
 
 func OwO(ctx context.Context, robo *Robot, call *Invocation) {
-	u := speakCmd(ctx, robo, call)
+	u := speakCmd(ctx, robo, call, "OwO")
 	if u == "" {
 		return
 	}
@@ -77,7 +83,7 @@ var owoRep = strings.NewReplacer(
 )
 
 func AAAAA(ctx context.Context, robo *Robot, call *Invocation) {
-	u := speakCmd(ctx, robo, call)
+	u := speakCmd(ctx, robo, call, "AAAAA")
 	if u == "" {
 		return
 	}

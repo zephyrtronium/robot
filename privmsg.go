@@ -109,6 +109,7 @@ func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.
 		Channels: robo.channels,
 		Brain:    robo.brain,
 		Privacy:  robo.privacy,
+		Spoken:   robo.spoken,
 	}
 	inv := command.Invocation{
 		Channel: ch,
