@@ -31,7 +31,7 @@ func (robo *Robot) tmiLoop(ctx context.Context, group *errgroup.Group, send chan
 			case "CLEARCHAT":
 				robo.clearchat(ctx, group, msg)
 			case "CLEARMSG":
-				// TODO(zeph): forget message
+				robo.clearmsg(ctx, group, msg)
 			case "HOSTTARGET":
 				// nothing yet
 			case "USERSTATE":
@@ -114,6 +114,69 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 			h = hr.Hash(h, t, msg.To(), msg.Time().Add(-userhash.TimeQuantum))
 			if err := robo.brain.ForgetUser(ctx, h); err != nil {
 				slog.ErrorContext(ctx, "failed to forget older messages from user", slog.Any("err", err), slog.String("channel", msg.To()))
+			}
+		}
+	}
+	robo.enqueue(ctx, group, work)
+}
+
+func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi.Message) {
+	if len(msg.Params) == 0 {
+		return
+	}
+	ch := robo.channels[msg.To()]
+	if ch == nil {
+		return
+	}
+	t, _ := msg.Tag("target-msg-id")
+	u, _ := msg.Tag("login")
+	work := func(ctx context.Context) {
+		if u != robo.tmi.me {
+			// Forget a message from someone else.
+			slog.InfoContext(ctx, "forget message", slog.String("channel", msg.To()), slog.String("id", t))
+			err := robo.brain.ForgetMessage(ctx, ch.Learn, t)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to forget message",
+					slog.Any("err", err),
+					slog.String("channel", msg.To()),
+					slog.String("tag", ch.Learn),
+					slog.String("id", t),
+				)
+			}
+			return
+		}
+		// Forget a message from the robo.
+		// This may or may not be a generated message; it could be a command
+		// output or copypasta. Regardless, if it was deleted, we should try
+		// not to say it.
+		// Note that we use the send tag rather than the learn tag for this,
+		// because we are unlearning something that we sent.
+		// TODO(zeph): the message we see has the emote, so history needs to index it thus
+		trace, tm, err := robo.spoken.Trace(ctx, ch.Send, msg.Trailing)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get message trace",
+				slog.Any("err", err),
+				slog.String("channel", msg.To()),
+				slog.String("tag", ch.Send),
+				slog.String("id", t),
+			)
+			return
+		}
+		slog.InfoContext(ctx, "forget trace",
+			slog.String("channel", msg.To()),
+			slog.String("tag", ch.Send),
+			slog.Any("learned", tm),
+			slog.Any("trace", trace),
+		)
+		for _, id := range trace {
+			err := robo.brain.ForgetMessage(ctx, ch.Send, id)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to forget from trace",
+					slog.Any("err", err),
+					slog.String("channel", msg.To()),
+					slog.String("tag", ch.Send),
+					slog.String("id", t),
+				)
 			}
 		}
 	}
