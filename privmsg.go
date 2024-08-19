@@ -55,9 +55,10 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		case nil:
 			// Meme detected. Copypasta.
 			text := m.Text
-			// TODO(zeph): effects; once we apply them, we also need to check block
-			// and we need to prevent copypastaing the effected version
-			slog.InfoContext(ctx, "copypasta", slog.String("text", text))
+			f := ch.Effects.Pick(rand.Uint32())
+			s := command.Effect(f, text)
+			ch.Memery.Block(m.Time(), s)
+			slog.InfoContext(ctx, "copypasta", slog.String("message", s), slog.String("effect", f))
 			msg := message.Format("", ch.Name, "%s", text)
 			robo.sendTMI(ctx, send, msg)
 			return
@@ -74,19 +75,21 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
 			return
 		}
-		e := ch.Emotes.Pick(rand.Uint32())
-		slog.InfoContext(ctx, "speak", slog.String("text", s), slog.String("emote", e))
+		x := rand.Uint64()
+		e := ch.Emotes.Pick(uint32(x))
+		f := ch.Effects.Pick(uint32(x >> 32))
+		slog.InfoContext(ctx, "speak", slog.String("text", s), slog.String("emote", e), slog.String("effect", f))
 		se := strings.TrimSpace(s + " " + e)
-		// TODO(zeph): effect
-		if err := robo.spoken.Record(ctx, ch.Send, s, trace, time.Now(), 0, e, ""); err != nil {
+		sef := command.Effect(f, se)
+		if err := robo.spoken.Record(ctx, ch.Send, s, trace, time.Now(), 0, e, f); err != nil {
 			slog.ErrorContext(ctx, "record trace failed", slog.Any("err", err))
 			return
 		}
-		if ch.Block.MatchString(se) {
-			slog.WarnContext(ctx, "wanted to send blocked message", slog.String("in", ch.Name), slog.String("text", se))
+		if ch.Block.MatchString(se) || ch.Block.MatchString(sef) {
+			slog.WarnContext(ctx, "wanted to send blocked message", slog.String("in", ch.Name), slog.String("text", sef))
 			return
 		}
-		msg := message.Format("", ch.Name, "%s", se)
+		msg := message.Format("", ch.Name, "%s", sef)
 		robo.sendTMI(ctx, send, msg)
 	}
 	robo.enqueue(ctx, group, work)

@@ -135,6 +135,15 @@ func (m *MemeDetector) Check(t time.Time, from, msg string) error {
 	return nil
 }
 
+// Block adds a message as a meme directly, preventing its reuse
+// for fifteen minutes from t.
+func (m *MemeDetector) Block(t time.Time, msg string) {
+	now := t.UnixMilli()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.insertLocked(msg, "", now+15*60*1000)
+}
+
 // ErrNotCopypasta is a sentinel error returned by MemeDetector.Check when a
 // message is not copypasta.
 var ErrNotCopypasta = errors.New("not copypasta")
