@@ -32,6 +32,10 @@ func TestExampleConfig(t *testing.T) {
 	eqcase(t, "Global.Block", cfg.Global.Block, `(?i)bad\s+stuff[^$x]`)
 	eqcase(t, "Global.Emotes[``]", cfg.Global.Emotes[``], 4)
 	eqcase(t, "Global.Emotes[`;)`]", cfg.Global.Emotes[`;)`], 1)
+	eqcase(t, "Global.Effects[``]", cfg.Global.Effects[``], 18)
+	eqcase(t, "Global.Effects[`OwO`]", cfg.Global.Effects[`OwO`], 1)
+	eqcase(t, "Global.Effects[`AAAAA`]", cfg.Global.Effects[`AAAAA`], 0)
+	eqcase(t, "Global.Effects[`o`]", cfg.Global.Effects[`o`], 1)
 	eqcase(t, "TMI.CID", cfg.TMI.CID, `hof5gwx0su6owfnys0nyan9c87zr6t`)
 	eqcase(t, "TMI.RedirectURL", cfg.TMI.RedirectURL, `http://localhost`)
 	eqcase(t, "TMI.TokenFile", cfg.TMI.TokenFile, `/var/robot/tmi_refresh`)
@@ -51,6 +55,7 @@ func TestExampleConfig(t *testing.T) {
 	eqcase(t, "Twitch[`bocchi`].Privileges[0].Name", cfg.Twitch[`bocchi`].Privileges[0].Name, `zephyrtronium`)
 	eqcase(t, "Twitch[`bocchi`].Privileges[0].Level", cfg.Twitch[`bocchi`].Privileges[0].Level, `moderator`)
 	eqcase(t, "Twitch[`bocchi`].Emotes[`btw`]", cfg.Twitch[`bocchi`].Emotes[`btw make sure to stretch, hydrate, and take care of yourself <3`], 1)
+	eqcase(t, "Twitch[`bocchi`].Effects[`AAAAA`]", cfg.Twitch[`bocchi`].Effects[`AAAAA`], 44444)
 	substrings := []struct {
 		name string
 		val  string

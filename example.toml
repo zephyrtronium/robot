@@ -47,6 +47,15 @@ block = '(?i)bad\s+stuff[^$x]'
 '' = 4
 ';)' = 1
 
+# global.effects is a table of effects to use in every channel along with their
+# relative weights.
+# The available effects are '', 'OwO', 'AAAAA', and 'o'.
+[global.effects]
+'' = 18
+'OwO' = 1
+'AAAAA' = 0
+'o' = 1
+
 [tmi]
 # user is the Twitch username (not display name) of the bot.
 # TODO(zeph): this can go away, we can get it from the api instead
@@ -104,3 +113,6 @@ privileges = [
 
 [twitch.bocchi.emotes]
 'btw make sure to stretch, hydrate, and take care of yourself <3' = 1
+
+[twitch.bocchi.effects]
+'AAAAA' = 44444

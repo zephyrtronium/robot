@@ -217,6 +217,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 			return fmt.Errorf("bad global or channel block expression for twitch.%s: %w", nm, err)
 		}
 		emotes := pick.New(pick.FromMap(mergemaps(global.Emotes, ch.Emotes)))
+		effects := pick.New(pick.FromMap(mergemaps(global.Effects, ch.Effects)))
 		var ign, mod map[string]bool
 		for _, p := range ch.Privileges {
 			// TODO(zeph): resolve user ids
@@ -245,6 +246,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				Mod:       mod,
 				Memery:    channel.NewMemeDetector(ch.Copypasta.Need, fseconds(ch.Copypasta.Within)),
 				Emotes:    emotes,
+				Effects:   effects,
 			}
 			v.Message = func(ctx context.Context, reply, text string) {
 				msg := message.Format(reply, v.Name, "%s", text)
@@ -411,6 +413,8 @@ type ChannelCfg struct {
 	Copypasta Copypasta `toml:"copypasta"`
 	// Emotes is the emotes and their weights for the channel.
 	Emotes map[string]int `toml:"emotes"`
+	// Effects is the effects and their weights for the channel.
+	Effects map[string]int `toml:"effects"`
 	// Privileges is the user access controls for the channel.
 	Privileges []Privilege `toml:"privileges"`
 }
@@ -421,6 +425,8 @@ type Global struct {
 	Block string `toml:"block"`
 	// Emotes is the emotes and their weights to use everywhere.
 	Emotes map[string]int `toml:"emotes"`
+	// Effects is the effects and their weights to use everywhere.
+	Effects map[string]int `toml:"effects"`
 }
 
 // Owner is metadata about the bot owner.
