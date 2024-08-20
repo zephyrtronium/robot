@@ -117,17 +117,31 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 }
 
 func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.Received, from, cmd string) {
-	if from == robo.tmi.owner {
-		// TODO(zeph): check owner and moderator commands
+	var c *twitchCommand
+	var args map[string]string
+	level := "any"
+	switch {
+	case from == robo.tmi.owner:
+		c, args = findTwitch(twitchOwner, cmd)
+		if c != nil {
+			level = "owner"
+			break
+		}
+		fallthrough
+	case ch.Mod[from], m.IsModerator:
+		c, args = findTwitch(twitchMod, cmd)
+		if c != nil {
+			level = "mod"
+			break
+		}
+		fallthrough
+	default:
+		c, args = findTwitch(twitchAny, cmd)
 	}
-	if ch.Mod[from] || m.IsModerator {
-		// TODO(zeph): check moderator commands
-	}
-	c, args := findTwitch(twitchAny, cmd)
 	if c == nil {
 		return
 	}
-	slog.InfoContext(ctx, "regular command", slog.String("name", c.name), slog.Any("args", args))
+	slog.InfoContext(ctx, "command", slog.String("level", level), slog.String("name", c.name), slog.Any("args", args))
 	r := command.Robot{
 		Log:      slog.Default(),
 		Channels: robo.channels,
@@ -293,6 +307,22 @@ func findTwitch(cmds []twitchCommand, text string) (*twitchCommand, map[string]s
 		}
 	}
 	return nil, nil
+}
+
+var twitchOwner = []twitchCommand{
+	{
+		parse: regexp.MustCompile(`^(?i:in\s+(?<in>#\S+)\s+echo)\s+(?<msg>.*)`),
+		fn:    command.EchoIn,
+		name:  "echo-in",
+	},
+}
+
+var twitchMod = []twitchCommand{
+	{
+		parse: regexp.MustCompile(`^(?i:echo)\s+(?<msg>.*)`),
+		fn:    command.Echo,
+		name:  "echo",
+	},
 }
 
 var twitchAny = []twitchCommand{
