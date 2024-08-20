@@ -311,7 +311,7 @@ func findTwitch(cmds []twitchCommand, text string) (*twitchCommand, map[string]s
 
 var twitchOwner = []twitchCommand{
 	{
-		parse: regexp.MustCompile(`^(?i:in\s+(?<in>#\S+)\s+echo)\s+(?<msg>.*)`),
+		parse: regexp.MustCompile(`^(?i:in\s+(?<in>#\S+)[,:]?\s+echo)\s+(?<msg>.*)`),
 		fn:    command.EchoIn,
 		name:  "echo-in",
 	},
@@ -335,6 +335,16 @@ var twitchAny = []twitchCommand{
 		parse: regexp.MustCompile(`^(?i:how\s*[a']?r?e?\s+y?o?u?)|A(?:A|\s)+`),
 		fn:    command.AAAAA,
 		name:  "AAAAA",
+	},
+	{
+		parse: regexp.MustCompile(`^(?i:r+o+a+r+|r+a+w+r+)`),
+		fn:    command.Rawr,
+		name:  "rawr",
+	},
+	{
+		parse: regexp.MustCompile(`^(?i:where(?:'?s|\s+is)?\s+y?o?u'?re?\s+so?u?rce?(?:\s*code)?)`),
+		fn:    command.Source,
+		name:  "source",
 	},
 	{
 		// NOTE(zeph): This command MUST be last, because it swallows all
