@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"time"
 
 	"zombiezen.com/go/sqlite"
@@ -101,6 +102,43 @@ func (h *History) Trace(ctx context.Context, tag, msg string) ([]string, time.Ti
 	// Clean up the statement.
 	st.Step()
 	return trace, time.Unix(0, tm), nil
+}
+
+func once2[K, V any](k K, v V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		yield(k, v)
+	}
+}
+
+// AllSince provides an iterator over all trace IDs since the given time.
+func (h *History) Since(ctx context.Context, tag string, tm time.Time) iter.Seq2[string, error] {
+	conn, err := h.db.Take(ctx)
+	defer h.db.Put(conn)
+	if err != nil {
+		return once2("", fmt.Errorf("couldn't get conn to find recent traces: %w", err))
+	}
+	const sel = `SELECT DISTINCT value FROM spoken, JSON_EACH(spoken.trace) WHERE tag = :tag AND time >= :time`
+	st, err := conn.Prepare(sel)
+	if err != nil {
+		return once2("", fmt.Errorf("couldn't prepare statement to find recent traces: %w", err))
+	}
+	st.SetText(":tag", tag)
+	st.SetInt64(":time", tm.UnixNano())
+	return func(yield func(string, error) bool) {
+		for {
+			ok, err := st.Step()
+			if err != nil {
+				yield("", fmt.Errorf("couldn't get recent traces: %w", err))
+				return
+			}
+			if !ok {
+				return
+			}
+			if !yield(st.ColumnText(0), nil) {
+				return
+			}
+		}
+	}
 }
 
 //go:embed schema.sql

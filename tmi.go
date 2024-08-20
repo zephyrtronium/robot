@@ -98,8 +98,29 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 			}
 		}
 	case msg.Trailing == robo.tmi.me: // TODO(zeph): get own user id
-		// TODO(zeph): forget all recent generated traces
-		return
+		work = func(ctx context.Context) {
+			// We use the send tag because we are forgetting something we sent.
+			tag := ch.Send
+			slog.InfoContext(ctx, "forget recent generated", slog.String("channel", msg.To()), slog.String("tag", tag))
+			for id, err := range robo.spoken.Since(ctx, tag, msg.Time().Add(-15*time.Minute)) {
+				if err != nil {
+					slog.ErrorContext(ctx, "failed to get recent traces",
+						slog.Any("err", err),
+						slog.String("channel", msg.To()),
+						slog.String("tag", tag),
+					)
+					continue
+				}
+				if err := robo.brain.ForgetMessage(ctx, tag, id); err != nil {
+					slog.ErrorContext(ctx, "failed to forget from recent trace",
+						slog.Any("err", err),
+						slog.String("channel", msg.To()),
+						slog.String("tag", tag),
+						slog.String("id", id),
+					)
+				}
+			}
+		}
 	default:
 		// Delete from user.
 		// We use the user's current and previous userhash, since userhashes

@@ -190,3 +190,93 @@ func TestTrace(t *testing.T) {
 		})
 	}
 }
+
+func TestSince(t *testing.T) {
+	// Create test fixture first.
+	ctx := context.Background()
+	db := testDB(ctx)
+	h, err := spoken.Open(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	insert := []struct {
+		tag   string
+		msg   string
+		trace string
+		time  int64
+	}{
+		{"kessoku", "bocchi", `["1"]`, 10},
+		{"kessoku", "ryo", `["2"]`, 20},
+		{"sickhack", "bocchi", `["3"]`, 30},
+		{"kessoku", "ryo", `["4"]`, 40},
+	}
+	{
+		conn, err := db.Take(ctx)
+		if err != nil {
+			t.Fatalf("couldn't get conn: %v", err)
+		}
+		st, err := conn.Prepare("INSERT INTO spoken (tag, msg, trace, time, meta) VALUES (:tag, :msg, JSONB(:trace), :time, JSONB('{}'))")
+		if err != nil {
+			t.Fatalf("couldn't prep insert: %v", err)
+		}
+		for _, r := range insert {
+			st.SetText(":tag", r.tag)
+			st.SetText(":msg", r.msg)
+			st.SetText(":trace", r.trace)
+			st.SetInt64(":time", r.time)
+			_, err := st.Step()
+			if err != nil {
+				t.Errorf("failed to insert %v: %v", r, err)
+			}
+			if err := st.Reset(); err != nil {
+				t.Errorf("couldn't reset: %v", err)
+			}
+		}
+		if err := st.Finalize(); err != nil {
+			t.Fatalf("couldn't finalize insert: %v", err)
+		}
+		db.Put(conn)
+	}
+
+	cases := []struct {
+		name string
+		tag  string
+		time int64
+		want []string
+	}{
+		{
+			name: "none",
+			tag:  "kessoku",
+			time: 1000,
+			want: nil,
+		},
+		{
+			name: "some",
+			tag:  "kessoku",
+			time: 15,
+			want: []string{"2", "4"},
+		},
+		{
+			name: "tagged",
+			tag:  "sickhack",
+			time: 15,
+			want: []string{"3"},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var got []string
+			for id, err := range h.Since(ctx, c.tag, time.Unix(0, c.time)) {
+				if err != nil {
+					t.Error(err)
+					continue
+				}
+				got = append(got, id)
+			}
+			slices.Sort(got)
+			if !slices.Equal(c.want, got) {
+				t.Errorf("wrong ids: want %q, got %q", c.want, got)
+			}
+		})
+	}
+}
