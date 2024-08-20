@@ -27,12 +27,6 @@ type Learner interface {
 	// Each tuple's prefix has entropy reduction transformations applied.
 	// Tuples in the argument may share storage for prefixes.
 	Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []Tuple) error
-	// Forget removes a set of recorded tuples.
-	// The tuples provided are as for Learn.
-	// If a tuple has been recorded multiple times, only the first
-	// should be deleted.
-	// If a tuple has not been recorded, it should be ignored.
-	Forget(ctx context.Context, tag string, tuples []Tuple) error
 	// ForgetMessage forgets everything learned from a single given message.
 	// If nothing has been learned from the message, it should be ignored.
 	ForgetMessage(ctx context.Context, tag, id string) error
@@ -54,18 +48,6 @@ func Learn(ctx context.Context, l Learner, tag, id string, user userhash.Hash, t
 	tt = slices.Grow(tt, len(toks)+1)
 	tt = tupleToks(tt, toks)
 	return l.Learn(ctx, tag, id, user, t, tt)
-}
-
-// Forget removes tokens from a Learner.
-func Forget(ctx context.Context, l Learner, tag string, toks []string) error {
-	if len(toks) == 0 {
-		return nil
-	}
-	tt := tuplesPool.Get()
-	defer func() { tuplesPool.Put(tt[:0]) }()
-	tt = slices.Grow(tt, len(toks)+1)
-	tt = tupleToks(tt, toks)
-	return l.Forget(ctx, tag, tt)
 }
 
 func tupleToks(tt []Tuple, toks []string) []Tuple {

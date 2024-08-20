@@ -3,16 +3,11 @@ package kvbrain
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/dgraph-io/badger/v4"
-
-	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -92,58 +87,6 @@ func (p *past) findUser(user userhash.Hash) [][]byte {
 		}
 	}
 	return r
-}
-
-// Forget removes a set of recorded tuples. The tuples provided are as for
-// Learn. If a tuple has been recorded multiple times, only the first
-// should be deleted. If a tuple has not been recorded, it should be
-// ignored.
-func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
-	// Sort tuples so that we always seek forward.
-	slices.SortFunc(tuples, func(a, b brain.Tuple) int {
-		p := slices.Compare(a.Prefix, b.Prefix)
-		if p == 0 {
-			p = strings.Compare(a.Suffix, b.Suffix)
-		}
-		return p
-	})
-	err := br.knowledge.Update(func(txn *badger.Txn) error {
-		var errs error
-		opts := badger.DefaultIteratorOptions
-		it := txn.NewIterator(opts)
-		defer it.Close()
-		b := hashTag(nil, tag)
-		for _, t := range tuples {
-			b = append(appendPrefix(b[:tagHashLen], t.Prefix), '\xff') // terminate the prefix
-			it.Seek(b)
-			for it.ValidForPrefix(b) {
-				v := it.Item()
-				it.Next()
-				if v.IsDeletedOrExpired() {
-					continue
-				}
-				u, err := v.ValueCopy(nil)
-				if err != nil {
-					errs = errors.Join(errs, err)
-					continue
-				}
-				if string(u) != t.Suffix {
-					continue
-				}
-				if err := txn.Delete(v.KeyCopy(nil)); err != nil {
-					errs = errors.Join(errs, err)
-					continue
-				}
-				// Only delete a single instance of each tuple.
-				break
-			}
-		}
-		return errs
-	})
-	if err != nil {
-		return fmt.Errorf("couldn't forget: %w", err)
-	}
-	return nil
 }
 
 // ForgetMessage forgets everything learned from a single given message.

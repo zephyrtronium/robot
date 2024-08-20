@@ -9,41 +9,8 @@ import (
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 
-	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
-
-//go:embed forget.sql
-var forgetSQL string
-
-// Forget removes a set of recorded tuples.
-func (br *Brain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) (err error) {
-	conn, err := br.db.Take(ctx)
-	defer br.db.Put(conn)
-	if err != nil {
-		return fmt.Errorf("couldn't get connection to forget: %w", err)
-	}
-	defer sqlitex.Transaction(conn)(&err)
-	p := make([]byte, 0, 256)
-	s := make([]byte, 0, 32)
-	for _, tt := range tuples {
-		p = prefix(p[:0], tt.Prefix)
-		s = append(s[:0], tt.Suffix...)
-		// Unlike learning and speaking, forgetting is generally outside the hot path.
-		// So, it's fine to have extra allocations and reflection here.
-		opts := sqlitex.ExecOptions{
-			Named: map[string]any{
-				":tag":    tag,
-				":prefix": p,
-				":suffix": s,
-			},
-		}
-		if err := sqlitex.Execute(conn, forgetSQL, &opts); err != nil {
-			return fmt.Errorf("couldn't forget: %w", err)
-		}
-	}
-	return nil
-}
 
 // ForgetMessage forgets everything learned from a single given message.
 // If nothing has been learned from the message, nothing happens.

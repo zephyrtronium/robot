@@ -18,7 +18,6 @@ import (
 // If a brain cannot be created without error, new should call t.Fatal.
 func Test(ctx context.Context, t *testing.T, new func(context.Context) brain.Brain) {
 	t.Run("speak", testSpeak(ctx, new(ctx)))
-	t.Run("forget", testForget(ctx, new(ctx)))
 	t.Run("forgetMessage", testForgetMessage(ctx, new(ctx)))
 	t.Run("forgetDuring", testForgetDuring(ctx, new(ctx)))
 	t.Run("combinatoric", testCombinatoric(ctx, new(ctx)))
@@ -180,38 +179,6 @@ func testSpeak(ctx context.Context, br brain.Brain) func(t *testing.T) {
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("wrong prompted messages for sickhack (+got/-want):\n%s", diff)
 		}
-	}
-}
-
-// testForget tests that a brain forgets what it forgets.
-func testForget(ctx context.Context, br brain.Brain) func(t *testing.T) {
-	return func(t *testing.T) {
-		learn(ctx, t, br)
-		if err := brain.Forget(ctx, br, "kessoku", messages[0].Tokens()); err != nil {
-			t.Errorf("couldn't forget: %v", err)
-		}
-		for range 100 {
-			s, trace, err := brain.Speak(ctx, br, "kessoku", "")
-			if err != nil {
-				t.Errorf("couldn't speak: %v", err)
-			}
-			if strings.Contains(s, "bocchi") {
-				t.Errorf("remembered that which must be forgotten: %q", s)
-			}
-			if trace[len(trace)-1] == messages[0].ID {
-				t.Errorf("id %q should have been forgotten but was used in %q", messages[0].ID, trace)
-			}
-		}
-		for range 10000 {
-			s, _, err := brain.Speak(ctx, br, "sickhack", "")
-			if err != nil {
-				t.Errorf("couldn't speak: %v", err)
-			}
-			if strings.Contains(s, "bocchi") {
-				return
-			}
-		}
-		t.Error("didn't see bocchi in many attempts; deleted from wrong tag?")
 	}
 }
 
