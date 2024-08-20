@@ -258,7 +258,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 	return nil
 }
 
-func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv, spoke *sqlitex.Pool, err error) {
+func loadDBs(ctx context.Context, cfg DBCfg) (kv *badger.DB, sql, priv, spoke *sqlitex.Pool, err error) {
 	if cfg.KVBrain != "" && cfg.SQLBrain != "" {
 		return nil, nil, nil, nil, fmt.Errorf("multiple brain backends requested; use exactly one")
 	}
@@ -267,6 +267,7 @@ func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv, spoke *sqlitex.Pool, err erro
 	}
 
 	if cfg.KVBrain != "" {
+		slog.DebugContext(ctx, "using kvbrain", slog.String("path", cfg.KVBrain), slog.String("flags", cfg.KVFlag))
 		opts := badger.DefaultOptions(cfg.KVBrain)
 		// TODO(zeph): logger?
 		opts = opts.WithLogger(nil)
@@ -278,6 +279,7 @@ func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv, spoke *sqlitex.Pool, err erro
 		}
 	}
 	if cfg.SQLBrain != "" {
+		slog.DebugContext(ctx, "using sqlbrain", slog.String("path", cfg.SQLBrain))
 		sql, err = sqlitex.NewPool(cfg.SQLBrain, sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("couldn't open sqlbrain db: %w", err)
@@ -286,8 +288,10 @@ func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv, spoke *sqlitex.Pool, err erro
 
 	switch cfg.Privacy {
 	case cfg.SQLBrain:
+		slog.DebugContext(ctx, "privacy db shared with sqlbrain")
 		priv = sql
 	default:
+		slog.DebugContext(ctx, "privacy db", slog.String("path", cfg.Privacy))
 		priv, err = sqlitex.NewPool(cfg.Privacy, sqlitex.PoolOptions{})
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("couldn't open privacy db: %w", err)
@@ -296,10 +300,13 @@ func loadDBs(cfg DBCfg) (kv *badger.DB, sql, priv, spoke *sqlitex.Pool, err erro
 
 	switch cfg.Spoken {
 	case cfg.SQLBrain:
+		slog.DebugContext(ctx, "spoken history db shared with sqlbrain")
 		spoke = sql
 	case cfg.Privacy:
+		slog.DebugContext(ctx, "spoken history db shared with privacy db")
 		spoke = priv
 	default:
+		slog.DebugContext(ctx, "spoken history db", slog.String("path", cfg.Spoken))
 		spoke, err = sqlitex.NewPool(cfg.Spoken, sqlitex.PoolOptions{})
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("couldn't open spoken history db: %w", err)
@@ -506,6 +513,7 @@ func expandcfg(cfg *Config, expand func(s string) string) {
 		&cfg.DB.KVBrain,
 		&cfg.DB.KVFlag,
 		&cfg.DB.Privacy,
+		&cfg.DB.Spoken,
 		&cfg.TMI.User,
 		&cfg.TMI.CID,
 		&cfg.TMI.SecretFile,

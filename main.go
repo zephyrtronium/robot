@@ -73,7 +73,7 @@ func cliInit(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return fmt.Errorf("couldn't load config: %w", err)
 	}
-	_, sql, priv, spoke, err := loadDBs(cfg.DB)
+	_, sql, priv, spoke, err := loadDBs(ctx, cfg.DB)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 	if err := robo.SetSecrets(cfg.SecretFile); err != nil {
 		return err
 	}
-	kv, sql, priv, spoke, err := loadDBs(cfg.DB)
+	kv, sql, priv, spoke, err := loadDBs(ctx, cfg.DB)
 	if err != nil {
 		return err
 	}
