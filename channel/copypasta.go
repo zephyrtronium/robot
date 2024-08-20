@@ -144,6 +144,15 @@ func (m *MemeDetector) Block(t time.Time, msg string) {
 	m.insertLocked(msg, "", now+15*60*1000)
 }
 
+// Unblock removes a message as a meme, allowing its reuse immediately.
+func (m *MemeDetector) Unblock(msg string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.counts[msg] != nil {
+		delete(m.counts[msg], "")
+	}
+}
+
 // ErrNotCopypasta is a sentinel error returned by MemeDetector.Check when a
 // message is not copypasta.
 var ErrNotCopypasta = errors.New("not copypasta")

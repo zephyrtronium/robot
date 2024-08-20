@@ -106,3 +106,27 @@ func TestMemeDetector(t *testing.T) {
 		})
 	}
 }
+
+func TestUnblock(t *testing.T) {
+	memes := []struct {
+		when int64
+		who  string
+		text string
+		err  error
+	}{
+		{0, "bocchi", "madoka", channel.ErrNotCopypasta},
+		{1, "ryo", "madoka", nil},
+		{2, "nijika", "madoka", channel.ErrNotCopypasta},
+	}
+	d := channel.NewMemeDetector(2, time.Minute)
+	for _, m := range memes {
+		err := d.Check(time.UnixMilli(m.when), m.who, m.text)
+		if err != m.err {
+			t.Errorf("wrong error for %+v: want %v, got %v", m, m.err, err)
+		}
+	}
+	d.Unblock("madoka")
+	if err := d.Check(time.UnixMilli(3), "kita", "madoka"); err != nil {
+		t.Errorf("wrong error on unblocked check: want %v, got %v", nil, err)
+	}
+}
