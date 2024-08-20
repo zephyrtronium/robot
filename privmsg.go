@@ -46,14 +46,23 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			return
 		}
 		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
-		// TODO(zeph): this should be asking for a reservation
-		if !ch.Rate.Allow() {
-			return
-		}
 		switch err := ch.Memery.Check(m.Time(), from, m.Text); err {
 		case channel.ErrNotCopypasta: // do nothing
 		case nil:
 			// Meme detected. Copypasta.
+			t := time.Now()
+			r := ch.Rate.ReserveN(t, 1)
+			if d := r.DelayFrom(t); d > 0 {
+				// But we can't meme it. Restore it so we can next time.
+				slog.InfoContext(ctx, "won't speak; rate limited",
+					slog.String("action", "copypasta"),
+					slog.String("in", ch.Name),
+					slog.String("delay", d.String()),
+				)
+				ch.Memery.Unblock(m.Text)
+				r.CancelAt(t)
+				return
+			}
 			text := m.Text
 			f := ch.Effects.Pick(rand.Uint32())
 			s := command.Effect(f, text)
@@ -69,7 +78,6 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		if rand.Float64() > ch.Responses {
 			return
 		}
-		// TODO(zeph): record trace
 		s, trace, err := brain.Speak(ctx, robo.brain, ch.Send, "")
 		if err != nil {
 			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
@@ -87,6 +95,19 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		}
 		if ch.Block.MatchString(se) || ch.Block.MatchString(sef) {
 			slog.WarnContext(ctx, "wanted to send blocked message", slog.String("in", ch.Name), slog.String("text", sef))
+			return
+		}
+		// Now that we've done all the work, which might take substantial time,
+		// check whether we can use it.
+		t := time.Now()
+		r := ch.Rate.ReserveN(t, 1)
+		if d := r.DelayFrom(t); d > 0 {
+			slog.InfoContext(ctx, "won't speak; rate limited",
+				slog.String("action", "copypasta"),
+				slog.String("in", ch.Name),
+				slog.String("delay", d.String()),
+			)
+			r.CancelAt(t)
 			return
 		}
 		msg := message.Format("", ch.Name, "%s", sef)
