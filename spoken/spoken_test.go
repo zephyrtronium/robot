@@ -41,7 +41,7 @@ func TestRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = h.Record(ctx, "kessoku", "bocchi ryo", []string{"1", "2"}, time.Unix(1, 0), time.Second, "xD", "o")
+	err = h.Record(ctx, "kessoku", "boccho ryo xD", []string{"1", "2"}, time.Unix(1, 0), time.Second, "bocchi ryo", "xD", "o")
 	if err != nil {
 		t.Errorf("couldn't record: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestRecord(t *testing.T) {
 			if tag != "kessoku" {
 				t.Errorf("wrong tag recorded: want %q, got %q", "kessoku", tag)
 			}
-			if msg != "bocchi ryo" {
+			if msg != "boccho ryo xD" {
 				t.Errorf("wrong message recorded: want %q, got %q", "bocchi ryo", msg)
 			}
 			var tr []string
@@ -75,6 +75,7 @@ func TestRecord(t *testing.T) {
 				t.Errorf("couldn't unmarshal metadata from %q: %v", meta, md)
 			}
 			want := map[string]any{
+				"orig":   "bocchi ryo",
 				"emote":  "xD",
 				"effect": "o",
 				"cost":   float64(time.Second.Nanoseconds()),

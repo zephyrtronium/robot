@@ -29,7 +29,7 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	s := m + " " + e
-	if err := robo.Spoken.Record(ctx, call.Channel.Send, m, trace, call.Message.Time(), 0, e, effect); err != nil {
+	if err := robo.Spoken.Record(ctx, call.Channel.Send, s, trace, call.Message.Time(), 0, m, e, effect); err != nil {
 		robo.Log.ErrorContext(ctx, "couldn't record trace", slog.Any("err", err))
 		return ""
 	}
@@ -72,7 +72,7 @@ func Speak(ctx context.Context, robo *Robot, call *Invocation) {
 // OwO genyewates an uwu message.
 //   - prompt: Start of the message to use. Optional.
 func OwO(ctx context.Context, robo *Robot, call *Invocation) {
-	u := speakCmd(ctx, robo, call, "OwO")
+	u := speakCmd(ctx, robo, call, "cmd OwO")
 	if u == "" {
 		return
 	}
@@ -87,7 +87,7 @@ func AAAAA(ctx context.Context, robo *Robot, call *Invocation) {
 	if call.Args["prompt"] != "" {
 		delete(call.Args, "prompt")
 	}
-	u := speakCmd(ctx, robo, call, "AAAAA")
+	u := speakCmd(ctx, robo, call, "cmd AAAAA")
 	if u == "" {
 		return
 	}

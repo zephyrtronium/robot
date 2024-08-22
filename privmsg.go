@@ -89,7 +89,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		slog.InfoContext(ctx, "speak", slog.String("text", s), slog.String("emote", e), slog.String("effect", f))
 		se := strings.TrimSpace(s + " " + e)
 		sef := command.Effect(f, se)
-		if err := robo.spoken.Record(ctx, ch.Send, s, trace, time.Now(), 0, e, f); err != nil {
+		if err := robo.spoken.Record(ctx, ch.Send, sef, trace, time.Now(), 0, s, e, f); err != nil {
 			slog.ErrorContext(ctx, "record trace failed", slog.Any("err", err))
 			return
 		}

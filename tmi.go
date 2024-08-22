@@ -171,7 +171,6 @@ func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi
 		// not to say it.
 		// Note that we use the send tag rather than the learn tag for this,
 		// because we are unlearning something that we sent.
-		// TODO(zeph): the message we see has the emote, so history needs to index it thus
 		trace, tm, err := robo.spoken.Trace(ctx, ch.Send, msg.Trailing)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to get message trace",

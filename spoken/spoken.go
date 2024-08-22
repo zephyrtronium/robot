@@ -19,6 +19,9 @@ type History struct {
 
 // meta is metadata that may be associated with a generated message.
 type meta struct {
+	// Orig is the original generated message, prior to applying any emote
+	// or effect.
+	Orig string `json:"orig,omitempty"`
 	// Emote is the emote appended to the message.
 	Emote string `json:"emote,omitempty"`
 	// Effect is the name of the effect applied to the message.
@@ -34,7 +37,7 @@ func Open(ctx context.Context, db *sqlitex.Pool) (*History, error) {
 }
 
 // Record records a message with its trace and metadata.
-func (h *History) Record(ctx context.Context, tag, message string, trace []string, tm time.Time, cost time.Duration, emote, effect string) error {
+func (h *History) Record(ctx context.Context, tag, msg string, trace []string, tm time.Time, cost time.Duration, orig, emote, effect string) error {
 	conn, err := h.db.Take(ctx)
 	defer h.db.Put(conn)
 	if err != nil {
@@ -51,6 +54,7 @@ func (h *History) Record(ctx context.Context, tag, message string, trace []strin
 		go panic(fmt.Errorf("spoken: couldn't marshal trace %#v: %w", trace, err))
 	}
 	m := &meta{
+		Orig:   orig,
 		Emote:  emote,
 		Effect: effect,
 		Cost:   cost.Nanoseconds(),
@@ -61,7 +65,7 @@ func (h *History) Record(ctx context.Context, tag, message string, trace []strin
 		go panic(fmt.Errorf("spoken: couldn't marshal metadata %#v: %w", m, err))
 	}
 	st.SetText(":tag", tag)
-	st.SetText(":msg", message)
+	st.SetText(":msg", msg)
 	st.SetBytes(":trace", tr)
 	st.SetInt64(":time", tm.UnixNano())
 	st.SetBytes(":meta", md)
