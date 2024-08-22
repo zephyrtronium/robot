@@ -78,7 +78,9 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		if rand.Float64() > ch.Responses {
 			return
 		}
+		start := time.Now()
 		s, trace, err := brain.Speak(ctx, robo.brain, ch.Send, "")
+		cost := time.Since(start)
 		if err != nil {
 			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
 			return
@@ -89,7 +91,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		slog.InfoContext(ctx, "speak", slog.String("text", s), slog.String("emote", e), slog.String("effect", f))
 		se := strings.TrimSpace(s + " " + e)
 		sef := command.Effect(f, se)
-		if err := robo.spoken.Record(ctx, ch.Send, sef, trace, time.Now(), 0, s, e, f); err != nil {
+		if err := robo.spoken.Record(ctx, ch.Send, sef, trace, time.Now(), cost, s, e, f); err != nil {
 			slog.ErrorContext(ctx, "record trace failed", slog.Any("err", err))
 			return
 		}

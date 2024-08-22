@@ -22,14 +22,16 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 		e := call.Channel.Emotes.Pick(rand.Uint32())
 		return "no " + e
 	}
+	start := time.Now()
 	m, trace, err := brain.Speak(ctx, robo.Brain, call.Channel.Send, call.Args["prompt"])
+	cost := time.Since(start)
 	if err != nil {
 		robo.Log.ErrorContext(ctx, "couldn't speak", "err", err.Error())
 		return ""
 	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	s := m + " " + e
-	if err := robo.Spoken.Record(ctx, call.Channel.Send, s, trace, call.Message.Time(), 0, m, e, effect); err != nil {
+	if err := robo.Spoken.Record(ctx, call.Channel.Send, s, trace, call.Message.Time(), cost, m, e, effect); err != nil {
 		robo.Log.ErrorContext(ctx, "couldn't record trace", slog.Any("err", err))
 		return ""
 	}
