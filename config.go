@@ -220,7 +220,6 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 		effects := pick.New(pick.FromMap(mergemaps(global.Effects, ch.Effects)))
 		var ign, mod map[string]bool
 		for _, p := range ch.Privileges {
-			// TODO(zeph): resolve user ids
 			switch {
 			case strings.EqualFold(p.Level, "ignore"):
 				if ign == nil {

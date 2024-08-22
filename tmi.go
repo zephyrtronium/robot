@@ -41,15 +41,14 @@ func (robo *Robot) tmiLoop(ctx context.Context, group *errgroup.Group, send chan
 			case "GLOBALUSERSTATE":
 				slog.InfoContext(ctx, "connected to TMI", slog.String("GLOBALUSERSTATE", msg.Tags))
 			case "376": // End MOTD
-				go robo.join(ctx, send)
+				go robo.joinTwitch(ctx, send)
 			}
 		}
 	}
 }
 
-func (robo *Robot) join(ctx context.Context, send chan<- *tmi.Message) {
+func (robo *Robot) joinTwitch(ctx context.Context, send chan<- *tmi.Message) {
 	ls := make([]string, 0, len(robo.channels))
-	// TODO(zeph): this is going to join channels that aren't twitch
 	for _, ch := range robo.channels {
 		ls = append(ls, ch.Name)
 	}
