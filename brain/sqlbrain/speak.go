@@ -8,17 +8,17 @@ import (
 	"zombiezen.com/go/sqlite"
 
 	"github.com/zephyrtronium/robot/brain"
-	"github.com/zephyrtronium/robot/prepend"
+	"github.com/zephyrtronium/robot/deque"
 	"github.com/zephyrtronium/robot/tpool"
 )
 
-var prependerPool tpool.Pool[*prepend.List[string]]
+var prependerPool tpool.Pool[deque.Deque[string]]
 
 // Speak generates a full message and appends it to w.
 // The prompt is in reverse order and has entropy reduction applied.
 func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
-	search := prependerPool.Get().Set(prompt...)
-	defer func() { prependerPool.Put(search) }()
+	search := prependerPool.Get().Prepend(prompt...)
+	defer func() { prependerPool.Put(search.Reset()) }()
 
 	conn, err := br.db.Take(ctx)
 	defer br.db.Put(conn)
@@ -39,7 +39,7 @@ func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w *brai
 			break
 		}
 		w.Append(id, b)
-		search = search.Drop(search.Len() - l - 1).Prepend(brain.ReduceEntropy(string(b)))
+		search = search.DropEnd(search.Len() - l - 1).Prepend(brain.ReduceEntropy(string(b)))
 	}
 	return nil
 }
