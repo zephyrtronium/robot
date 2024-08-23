@@ -18,15 +18,13 @@ func TestUserStreams(t *testing.T) {
 			HTTP: &http.Client{
 				Transport: spy,
 			},
-			Token: &oauth2.Token{
-				AccessToken: "bocchi",
-			},
 		}
+		tok := &oauth2.Token{AccessToken: "bocchi"}
 		s := []Stream{
 			{UserID: "98765"},
 			{UserLogin: "sandysanderman"},
 		}
-		s, err := UserStreams(context.Background(), cl, s)
+		s, err := UserStreams(context.Background(), cl, tok, s)
 		if err != nil {
 			t.Error(err)
 		}

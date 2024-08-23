@@ -16,15 +16,13 @@ func TestUsers(t *testing.T) {
 			HTTP: &http.Client{
 				Transport: spy,
 			},
-			Token: &oauth2.Token{
-				AccessToken: "bocchi",
-			},
 		}
+		tok := &oauth2.Token{AccessToken: "bocchi"}
 		u := []User{
 			{ID: "141981764"},
 			{Login: "twitchdev"},
 		}
-		u, err := Users(context.Background(), cl, u)
+		u, err := Users(context.Background(), cl, tok, u)
 		if err != nil {
 			t.Error(err)
 		}

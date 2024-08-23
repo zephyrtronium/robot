@@ -150,9 +150,8 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 		return err
 	}
 	cl := twitch.Client{
-		HTTP:  &http.Client{Timeout: 30 * time.Second},
-		Token: tok,
-		ID:    robo.tmi.id,
+		HTTP: &http.Client{Timeout: 30 * time.Second},
+		ID:   robo.tmi.id,
 	}
 	streams := make([]twitch.Stream, 0, len(channels))
 	m := make(map[string]bool, len(channels))
@@ -164,7 +163,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 	}
 	for range 5 {
 		// TODO(zeph): limit to 100
-		streams, err = twitch.UserStreams(ctx, cl, streams)
+		streams, err = twitch.UserStreams(ctx, cl, tok, streams)
 		switch err {
 		case nil:
 			slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
@@ -186,12 +185,11 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 				ch.Enabled.Store(m[n])
 			}
 		case twitch.ErrNeedRefresh:
-			tok, err := twitchToken(ctx, robo.tmi.tokens)
+			tok, err = twitchToken(ctx, robo.tmi.tokens)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to refresh token", slog.Any("err", err))
 				return fmt.Errorf("couldn't get valid access token: %w", err)
 			}
-			cl.Token = tok
 			continue
 		default:
 			slog.ErrorContext(ctx, "failed to query online broadcasters", slog.Any("streams", streams), slog.Any("err", err))
@@ -218,7 +216,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 			}
 			for range 5 {
 				// TODO(zeph): limit to 100
-				streams, err = twitch.UserStreams(ctx, cl, streams)
+				streams, err = twitch.UserStreams(ctx, cl, tok, streams)
 				switch err {
 				case nil:
 					slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
@@ -240,12 +238,11 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 						ch.Enabled.Store(m[n])
 					}
 				case twitch.ErrNeedRefresh:
-					tok, err := twitchToken(ctx, robo.tmi.tokens)
+					tok, err = twitchToken(ctx, robo.tmi.tokens)
 					if err != nil {
 						slog.ErrorContext(ctx, "failed to refresh token", slog.Any("err", err))
 						return fmt.Errorf("couldn't get valid access token: %w", err)
 					}
-					cl.Token = tok
 					continue
 				default:
 					slog.ErrorContext(ctx, "failed to query online broadcasters", slog.Any("streams", streams), slog.Any("err", err))

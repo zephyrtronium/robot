@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/url"
 	"time"
+
+	"golang.org/x/oauth2"
 )
 
 // Stream is the response type from https://dev.twitch.tv/docs/api/reference/#get-streams.
@@ -37,7 +39,7 @@ type Stream struct {
 // If a given stream has both an ID and a login, the ID is used and the login
 // is replaced with the result from the API.
 // If a stream has neither, it is ignored.
-func UserStreams(ctx context.Context, client Client, streams []Stream) ([]Stream, error) {
+func UserStreams(ctx context.Context, client Client, tok *oauth2.Token, streams []Stream) ([]Stream, error) {
 	v := url.Values{
 		"user_id":    nil,
 		"user_login": nil,
@@ -52,7 +54,7 @@ func UserStreams(ctx context.Context, client Client, streams []Stream) ([]Stream
 		}
 	}
 	url := apiurl("/helix/streams", v)
-	err := reqjson(ctx, client, "GET", url, nil, &streams)
+	err := reqjson(ctx, client, tok, "GET", url, nil, &streams)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get streams info: %w", err)
 	}

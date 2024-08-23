@@ -16,20 +16,18 @@ type Client struct {
 	// HTTP is the HTTP client for performing requests.
 	// If nil, http.DefaultClient is used.
 	HTTP *http.Client
-	// Token is the OAuth2 token authorizing requests.
-	Token *oauth2.Token
 	// ID is the application's client ID.
 	ID string
 }
 
 // reqjson performs an HTTP request and decodes the response as JSON.
 // The response body is truncated to 2 MB.
-func reqjson[Resp any](ctx context.Context, client Client, method, url string, body io.Reader, u *Resp) error {
+func reqjson[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url string, body io.Reader, u *Resp) error {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return fmt.Errorf("couldn't make request: %w", err)
 	}
-	client.Token.SetAuthHeader(req)
+	tok.SetAuthHeader(req)
 	req.Header.Set("Client-Id", client.ID)
 	hc := client.HTTP
 	if hc == nil {

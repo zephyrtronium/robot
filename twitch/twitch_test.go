@@ -57,12 +57,11 @@ func TestReqJSON(t *testing.T) {
 			HTTP: &http.Client{
 				Transport: spy,
 			},
-			Token: &oauth2.Token{
-				AccessToken: "bocchi",
-			},
+			ID: "bocchi",
 		}
+		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		err := reqjson(context.Background(), cl, "GET", "https://bocchi.rocks/bocchi", nil, &u)
+		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", nil, &u)
 		if err != nil {
 			t.Errorf("failed to request: %v", err)
 		}
@@ -72,8 +71,11 @@ func TestReqJSON(t *testing.T) {
 		if got := spy.got.URL.String(); got != "https://bocchi.rocks/bocchi" {
 			t.Errorf(`request went to the wrong place: want "https://bocchi.rocks/bocchi", got %q`, got)
 		}
-		if got := spy.got.Header.Get("Authorization"); got != "Bearer bocchi" {
-			t.Errorf(`wrong authorization: want "Bearer bocchi", got %q`, got)
+		if got := spy.got.Header.Get("Authorization"); got != "Bearer ryo" {
+			t.Errorf(`wrong authorization: want "Bearer ryo", got %q`, got)
+		}
+		if got := spy.got.Header.Get("Client-Id"); got != "bocchi" {
+			t.Errorf(`wrong client-id: want "bocchi", got %q`, got)
 		}
 	})
 	t.Run("expired", func(t *testing.T) {
@@ -87,12 +89,11 @@ func TestReqJSON(t *testing.T) {
 			HTTP: &http.Client{
 				Transport: spy,
 			},
-			Token: &oauth2.Token{
-				AccessToken: "bocchi",
-			},
+			ID: "bocchi",
 		}
+		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		err := reqjson(context.Background(), cl, "GET", "https://bocchi.rocks/bocchi", nil, &u)
+		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", nil, &u)
 		if !errors.Is(err, ErrNeedRefresh) {
 			t.Errorf("unauthorized request didn't return ErrNeedRefresh error")
 		}

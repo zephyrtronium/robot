@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+
+	"golang.org/x/oauth2"
 )
 
 // User is the response type from https://dev.twitch.tv/docs/api/reference/#get-users.
@@ -31,7 +33,7 @@ type User struct {
 // If a given user has both an ID and a login, the ID is used and the login
 // is replaced with the result from the API.
 // If a user has neither, it is ignored.
-func Users(ctx context.Context, client Client, users []User) ([]User, error) {
+func Users(ctx context.Context, client Client, tok *oauth2.Token, users []User) ([]User, error) {
 	v := url.Values{
 		"id":    nil,
 		"login": nil,
@@ -46,7 +48,7 @@ func Users(ctx context.Context, client Client, users []User) ([]User, error) {
 		}
 	}
 	url := apiurl("/helix/users", v)
-	err := reqjson(ctx, client, "GET", url, nil, &users)
+	err := reqjson(ctx, client, tok, "GET", url, nil, &users)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get users info: %w", err)
 	}

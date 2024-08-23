@@ -133,7 +133,7 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 		owner = new(Privilege)
 	default:
 		r := []twitch.User{{ID: owner.ID, Login: owner.Name}}
-		r, err := twitch.Users(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, r)
+		r, err := twitch.Users(ctx, twitch.Client{ID: robo.tmi.id}, tok, r)
 		if err != nil {
 			return fmt.Errorf("couldn't resolve owner info: %w", err)
 		}
@@ -167,7 +167,7 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 		in = in[len(l):]
 		group.Go(func() error {
 			// TODO(zeph): rate limit
-			l, err := twitch.Users(ctx, twitch.Client{Token: tok, ID: robo.tmi.id}, l)
+			l, err := twitch.Users(ctx, twitch.Client{ID: robo.tmi.id}, tok, l)
 			if err != nil {
 				return err
 			}
