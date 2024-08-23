@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strings"
 	"time"
 
 	"gitlab.com/zephyrtronium/tmi"
-	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
@@ -93,7 +91,7 @@ func (robo *Robot) Run(ctx context.Context) error {
 }
 
 func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
-	tok, err := twitchToken(ctx, robo.tmi.tokens)
+	tok, err := robo.tmi.tokens.Token(ctx)
 	if err != nil {
 		return err
 	}
@@ -116,34 +114,6 @@ func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
 	return ctx.Err()
 }
 
-// twitchToken gets a valid Twitch access token by refreshing until it
-// validates successfully.
-func twitchToken(ctx context.Context, tokens auth.TokenSource) (*oauth2.Token, error) {
-	tok, err := tokens.Token(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't obtain Twitch access token: %w", err)
-	}
-	client := http.Client{Timeout: 30 * time.Second}
-	for range 5 {
-		v, err := twitch.Validate(ctx, &client, tok)
-		slog.InfoContext(ctx, "Twitch validation", slog.Any("response", v), slog.Any("err", err))
-		switch {
-		case err == nil:
-			// Current token is good.
-			return tok, nil
-		case errors.Is(err, twitch.ErrNeedRefresh):
-			// Refresh and try again.
-			tok, err = tokens.Refresh(ctx, tok)
-			if err != nil {
-				return nil, err
-			}
-		default:
-			return nil, fmt.Errorf("couldn't refresh Twitch access token: %w", err)
-		}
-	}
-	return nil, fmt.Errorf("giving up on refresh retries")
-}
-
 func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel.Channel) error {
 	// TODO(zeph): one day we should switch to eventsub
 	// TODO(zeph): remove anything learned since the last check when offline
@@ -162,8 +132,8 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 	for range 5 {
 		// TODO(zeph): limit to 100
 		streams, err = twitch.UserStreams(ctx, robo.twitch, tok, streams)
-		switch err {
-		case nil:
+		switch {
+		case err == nil:
 			slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
 			// Mark online streams as enabled.
 			// First map names to online status.
@@ -182,8 +152,8 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 				n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
 				ch.Enabled.Store(m[n])
 			}
-		case twitch.ErrNeedRefresh:
-			tok, err = twitchToken(ctx, robo.tmi.tokens)
+		case errors.Is(err, twitch.ErrNeedRefresh):
+			tok, err = robo.tmi.tokens.Refresh(ctx, tok)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to refresh token", slog.Any("err", err))
 				return fmt.Errorf("couldn't get valid access token: %w", err)
@@ -236,7 +206,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 						ch.Enabled.Store(m[n])
 					}
 				case twitch.ErrNeedRefresh:
-					tok, err = twitchToken(ctx, robo.tmi.tokens)
+					tok, err = robo.tmi.tokens.Refresh(ctx, tok)
 					if err != nil {
 						slog.ErrorContext(ctx, "failed to refresh token", slog.Any("err", err))
 						return fmt.Errorf("couldn't get valid access token: %w", err)

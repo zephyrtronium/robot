@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -118,13 +119,36 @@ func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg) error {
 		return fmt.Errorf("couldn't load TMI client: %w", err)
 	}
 	robo.tmi = tmi
-	return nil
+	// Validate the Twitch access token now to get our user ID and login.
+	tok, err := robo.tmi.tokens.Token(ctx)
+	if err != nil {
+		return fmt.Errorf("couldn't obtain Twitch access token: %w", err)
+	}
+	for range 5 {
+		val, err := twitch.Validate(ctx, robo.twitch.HTTP, tok)
+		slog.InfoContext(ctx, "Twitch validation", slog.Any("response", val), slog.Any("err", err))
+		switch {
+		case err == nil: // do nothing
+		case errors.Is(err, twitch.ErrNeedRefresh):
+			tok, err = robo.tmi.tokens.Refresh(ctx, tok)
+			if err != nil {
+				return fmt.Errorf("couldn't refresh Twitch token: %w", err)
+			}
+			continue
+		default:
+			return fmt.Errorf("couldn't validate Twitch token: %w", err)
+		}
+		robo.tmi.me = val.Login
+		// TODO(zeph): set user id
+		return nil
+	}
+	return fmt.Errorf("gave up on validation attempts")
 }
 
 // InitTwitchUsers resolves Twitch usernames in the configuration to user IDs.
 // It must be called after SetTMI.
 func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channels map[string]*ChannelCfg) error {
-	tok, err := twitchToken(ctx, robo.tmi.tokens)
+	tok, err := robo.tmi.tokens.Token(ctx)
 	if err != nil {
 		return err
 	}
@@ -133,20 +157,31 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 		// Make it a fake pointer instead.
 		owner = new(Privilege)
 	default:
-		r := []twitch.User{{ID: owner.ID, Login: owner.Name}}
-		r, err := twitch.Users(ctx, robo.twitch, tok, r)
-		if err != nil {
-			return fmt.Errorf("couldn't resolve owner info: %w", err)
+		for {
+			r := []twitch.User{{ID: owner.ID, Login: owner.Name}}
+			r, err := twitch.Users(ctx, robo.twitch, tok, r)
+			switch {
+			case err == nil: // do nothing
+			case errors.Is(err, twitch.ErrNeedRefresh):
+				tok, err = robo.tmi.tokens.Refresh(ctx, tok)
+				if err != nil {
+					return fmt.Errorf("couldn't refresh Twitch token: %w", err)
+				}
+				continue
+			default:
+				return fmt.Errorf("couldn't resolve owner info: %w", err)
+			}
+			*owner = Privilege{ID: r[0].ID, Name: r[0].Login, Level: "admin"}
+			slog.InfoContext(ctx, "Twitch owner",
+				slog.String("id", r[0].ID),
+				slog.String("login", r[0].Login),
+				slog.String("display", r[0].DisplayName),
+			)
+			break
 		}
-		*owner = Privilege{ID: r[0].ID, Name: r[0].Login, Level: "admin"}
-		slog.InfoContext(ctx, "Twitch owner",
-			slog.String("id", r[0].ID),
-			slog.String("login", r[0].Login),
-			slog.String("display", r[0].DisplayName),
-		)
 	}
 	if owner.ID == "" {
-		slog.ErrorContext(ctx, "no owner information; continuing with owner commands disabled")
+		slog.WarnContext(ctx, "no owner information; continuing with owner commands disabled")
 	}
 
 	var in, out []twitch.User
@@ -167,17 +202,27 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 		l := in[:min(len(in), 100)]
 		in = in[len(l):]
 		group.Go(func() error {
-			// TODO(zeph): rate limit
-			l, err := twitch.Users(ctx, robo.twitch, tok, l)
-			if err != nil {
-				return err
+			for {
+				// TODO(zeph): rate limit
+				l, err := twitch.Users(ctx, robo.twitch, tok, l)
+				switch {
+				case err == nil: // do nothing
+				case errors.Is(err, twitch.ErrNeedRefresh):
+					tok, err = robo.tmi.tokens.Refresh(ctx, tok)
+					if err != nil {
+						return fmt.Errorf("couldn't refresh Twitch token: %w", err)
+					}
+					continue
+				default:
+					return err
+				}
+				slog.InfoContext(ctx, "resolved users", slog.Int("count", len(l)))
+				slog.DebugContext(ctx, "resolved users", slog.Any("users", l))
+				mu.Lock()
+				defer mu.Unlock()
+				out = append(out, l...)
+				return nil
 			}
-			slog.InfoContext(ctx, "resolved users", slog.Int("count", len(l)))
-			slog.DebugContext(ctx, "resolved users", slog.Any("users", l))
-			mu.Lock()
-			defer mu.Unlock()
-			out = append(out, l...)
-			return nil
 		})
 	}
 	if err := group.Wait(); err != nil {
@@ -358,7 +403,6 @@ func loadClient[Send, Receive any](
 		send:   send,
 		recv:   recv,
 		id:     t.CID,
-		me:     t.User,
 		owner:  t.Owner.ID,
 		rate:   rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
 		tokens: tokens(cfg, stor),
@@ -446,9 +490,6 @@ type Owner struct {
 
 // ClientCfg is the configuration for connecting to an OAuth2 interface.
 type ClientCfg struct {
-	// User is robot's username. The interpretation of this is domain-specific.
-	// On TMI, it is used to connect and to detect commands.
-	User string `toml:"user"`
 	// CID is the client ID.
 	CID string `toml:"cid"`
 	// SecretFile is the path to a file containing the client secret.
@@ -514,7 +555,6 @@ func expandcfg(cfg *Config, expand func(s string) string) {
 		&cfg.DB.KVFlag,
 		&cfg.DB.Privacy,
 		&cfg.DB.Spoken,
-		&cfg.TMI.User,
 		&cfg.TMI.CID,
 		&cfg.TMI.SecretFile,
 		&cfg.TMI.TokenFile,

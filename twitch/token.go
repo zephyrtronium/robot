@@ -56,6 +56,6 @@ type Validation struct {
 	Status  int    `json:"status"`
 }
 
-// ErrNeedRefresh is an error returned by Twitch API operations when a response
-// indicates that the access token needs to be refreshed.
+// ErrNeedRefresh is an error indicating that the access token needs to be refreshed.
+// It must be checked using [errors.Is].
 var ErrNeedRefresh = errors.New("need refresh")

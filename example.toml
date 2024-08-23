@@ -57,9 +57,6 @@ block = '(?i)bad\s+stuff[^$x]'
 'o' = 1
 
 [tmi]
-# user is the Twitch username (not display name) of the bot.
-# TODO(zeph): this can go away, we can get it from the api instead
-user = 'robotisbroken'
 # cid is the Twitch app's client ID.
 cid = 'hof5gwx0su6owfnys0nyan9c87zr6t'
 # secret is the path to a file containing the Twitch app's client secret.
