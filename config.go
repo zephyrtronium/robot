@@ -138,8 +138,8 @@ func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg) error {
 		default:
 			return fmt.Errorf("couldn't validate Twitch token: %w", err)
 		}
-		robo.tmi.me = val.Login
-		// TODO(zeph): set user id
+		robo.tmi.name = val.Login
+		robo.tmi.userID = val.UserID
 		return nil
 	}
 	return fmt.Errorf("gave up on validation attempts")
@@ -400,12 +400,12 @@ func loadClient[Send, Receive any](
 		Scopes:       scopes,
 	}
 	return &client[Send, Receive]{
-		send:   send,
-		recv:   recv,
-		id:     t.CID,
-		owner:  t.Owner.ID,
-		rate:   rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
-		tokens: tokens(cfg, stor),
+		send:     send,
+		recv:     recv,
+		clientID: t.CID,
+		owner:    t.Owner.ID,
+		rate:     rate.NewLimiter(rate.Every(fseconds(t.Rate.Every)), t.Rate.Num),
+		tokens:   tokens(cfg, stor),
 	}, nil
 }
 

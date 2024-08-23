@@ -41,7 +41,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			slog.InfoContext(ctx, "blocked message", slog.String("in", ch.Name))
 			return
 		}
-		if cmd, ok := parseCommand(robo.tmi.me, m.Text); ok {
+		if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
 			robo.command(ctx, ch, m, from, cmd)
 			return
 		}

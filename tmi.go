@@ -85,8 +85,8 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 	}
 	var work func(ctx context.Context)
 	t, _ := msg.Tag("target-user-id")
-	switch {
-	case t == "":
+	switch t {
+	case "":
 		// Delete all recent chat.
 		work = func(ctx context.Context) {
 			tag := ch.Learn
@@ -96,7 +96,7 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 				slog.ErrorContext(ctx, "failed to forget from all chat", slog.Any("err", err), slog.String("channel", msg.To()))
 			}
 		}
-	case msg.Trailing == robo.tmi.me: // TODO(zeph): get own user id
+	case robo.tmi.userID:
 		work = func(ctx context.Context) {
 			// We use the send tag because we are forgetting something we sent.
 			tag := ch.Send
@@ -151,7 +151,7 @@ func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi
 	t, _ := msg.Tag("target-msg-id")
 	u, _ := msg.Tag("login")
 	work := func(ctx context.Context) {
-		if u != robo.tmi.me {
+		if u != robo.tmi.name {
 			// Forget a message from someone else.
 			slog.InfoContext(ctx, "forget message", slog.String("channel", msg.To()), slog.String("id", t))
 			err := robo.brain.ForgetMessage(ctx, ch.Learn, t)

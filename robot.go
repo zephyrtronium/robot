@@ -47,20 +47,21 @@ type Robot struct {
 }
 
 // client is the settings for OAuth2 and related elements.
-// The type parameter is the type of messages sent TO the service.
 type client[Send, Receive any] struct {
 	// send is the channel on which messages are sent.
 	send chan Send
 	// recv is the channel on which received messages are communicated.
 	recv chan Receive
-	// id is the application client ID.
-	id string
-	// me is the bot's username. The interpretation of this is domain-specific.
-	me string
+	// clientID is the OAuth2 application client ID.
+	clientID string
+	// name is the bot's username. The interpretation of this is domain-specific.
+	name string
+	// userID is the bot's user ID. The interpretation of this is domain-specific.
+	userID string
 	// owner is the user ID of the owner. The interpretation of this is
 	// domain-specific.
 	owner string
-	// rate is the global rate limiter for this client.
+	// rate is the global rate limiter for messages sent to this client.
 	rate *rate.Limiter
 	// tokens is the source of OAuth2 tokens.
 	tokens auth.TokenSource
@@ -98,7 +99,7 @@ func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
 	cfg := tmi.ConnectConfig{
 		Dial:         new(tls.Dialer).DialContext,
 		RetryWait:    tmi.RetryList(true, 0, time.Second, time.Minute, 5*time.Minute),
-		Nick:         strings.ToLower(robo.tmi.me),
+		Nick:         strings.ToLower(robo.tmi.name),
 		Pass:         "oauth:" + tok.AccessToken,
 		Capabilities: []string{"twitch.tv/commands", "twitch.tv/tags"},
 		Timeout:      300 * time.Second,
