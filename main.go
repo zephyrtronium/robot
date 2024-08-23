@@ -115,7 +115,7 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 		return err
 	}
 	if md.IsDefined("tmi") {
-		if err := robo.SetTMI(ctx, cfg.TMI); err != nil {
+		if err := robo.InitTwitch(ctx, cfg.TMI); err != nil {
 			return err
 		}
 		if err := robo.InitTwitchUsers(ctx, &cfg.TMI.Owner, cfg.Twitch); err != nil {

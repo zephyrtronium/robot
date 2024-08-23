@@ -44,6 +44,8 @@ type Robot struct {
 	// tmi contains the bot's Twitch OAuth2 settings. It may be nil if there is
 	// no Twitch configuration.
 	tmi *client[*tmi.Message, *tmi.Message]
+	// twitch is the Twitch API client.
+	twitch twitch.Client
 }
 
 // client is the settings for OAuth2 and related elements.
@@ -79,7 +81,7 @@ func (robo *Robot) Run(ctx context.Context) error {
 	group, ctx := errgroup.WithContext(ctx)
 	// TODO(zeph): stdin?
 	if robo.tmi != nil {
-		group.Go(func() error { return robo.twitch(ctx, group) })
+		group.Go(func() error { return robo.runTwitch(ctx, group) })
 	}
 	err := group.Wait()
 	if err == context.Canceled {
@@ -90,7 +92,7 @@ func (robo *Robot) Run(ctx context.Context) error {
 	return err
 }
 
-func (robo *Robot) twitch(ctx context.Context, group *errgroup.Group) error {
+func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
 	tok, err := twitchToken(ctx, robo.tmi.tokens)
 	if err != nil {
 		return err
@@ -149,10 +151,6 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 	if err != nil {
 		return err
 	}
-	cl := twitch.Client{
-		HTTP: &http.Client{Timeout: 30 * time.Second},
-		ID:   robo.tmi.id,
-	}
 	streams := make([]twitch.Stream, 0, len(channels))
 	m := make(map[string]bool, len(channels))
 	// Run once at the start so we start learning in online streams immediately.
@@ -163,7 +161,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 	}
 	for range 5 {
 		// TODO(zeph): limit to 100
-		streams, err = twitch.UserStreams(ctx, cl, tok, streams)
+		streams, err = twitch.UserStreams(ctx, robo.twitch, tok, streams)
 		switch err {
 		case nil:
 			slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
@@ -216,7 +214,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 			}
 			for range 5 {
 				// TODO(zeph): limit to 100
-				streams, err = twitch.UserStreams(ctx, cl, tok, streams)
+				streams, err = twitch.UserStreams(ctx, robo.twitch, tok, streams)
 				switch err {
 				case nil:
 					slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))

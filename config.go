@@ -93,9 +93,9 @@ func (robo *Robot) SetSources(ctx context.Context, kv *badger.DB, sql, priv, spo
 	return nil
 }
 
-// SetTMI initializes the TMI client and Twitch channel configuration.
+// InitTwitch initializes the Twitch and TMI clients and channel configuration.
 // It must be called after SetSecrets.
-func (robo *Robot) SetTMI(ctx context.Context, cfg ClientCfg) error {
+func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg) error {
 	cfg.endpoint = oauth2.Endpoint{
 		DeviceAuthURL: "https://id.twitch.tv/oauth2/device",
 		TokenURL:      "https://id.twitch.tv/oauth2/token",
@@ -103,6 +103,7 @@ func (robo *Robot) SetTMI(ctx context.Context, cfg ClientCfg) error {
 	send := make(chan *tmi.Message, 1)
 	recv := make(chan *tmi.Message, 8) // 8 is enough for on-connect msgs
 	client := &http.Client{Timeout: 30 * time.Second}
+	robo.twitch = twitch.Client{HTTP: client, ID: cfg.CID}
 	tmi, err := loadClient(
 		cfg,
 		send,
@@ -133,7 +134,7 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 		owner = new(Privilege)
 	default:
 		r := []twitch.User{{ID: owner.ID, Login: owner.Name}}
-		r, err := twitch.Users(ctx, twitch.Client{ID: robo.tmi.id}, tok, r)
+		r, err := twitch.Users(ctx, robo.twitch, tok, r)
 		if err != nil {
 			return fmt.Errorf("couldn't resolve owner info: %w", err)
 		}
@@ -167,7 +168,7 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 		in = in[len(l):]
 		group.Go(func() error {
 			// TODO(zeph): rate limit
-			l, err := twitch.Users(ctx, twitch.Client{ID: robo.tmi.id}, tok, l)
+			l, err := twitch.Users(ctx, robo.twitch, tok, l)
 			if err != nil {
 				return err
 			}
