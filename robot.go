@@ -109,10 +109,49 @@ func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
 		return nil
 	})
 	group.Go(func() error {
+		return robo.twitchValidateLoop(ctx)
+	})
+	group.Go(func() error {
 		return robo.streamsLoop(ctx, robo.channels)
 	})
 	tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
 	return ctx.Err()
+}
+
+func (robo *Robot) twitchValidateLoop(ctx context.Context) error {
+	tm := time.NewTicker(time.Hour)
+	defer tm.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tm.C: // continue below
+		}
+		tok, err := robo.tmi.tokens.Token(ctx)
+		if err != nil {
+			return fmt.Errorf("validation loop failed to get user access token: %w", err)
+		}
+		val, err := twitch.Validate(ctx, robo.twitch.HTTP, tok)
+		switch {
+		case err == nil:
+			slog.InfoContext(ctx, "validation loop",
+				slog.String("clientid", val.ClientID),
+				slog.String("userid", val.UserID),
+				slog.String("login", val.Login),
+				slog.Int("expires", val.ExpiresIn),
+			)
+		case errors.Is(err, twitch.ErrNeedRefresh):
+			_, err := robo.tmi.tokens.Refresh(ctx, tok)
+			if err != nil {
+				return fmt.Errorf("validation loop failed to refresh user access token: %w", err)
+			}
+		default:
+			if val != nil {
+				slog.ErrorContext(ctx, "validation loop", slog.Int("status", val.Status), slog.String("message", val.Message))
+			}
+			return fmt.Errorf("validation loop failed to validate user access token: %w", err)
+		}
+	}
 }
 
 func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel.Channel) error {
