@@ -45,6 +45,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			robo.command(ctx, ch, m, from, cmd)
 			return
 		}
+		ch.History.Add(m.Sender, m.Text)
 		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
 		switch err := ch.Memery.Check(m.Time(), from, m.Text); err {
 		case channel.ErrNotCopypasta: // do nothing
@@ -222,7 +223,6 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 		slog.DebugContext(ctx, "no learn tag", slog.String("in", ch.Name))
 		return
 	}
-	ch.History.Add(msg.Sender, msg.Text)
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
 	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
 		slog.ErrorContext(ctx, "failed to learn", slog.String("err", err.Error()))
@@ -330,12 +330,17 @@ var twitchMod = []twitchCommand{
 
 var twitchAny = []twitchCommand{
 	{
+		parse: regexp.MustCompile(`^how\s+much\s+do\s+you\s+(?:like|love|luv)\s+me`),
+		fn:    command.Affection,
+		name:  "affection",
+	},
+	{
 		parse: regexp.MustCompile(`^(?i:OwO|uwu)`),
 		fn:    command.OwO,
 		name:  "OwO",
 	},
 	{
-		parse: regexp.MustCompile(`^(?i:how\s*[a']?r?e?\s+y?o?u?)|A(?:A|\s)+`),
+		parse: regexp.MustCompile(`^(?i:how\s*[a']?re?\s+y?o?u?)|^A(?:A|\s)+$`),
 		fn:    command.AAAAA,
 		name:  "AAAAA",
 	},
