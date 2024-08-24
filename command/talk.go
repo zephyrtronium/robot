@@ -124,3 +124,11 @@ func Source(ctx context.Context, robo *Robot, call *Invocation) {
 		`under the GNU General Public License, Version 3.`
 	call.Channel.Message(ctx, call.Message.ID, srcMessage)
 }
+
+// Who describes Robot.
+func Who(ctx context.Context, robo *Robot, call *Invocation) {
+	// TODO(zeph): give link to readme section describing how robot works
+	const whoMessage = `I'm a Markov chain bot! I learn from things people say in chat, then spew vaguely intelligible memes back.`
+	e := call.Channel.Emotes.Pick(rand.Uint32())
+	call.Channel.Message(ctx, call.Message.ID, whoMessage+" "+e)
+}
