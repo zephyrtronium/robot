@@ -75,7 +75,7 @@ func (s *dcf) Refresh(ctx context.Context, old *oauth2.Token) (*oauth2.Token, er
 	}
 	if tok != nil {
 		if !Equal(tok, old) {
-			slog.InfoContext(ctx, "token not current, won't refresh")
+			slog.DebugContext(ctx, "token not current, won't refresh")
 			return tok, nil
 		}
 		tok, err := s.refreshLocked(ctx, tok.RefreshToken)
@@ -100,6 +100,7 @@ func (s *dcf) refreshLocked(ctx context.Context, rt string) (*oauth2.Token, erro
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {rt},
 	}
+	slog.LogAttrs(ctx, slog.LevelDebug-4, "dcf refresh ### THIS MESSAGE CONTAINS SECRETS ###", slog.Any("values", v))
 	req, err := http.NewRequestWithContext(ctx, "POST", s.cfg.Endpoint.TokenURL, strings.NewReader(v.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create token refresh request: %w", err)
