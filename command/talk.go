@@ -97,6 +97,7 @@ func AAAAA(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, "", u)
 }
 
+// Rawr says rawr.
 func Rawr(ctx context.Context, robo *Robot, call *Invocation) {
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	if e == "" {
@@ -116,11 +117,10 @@ func Rawr(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, call.Message.ID, "rawr "+e)
 }
 
+// Source gives a link to the source code.
 func Source(ctx context.Context, robo *Robot, call *Invocation) {
 	const srcMessage = `My source code is at https://github.com/zephyrtronium/robot – ` +
 		`I'm written in Go, and I'm free, open-source software licensed ` +
 		`under the GNU General Public License, Version 3.`
 	call.Channel.Message(ctx, call.Message.ID, srcMessage)
 }
-
-// TODO(zeph): DescribePrivacy

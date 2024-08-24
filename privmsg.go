@@ -335,6 +335,21 @@ var twitchMod = []twitchCommand{
 
 var twitchAny = []twitchCommand{
 	{
+		parse: regexp.MustCompile(`^(?i:give\s+me\s+privacy|ignore\s+me)`),
+		fn:    command.Private,
+		name:  "private",
+	},
+	{
+		parse: regexp.MustCompile(`(?i)^(?:you\s+(?:can|may)\s+)?learn\s+from\s+me(?:\s+again)?|invade\s+my\s+privacy`),
+		fn:    command.Unprivate,
+		name:  "unprivate",
+	},
+	{
+		parse: regexp.MustCompile(`(?i)^what\s+(?:info(?:rmation)?\s+)do\s+you\s+(?:collect|store)`),
+		fn:    command.DescribePrivacy,
+		name:  "describe-privacy",
+	},
+	{
 		parse: regexp.MustCompile(`(?i)^[¿¡]*\s*(?:ple?a?se?\s+)?(?:will\s+y?o?u\s+)?(?:\s*ple?a?se?\s+)?(?:marry\s+me|be?\s+my\s+(?<partnership>wife|waifu|h[ua]su?bando?|partner|spouse|daddy|mommy))`),
 		fn:    command.Marry,
 		name:  "marry",
