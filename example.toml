@@ -56,6 +56,14 @@ block = '(?i)bad\s+stuff[^$x]'
 'AAAAA' = 0
 'o' = 1
 
+# global.privileges is a table of privileges across entire services.
+# Currently, the only entry in it is twitch.
+[global.privileges]
+twitch = [
+	{ name = 'nightbot', level = 'ignore' },
+	{ name = 'streamelementsbot', level = 'ignore' },
+]
+
 [tmi]
 # cid is the Twitch app's client ID.
 cid = 'hof5gwx0su6owfnys0nyan9c87zr6t'

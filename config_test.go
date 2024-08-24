@@ -36,6 +36,8 @@ func TestExampleConfig(t *testing.T) {
 	eqcase(t, "Global.Effects[`OwO`]", cfg.Global.Effects[`OwO`], 1)
 	eqcase(t, "Global.Effects[`AAAAA`]", cfg.Global.Effects[`AAAAA`], 0)
 	eqcase(t, "Global.Effects[`o`]", cfg.Global.Effects[`o`], 1)
+	eqcase(t, "Global.Privileges.Twitch[0].Name", cfg.Global.Privileges.Twitch[0].Name, "nightbot")
+	eqcase(t, "Global.Privileges.Twitch[0].Level", cfg.Global.Privileges.Twitch[0].Level, "ignore")
 	eqcase(t, "TMI.CID", cfg.TMI.CID, `hof5gwx0su6owfnys0nyan9c87zr6t`)
 	eqcase(t, "TMI.RedirectURL", cfg.TMI.RedirectURL, `http://localhost`)
 	eqcase(t, "TMI.TokenFile", cfg.TMI.TokenFile, `/var/robot/tmi_refresh`)

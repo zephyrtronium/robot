@@ -118,7 +118,7 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 		if err := robo.InitTwitch(ctx, cfg.TMI); err != nil {
 			return err
 		}
-		if err := robo.InitTwitchUsers(ctx, &cfg.TMI.Owner, cfg.Twitch); err != nil {
+		if err := robo.InitTwitchUsers(ctx, &cfg.TMI.Owner, cfg.Global.Privileges.Twitch, cfg.Twitch); err != nil {
 			return err
 		}
 		if err := robo.SetTwitchChannels(ctx, cfg.Global, cfg.Twitch); err != nil {

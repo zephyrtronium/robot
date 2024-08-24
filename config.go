@@ -148,7 +148,7 @@ func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg) error {
 
 // InitTwitchUsers resolves Twitch usernames in the configuration to user IDs.
 // It must be called after SetTMI.
-func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channels map[string]*ChannelCfg) error {
+func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, global []Privilege, channels map[string]*ChannelCfg) error {
 	tok, err := robo.tmi.tokens.Token(ctx)
 	if err != nil {
 		return err
@@ -186,16 +186,21 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 	}
 
 	var in, out []twitch.User
-	id := make(map[string]*Privilege)
-	login := make(map[string]*Privilege)
+	id := make(map[string][]*Privilege)
+	login := make(map[string][]*Privilege)
 	var mu sync.Mutex
-	// TODO(zeph): need global privs
+	for i, p := range global {
+		s := strings.ToLower(p.Name)
+		in = append(in, twitch.User{ID: p.ID, Login: p.Name})
+		id[s] = append(id[s], &global[i])
+		login[s] = append(login[s], &global[i])
+	}
 	for _, ch := range channels {
 		for i, p := range ch.Privileges {
 			s := strings.ToLower(p.Name)
 			in = append(in, twitch.User{ID: p.ID, Login: p.Name})
-			id[s] = &ch.Privileges[i]
-			login[s] = &ch.Privileges[i]
+			id[s] = append(id[s], &ch.Privileges[i])
+			login[s] = append(login[s], &ch.Privileges[i])
 		}
 	}
 	group, ctx := errgroup.WithContext(ctx)
@@ -235,10 +240,10 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 			slog.String("login", u.Login),
 			slog.String("display", u.DisplayName),
 		)
-		p := id[u.ID]
-		if p == nil {
-			p = login[strings.ToLower(u.Login)]
-			if p == nil {
+		pp := id[u.ID]
+		if pp == nil {
+			pp = login[strings.ToLower(u.Login)]
+			if pp == nil {
 				slog.ErrorContext(ctx, "Twitch user for no one (continuing)",
 					slog.String("id", u.ID),
 					slog.String("login", u.Login),
@@ -247,8 +252,10 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, channe
 				continue
 			}
 		}
-		p.ID = u.ID
-		p.Name = u.Login
+		for _, p := range pp {
+			p.ID = u.ID
+			p.Name = u.Login
+		}
 	}
 	return nil
 }
@@ -265,18 +272,20 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 		}
 		emotes := pick.New(pick.FromMap(mergemaps(global.Emotes, ch.Emotes)))
 		effects := pick.New(pick.FromMap(mergemaps(global.Effects, ch.Effects)))
-		var ign, mod map[string]bool
+		ign, mod := make(map[string]bool), make(map[string]bool)
+		for _, p := range global.Privileges.Twitch {
+			switch {
+			case strings.EqualFold(p.Level, "ignore"):
+				ign[p.ID] = true
+			case strings.EqualFold(p.Level, "moderator"):
+				mod[p.ID] = true
+			}
+		}
 		for _, p := range ch.Privileges {
 			switch {
 			case strings.EqualFold(p.Level, "ignore"):
-				if ign == nil {
-					ign = make(map[string]bool)
-				}
 				ign[p.ID] = true
 			case strings.EqualFold(p.Level, "moderator"):
-				if mod == nil {
-					mod = make(map[string]bool)
-				}
 				mod[p.ID] = true
 			}
 		}
@@ -481,6 +490,13 @@ type Global struct {
 	Emotes map[string]int `toml:"emotes"`
 	// Effects is the effects and their weights to use everywhere.
 	Effects map[string]int `toml:"effects"`
+	// Privileges is the user access controls across entire services.
+	Privileges GlobalPrivs `toml:"privileges"`
+}
+
+// GlobalPrivs is the configuration for privileges across entire services.
+type GlobalPrivs struct {
+	Twitch []Privilege `toml:"twitch"`
 }
 
 // Owner is metadata about the bot owner.
