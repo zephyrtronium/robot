@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math"
 	"math/rand/v2"
+	"time"
 
 	"github.com/zephyrtronium/robot/channel"
 )
@@ -58,6 +59,8 @@ func score(h *channel.History, user string) float64 {
 	return x
 }
 
+// Affection describes the caller's affection MMR.
+// No arguments.
 func Affection(ctx context.Context, robo *Robot, call *Invocation) {
 	x := score(call.Channel.History, call.Message.Sender)
 	// Anything we do will require an emote.
@@ -68,4 +71,74 @@ func Affection(ctx context.Context, robo *Robot, call *Invocation) {
 		return
 	}
 	call.Channel.Message(ctx, call.Message.ID, fmt.Sprintf("about %f %s", x, e))
+}
+
+type partnerKey struct{}
+
+type partner struct {
+	who   string
+	until time.Time
+}
+
+// Marry proposes to the robo.
+//   - partnership: Type of partnership requested, e.g. "wife", "waifu", "daddy". Optional.
+func Marry(ctx context.Context, robo *Robot, call *Invocation) {
+	x := score(call.Channel.History, call.Message.Sender)
+	e := call.Channel.Emotes.Pick(rand.Uint32())
+	if x < 10 {
+		call.Channel.Message(ctx, call.Message.ID, "no "+e)
+		return
+	}
+	me := &partner{who: call.Message.Sender, until: call.Message.Time().Add(time.Hour)}
+	for {
+		l, ok := call.Channel.Extra.LoadOrStore(partnerKey{}, me)
+		if ok {
+			// No competition. We're a shoo-in.
+			call.Channel.Message(ctx, call.Message.ID, "sure why not "+e)
+			return
+		}
+		cur := l.(*partner)
+		if cur.who == me.who {
+			if rand.Uint32() <= 0xffffffff*3/5 {
+				if !call.Channel.Extra.CompareAndDelete(partnerKey{}, cur) {
+					// Partner changed concurrently.
+					// Really we are guaranteed to fail on time now,
+					// but start over anyway.
+					continue
+				}
+				call.Channel.Message(ctx, call.Message.ID, "How could you forget we're already together? I hate you! Unsubbed, unfollowed, unloved! "+e)
+				return
+			}
+			call.Channel.Message(ctx, call.Message.ID, "We're already together, silly! You're so funny and cute haha. "+e)
+			return
+		}
+		if call.Message.Time().Before(cur.until) {
+			call.Channel.Message(ctx, call.Message.ID, "My heart yet belongs to another... "+e)
+			return
+		}
+		y := score(call.Channel.History, cur.who)
+		if x < y {
+			call.Channel.Message(ctx, call.Message.ID, "I'm touched, but I must decline. I'm in love with someone else. "+e)
+			return
+		}
+		if !call.Channel.Extra.CompareAndSwap(partnerKey{}, cur, me) {
+			// Partner changed concurrently.
+			continue
+		}
+		// We win. Now just decide which message to send.
+		// TODO(zeph): since pick.Dist exists now, we could randomize
+		if call.Args["partnership"] != "" {
+			call.Channel.Message(ctx, call.Message.ID, fmt.Sprintf("Yes! I'll be your %s! %s", call.Args["partnership"], e))
+		} else {
+			call.Channel.Message(ctx, call.Message.ID, "Yes! I'll marry you! "+e)
+		}
+		return
+	}
+}
+
+// DescribeMarriage gives some exposition about the marriage system.
+// No args.
+func DescribeMarriage(ctx context.Context, robo *Robot, call *Invocation) {
+	const s = `I am looking for a long series of short-term relationships and am holding a ranked competitive how-much-I-like-you tournament to decide my suitors! Politely ask me to marry you (or become your partner) and I'll evaluate your score. I like copypasta, memes, and long walks in the chat.`
+	call.Channel.Message(ctx, "", s)
 }

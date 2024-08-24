@@ -326,9 +326,19 @@ var twitchMod = []twitchCommand{
 		fn:    command.Echo,
 		name:  "echo",
 	},
+	{
+		parse: regexp.MustCompile(`(?i)^(?:tell\s+me|talk)?\s*(?:about)?\s*(?:ranked)?\s*(?:competitive)?\s*marriage`),
+		fn:    command.DescribeMarriage,
+		name:  "describe-marriage",
+	},
 }
 
 var twitchAny = []twitchCommand{
+	{
+		parse: regexp.MustCompile(`(?i)^[¿¡]*\s*(?:ple?a?se?\s+)?(?:will\s+y?o?u\s+)?(?:\s*ple?a?se?\s+)?(?:marry\s+me|be?\s+my\s+(?<partnership>wife|waifu|h[ua]su?bando?|partner|spouse|daddy|mommy))`),
+		fn:    command.Marry,
+		name:  "marry",
+	},
 	{
 		parse: regexp.MustCompile(`^how\s+much\s+do\s+you\s+(?:like|love|luv)\s+me`),
 		fn:    command.Affection,

@@ -3,6 +3,7 @@ package channel
 import (
 	"context"
 	"regexp"
+	"sync"
 	"sync/atomic"
 
 	"gitlab.com/zephyrtronium/pick"
@@ -39,6 +40,8 @@ type Channel struct {
 	Emotes *pick.Dist[string]
 	// Effects is the distribution of effects.
 	Effects *pick.Dist[string]
+	// Extra is extra channel data that may be added by commands.
+	Extra sync.Map // map[any]any; key is a type
 	// Enabled indicates whether a channel is allowed to learn messages.
 	Enabled atomic.Bool
 }
