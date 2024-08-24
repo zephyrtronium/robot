@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -389,6 +390,7 @@ func loadClient[Send, Receive any](
 	if err != nil {
 		return nil, fmt.Errorf("couldn't read client secret: %w", err)
 	}
+	secret = bytes.TrimSuffix(bytes.TrimSuffix(secret, []byte{'\n'}), []byte{'\r'})
 	stor, err := auth.NewFileAt(t.TokenFile, key)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't use refresh token storage: %w", err)
