@@ -403,14 +403,6 @@ func BenchmarkLearn(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			// The benchmark function will run this multiple times to estimate
-			// iteration count, so we need to drop tables if they exist.
-			if err := sqlitex.ExecuteScript(conn, `DROP TABLE IF EXISTS knowledge; DROP TABLE IF EXISTS messages;`, nil); err != nil {
-				b.Fatal(err)
-			}
-			if err := sqlbrain.Create(ctx, conn); err != nil {
-				b.Fatal(err)
-			}
 			db.Put(conn)
 		}
 		br, err := sqlbrain.Open(ctx, db)

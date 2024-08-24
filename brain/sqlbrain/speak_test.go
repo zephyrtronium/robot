@@ -468,9 +468,6 @@ func BenchmarkSpeak(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if err := sqlbrain.Create(ctx, db); err != nil {
-			b.Fatal(err)
-		}
 		br, err := sqlbrain.Open(ctx, db)
 		if err != nil {
 			b.Fatal(err)

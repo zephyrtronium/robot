@@ -1,4 +1,4 @@
-CREATE TABLE spoken (
+CREATE TABLE IF NOT EXISTS spoken (
 	-- Tag or tenant for the entry.
 	-- Note this is the speaking tag, not the tenant's learning tag.
 	tag TEXT NOT NULL,
@@ -18,4 +18,4 @@ CREATE TABLE spoken (
 ) STRICT;
 
 -- Covering index for lookup.
-CREATE INDEX traces ON spoken (tag, msg, time DESC, trace);
+CREATE INDEX IF NOT EXISTS traces ON spoken (tag, msg, time DESC, trace);

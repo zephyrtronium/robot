@@ -11,10 +11,6 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v3"
-
-	"github.com/zephyrtronium/robot/brain/sqlbrain"
-	"github.com/zephyrtronium/robot/privacy"
-	"github.com/zephyrtronium/robot/spoken"
 )
 
 var app = cli.Command{
@@ -23,14 +19,6 @@ var app = cli.Command{
 
 	DefaultCommand: "run",
 	Commands: []*cli.Command{
-		{
-			Name:   "init",
-			Usage:  "Initialize configured databases",
-			Action: cliInit,
-			Flags: []cli.Flag{
-				&flagConfig,
-			},
-		},
 		{
 			Name:   "run",
 			Usage:  "Connect to configured chat services",
@@ -61,34 +49,6 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-}
-
-func cliInit(ctx context.Context, cmd *cli.Command) error {
-	slog.SetDefault(loggerFromFlags(cmd))
-	r, err := os.Open(cmd.String("config"))
-	if err != nil {
-		return fmt.Errorf("couldn't open config file: %w", err)
-	}
-	cfg, _, err := Load(ctx, r)
-	if err != nil {
-		return fmt.Errorf("couldn't load config: %w", err)
-	}
-	_, sql, priv, spoke, err := loadDBs(ctx, cfg.DB)
-	if err != nil {
-		return err
-	}
-	if sql != nil {
-		if err := sqlbrain.Create(ctx, sql); err != nil {
-			return fmt.Errorf("couldn't initialize sqlbrain: %w", err)
-		}
-	}
-	if err := privacy.Init(ctx, priv); err != nil {
-		return fmt.Errorf("couldn't initialize privacy list: %w", err)
-	}
-	if err := spoken.Init(ctx, spoke); err != nil {
-		return fmt.Errorf("couldn't initialize spoken history: %w", err)
-	}
-	return nil
 }
 
 func cliRun(ctx context.Context, cmd *cli.Command) error {

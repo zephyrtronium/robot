@@ -1,6 +1,6 @@
 PRAGMA journal_mode = WAL;
 
-CREATE TABLE knowledge (
+CREATE TABLE IF NOT EXISTS knowledge (
 	-- Tag or tenant for the entry.
 	tag TEXT NOT NULL,
 	-- Message ID, particularly UUID.
@@ -22,7 +22,7 @@ CREATE TABLE knowledge (
 	deleted TEXT
 ) STRICT;
 
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
 	-- Tag or tenant for the message.
 	tag TEXT NOT NULL,
 	-- Message ID, particularly UUID.
@@ -45,7 +45,7 @@ CREATE TABLE messages (
 	PRIMARY KEY(tag, id)
 ) STRICT;
 
-CREATE INDEX ids ON knowledge (tag, id);
-CREATE INDEX prefixes ON knowledge (tag, prefix);
-CREATE INDEX times ON messages (tag, time);
-CREATE INDEX users ON messages (user);
+CREATE INDEX IF NOT EXISTS ids ON knowledge (tag, id);
+CREATE INDEX IF NOT EXISTS prefixes ON knowledge (tag, prefix);
+CREATE INDEX IF NOT EXISTS times ON messages (tag, time);
+CREATE INDEX IF NOT EXISTS users ON messages (user);

@@ -8,7 +8,6 @@ import (
 	"iter"
 	"time"
 
-	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 )
 
@@ -32,9 +31,19 @@ type meta struct {
 
 // Open opens an existing history in a DB.
 func Open(ctx context.Context, db *sqlitex.Pool) (*History, error) {
-	// TODO(zeph): validate schema
+	conn, err := db.Take(ctx)
+	defer db.Put(conn)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get connection from pool: %w", err)
+	}
+	if err := sqlitex.ExecuteScript(conn, schemaSQL, nil); err != nil {
+		return nil, fmt.Errorf("couldn't initialize spoken messages schema: %w", err)
+	}
 	return &History{db}, nil
 }
+
+//go:embed schema.sql
+var schemaSQL string
 
 // Record records a message with its trace and metadata.
 func (h *History) Record(ctx context.Context, tag, msg string, trace []string, tm time.Time, cost time.Duration, orig, emote, effect string) error {
@@ -143,28 +152,4 @@ func (h *History) Since(ctx context.Context, tag string, tm time.Time) iter.Seq2
 			}
 		}
 	}
-}
-
-//go:embed schema.sql
-var schemaSQL string
-
-// Init initializes an SQLite DB to record generated messages.
-func Init[DB *sqlitex.Pool | *sqlite.Conn](ctx context.Context, db DB) error {
-	var conn *sqlite.Conn
-	switch db := any(db).(type) {
-	case *sqlite.Conn:
-		conn = db
-	case *sqlitex.Pool:
-		var err error
-		conn, err = db.Take(ctx)
-		defer db.Put(conn)
-		if err != nil {
-			return fmt.Errorf("couldn't get conn to record message: %w", err)
-		}
-	}
-	err := sqlitex.ExecuteScript(conn, schemaSQL, nil)
-	if err != nil {
-		return fmt.Errorf("couldn't initialize spoken messages schema: %w", err)
-	}
-	return nil
 }

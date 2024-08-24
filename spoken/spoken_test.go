@@ -17,13 +17,10 @@ import (
 
 var dbCount atomic.Int64
 
-func testDB(ctx context.Context) *sqlitex.Pool {
+func testDB() *sqlitex.Pool {
 	k := dbCount.Add(1)
 	pool, err := sqlitex.NewPool(fmt.Sprintf("file:test-record-%d.db?mode=memory&cache=shared", k), sqlitex.PoolOptions{Flags: sqlite.OpenReadWrite | sqlite.OpenCreate | sqlite.OpenMemory | sqlite.OpenSharedCache | sqlite.OpenURI})
 	if err != nil {
-		panic(err)
-	}
-	if err := spoken.Init(ctx, pool); err != nil {
 		panic(err)
 	}
 	return pool
@@ -31,7 +28,7 @@ func testDB(ctx context.Context) *sqlitex.Pool {
 
 func TestRecord(t *testing.T) {
 	ctx := context.Background()
-	db := testDB(ctx)
+	db := testDB()
 	conn, err := db.Take(ctx)
 	defer db.Put(conn)
 	if err != nil {
@@ -95,7 +92,7 @@ func TestRecord(t *testing.T) {
 func TestTrace(t *testing.T) {
 	// Create test fixture first.
 	ctx := context.Background()
-	db := testDB(ctx)
+	db := testDB()
 	h, err := spoken.Open(ctx, db)
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +192,7 @@ func TestTrace(t *testing.T) {
 func TestSince(t *testing.T) {
 	// Create test fixture first.
 	ctx := context.Background()
-	db := testDB(ctx)
+	db := testDB()
 	h, err := spoken.Open(ctx, db)
 	if err != nil {
 		t.Fatal(err)

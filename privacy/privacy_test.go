@@ -9,7 +9,6 @@ import (
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 
-	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/privacy"
 )
 
@@ -22,27 +21,6 @@ func testConn() *sqlitex.Pool {
 		panic(err)
 	}
 	return pool
-}
-
-func TestInit(t *testing.T) {
-	ctx := context.Background()
-	db := testConn()
-	if err := privacy.Init(ctx, db); err != nil {
-		t.Error(err)
-	}
-}
-
-// TestCohabitant tests that a privacy list and an sqlbrain can exist in the
-// same database.
-func TestCohabitant(t *testing.T) {
-	ctx := context.Background()
-	db := testConn()
-	if err := sqlbrain.Create(ctx, db); err != nil {
-		t.Errorf("couldn't create sqlbrain in the first place: %v", err)
-	}
-	if err := privacy.Init(ctx, db); err != nil {
-		t.Errorf("couldn't create privacy list together with sqlbrain: %v", err)
-	}
 }
 
 func TestList(t *testing.T) {
@@ -124,9 +102,6 @@ func TestList(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 			db := testConn()
-			if err := privacy.Init(ctx, db); err != nil {
-				t.Fatal(err)
-			}
 			l, err := privacy.Open(ctx, db)
 			if err != nil {
 				t.Fatal(err)

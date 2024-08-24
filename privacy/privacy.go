@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
 )
 
@@ -19,27 +18,16 @@ type List struct {
 
 // Open opens an existing privacy list in an SQL database.
 func Open(ctx context.Context, db *sqlitex.Pool) (*List, error) {
-	// TODO(zeph): validate schema
-	return &List{db: db}, nil
-}
-
-// Init initializes a list in an SQL database.
-// For convenience, it accepts either a single connection or a pool.
-func Init[DB *sqlite.Conn | *sqlitex.Pool](ctx context.Context, db DB) error {
-	var conn *sqlite.Conn
-	switch db := any(db).(type) {
-	case *sqlite.Conn:
-		conn = db
-	case *sqlitex.Pool:
-		var err error
-		conn, err = db.Take(ctx)
-		defer db.Put(conn)
-		if err != nil {
-			return fmt.Errorf("couldn't get connection from pool: %w", err)
-		}
+	conn, err := db.Take(ctx)
+	defer db.Put(conn)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get connection from pool: %w", err)
 	}
-	err := sqlitex.ExecuteTransient(conn, `CREATE TABLE privacy (user TEXT PRIMARY KEY) STRICT, WITHOUT ROWID`, nil)
-	return err
+	const schemaSQL = `CREATE TABLE IF NOT EXISTS privacy (user TEXT PRIMARY KEY) STRICT, WITHOUT ROWID`
+	if err := sqlitex.ExecuteTransient(conn, schemaSQL, nil); err != nil {
+		return nil, fmt.Errorf("couldn't run migration: %w", err)
+	}
+	return &List{db: db}, nil
 }
 
 // Add adds a user to the database.

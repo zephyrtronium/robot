@@ -27,9 +27,6 @@ func testDB(ctx context.Context) *sqlitex.Pool {
 	if err != nil {
 		panic(err)
 	}
-	if err := sqlbrain.Create(ctx, conn); err != nil {
-		panic(err)
-	}
 	return pool
 }
 
