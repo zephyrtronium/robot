@@ -222,6 +222,7 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 		slog.DebugContext(ctx, "no learn tag", slog.String("in", ch.Name))
 		return
 	}
+	ch.History.Add(msg.Sender, msg.Text)
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
 	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
 		slog.ErrorContext(ctx, "failed to learn", slog.String("err", err.Error()))
