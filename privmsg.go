@@ -42,6 +42,15 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			return
 		}
 		ch.History.Add(m.Sender, m.Text)
+		// If the message is a reply to e.g. Bocchi, TMI adds @Bocchi to the
+		// start of the message text.
+		// That's helpful for commands, which we've already processed, but
+		// otherwise we probably don't want to see it. Remove it.
+		if _, ok := msg.Tag("reply-parent-msg-id"); ok && strings.HasPrefix(m.Text, "@") {
+			at, t, _ := strings.Cut(m.Text, " ")
+			slog.DebugContext(ctx, "stripped reply mention", slog.String("mention", at), slog.String("text", t))
+			m.Text = t
+		}
 		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
 		switch err := ch.Memery.Check(m.Time(), from, m.Text); err {
 		case channel.ErrNotCopypasta: // do nothing
