@@ -58,7 +58,7 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 	return m + " " + e
 }
 
-var ngPrompt = regexp.MustCompile(`^/|^.\w`)
+var ngPrompt = regexp.MustCompile(`^/|^\.\w`)
 
 // Speak generates a message.
 //   - prompt: Start of the message to use. Optional.
