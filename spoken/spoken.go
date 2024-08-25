@@ -126,18 +126,25 @@ func once2[K, V any](k K, v V) iter.Seq2[K, V] {
 // AllSince provides an iterator over all trace IDs since the given time.
 func (h *History) Since(ctx context.Context, tag string, tm time.Time) iter.Seq2[string, error] {
 	conn, err := h.db.Take(ctx)
-	defer h.db.Put(conn)
+	// NOTE(zeph): we don't defer return the conn here because we need it alive
+	// for the entire iterator
 	if err != nil {
+		h.db.Put(conn)
 		return once2("", fmt.Errorf("couldn't get conn to find recent traces: %w", err))
 	}
 	const sel = `SELECT DISTINCT value FROM spoken, JSON_EACH(spoken.trace) WHERE tag = :tag AND time >= :time`
 	st, err := conn.Prepare(sel)
 	if err != nil {
+		h.db.Put(conn)
 		return once2("", fmt.Errorf("couldn't prepare statement to find recent traces: %w", err))
 	}
 	st.SetText(":tag", tag)
 	st.SetInt64(":time", tm.UnixNano())
 	return func(yield func(string, error) bool) {
+		defer h.db.Put(conn)
+		// Always reset the statement so that we can return the conn to the
+		// pool no matter why we exit the iterator.
+		defer st.Reset()
 		for {
 			ok, err := st.Step()
 			if err != nil {
