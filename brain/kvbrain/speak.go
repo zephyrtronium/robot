@@ -89,7 +89,7 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 		if err != nil {
 			return nil, "", len(prompt), fmt.Errorf("couldn't read knowledge: %w", err)
 		}
-		if picked < 3 && len(prompt) > 1 {
+		if picked < 3 && len(prompt) > 3 {
 			// We haven't seen enough options, and we have context we could
 			// lose. Do so and try again from the beginning.
 			prompt = prompt[:len(prompt)-1]

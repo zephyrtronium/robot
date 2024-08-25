@@ -91,7 +91,7 @@ func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, str
 				}
 			}
 		}
-		if picked < 3 && len(prompt) > 1 {
+		if picked < 3 && len(prompt) > 3 {
 			// We haven't seen enough options, and we have context we could
 			// lose. Do so and try again from the beginning.
 			prompt = prompt[:len(prompt)-1]
