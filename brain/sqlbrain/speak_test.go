@@ -37,12 +37,12 @@ func TestSpeak(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "bocchi ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "bocchi \x00",
+					prefix: "bocchi \x00\x00",
 					suffix: "",
 				},
 			},
@@ -57,12 +57,12 @@ func TestSpeak(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "bocchi ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "bocchi \x00",
+					prefix: "bocchi \x00\x00",
 					suffix: "",
 				},
 			},
@@ -77,12 +77,12 @@ func TestSpeak(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "bocchi ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "bocchi \x00",
+					prefix: "bocchi \x00\x00",
 					suffix: "",
 				},
 			},
@@ -95,27 +95,27 @@ func TestSpeak(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "bocchi ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "bocchi \x00",
+					prefix: "bocchi \x00\x00",
 					suffix: "ryo ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "ryo \x00bocchi \x00",
+					prefix: "ryo \x00bocchi \x00\x00",
 					suffix: "nijika ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "nijika \x00ryo \x00bocchi \x00",
+					prefix: "nijika \x00ryo \x00bocchi \x00\x00",
 					suffix: "kita ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "kita \x00nijika \x00ryo \x00bocchi \x00",
+					prefix: "kita \x00nijika \x00ryo \x00bocchi \x00\x00",
 					suffix: "",
 				},
 			},
@@ -128,62 +128,62 @@ func TestSpeak(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "bocchi ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "bocchi \x00member \x00",
+					prefix: "bocchi \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "ryo ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "ryo \x00member \x00",
+					prefix: "ryo \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "nijika ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "nijika \x00member \x00",
+					prefix: "nijika \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "kita ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "kita \x00member \x00",
+					prefix: "kita \x00member \x00\x00",
 					suffix: "",
 				},
 			},
@@ -196,107 +196,107 @@ func TestSpeak(t *testing.T) {
 			know: []know{
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "bocchi ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "bocchi \x00member \x00",
+					prefix: "bocchi \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "ryo ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "ryo \x00member \x00",
+					prefix: "ryo \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "nijika ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "nijika \x00member \x00",
+					prefix: "nijika \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "kita ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "kita \x00member \x00",
+					prefix: "kita \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "kikuri ",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "kikuri \x00member \x00",
+					prefix: "kikuri \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "eliza ",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "eliza \x00member \x00",
+					prefix: "eliza \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "shima ",
 				},
 				{
 					tag:    "sickhack",
-					prefix: "shima \x00member \x00",
+					prefix: "shima \x00member \x00\x00",
 					suffix: "",
 				},
 			},
@@ -315,47 +315,47 @@ func TestSpeak(t *testing.T) {
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "bocchi ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "bocchi \x00member \x00",
+					prefix: "bocchi \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "ryo ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "ryo \x00member \x00",
+					prefix: "ryo \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "member \x00",
+					prefix: "member \x00\x00",
 					suffix: "nijika ",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "nijika \x00member \x00",
+					prefix: "nijika \x00member \x00\x00",
 					suffix: "",
 				},
 				{
 					tag:    "kessoku",
-					prefix: "",
+					prefix: "\x00",
 					suffix: "member ",
 				},
 				{
@@ -413,6 +413,62 @@ func TestSpeak(t *testing.T) {
 				t.Errorf("wrong results:\nwant %q\ngot  %q", c.want, got)
 			}
 		})
+	}
+}
+
+func TestSpeakInitialContext(t *testing.T) {
+	// Test that the same token appearing at the beginning and end of
+	// non-singleton messages can't cause us to generate singletons.
+	t.Parallel()
+	ctx := context.Background()
+	db := testDB(ctx)
+	br, err := sqlbrain.Open(ctx, db)
+	if err != nil {
+		t.Fatalf("couldn't open brain: %v", err)
+	}
+	conn, err := db.Take(ctx)
+	defer db.Put(conn)
+	if err != nil {
+		t.Fatalf("couldn't get conn: %v", err)
+	}
+	k := []know{
+		{
+			tag:    "kessoku",
+			id:     "1",
+			prefix: "\x00",
+			suffix: "bocchi ",
+		},
+		{
+			tag:    "kessoku",
+			id:     "1",
+			prefix: "bocchi \x00\x00",
+			suffix: "ryo ",
+		},
+		{
+			tag:    "kessoku",
+			id:     "1",
+			prefix: "ryo \x00bocchi \x00\x00",
+			suffix: "bocchi ",
+		},
+		{
+			tag:    "kessoku",
+			id:     "1",
+			prefix: "bocchi \x00ryo \x00bocchi \x00\x00",
+			suffix: "",
+		},
+	}
+	insert(t, conn, k, nil)
+	var w brain.Builder
+	for range 100 {
+		w.Reset()
+		err := br.Speak(ctx, "kessoku", nil, &w)
+		if err != nil {
+			t.Errorf("couldn't speak: %v", err)
+		}
+		s := w.String()
+		if want := "bocchi ryo bocchi "; s != want {
+			t.Errorf("wrong result: should always say %q but got %q", want, s)
+		}
 	}
 }
 

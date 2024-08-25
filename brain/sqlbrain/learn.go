@@ -27,7 +27,7 @@ func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, 
 	p := make([]byte, 0, 256)
 	s := make([]byte, 0, 32)
 	for _, tt := range tuples {
-		p = prefix(p[:0], tt.Prefix)
+		p = append(prefix(p[:0], tt.Prefix), 0)
 		s = append(s[:0], tt.Suffix...)
 		st.SetText(":tag", tag)
 		st.SetText(":id", id)

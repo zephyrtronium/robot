@@ -17,7 +17,7 @@ var prependerPool tpool.Pool[deque.Deque[string]]
 // Speak generates a full message and appends it to w.
 // The prompt is in reverse order and has entropy reduction applied.
 func (br *Brain) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
-	search := prependerPool.Get().Prepend(prompt...)
+	search := prependerPool.Get().Append("").Prepend(prompt...)
 	defer func() { prependerPool.Put(search.Reset()) }()
 
 	conn, err := br.db.Take(ctx)
@@ -123,7 +123,7 @@ func searchbounds(prefix []byte) (lower, upper []byte) {
 func first(conn *sqlite.Conn, tag string, b []byte) ([]byte, string, error) {
 	var id string
 	b = b[:0] // in case we get no rows
-	s, err := conn.Prepare(`SELECT id, suffix FROM knowledge WHERE tag = :tag AND prefix = x'' AND LIKELY(deleted IS NULL)`)
+	s, err := conn.Prepare(`SELECT id, suffix FROM knowledge WHERE tag = :tag AND prefix = x'00' AND LIKELY(deleted IS NULL)`)
 	if err != nil {
 		return b, "", fmt.Errorf("couldn't prepare first term selection: %w", err)
 	}
