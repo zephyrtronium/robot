@@ -20,13 +20,11 @@ func TestWords(t *testing.T) {
 		{
 			name: "empty",
 			msg:  "",
-			in:   nil,
 			want: nil,
 		},
 		{
 			name: "single",
 			msg:  "bocchi",
-			in:   nil,
 			want: s("bocchi "),
 		},
 		{
@@ -38,14 +36,22 @@ func TestWords(t *testing.T) {
 		{
 			name: "split",
 			msg:  "bocchi ryo nijika kita",
-			in:   nil,
 			want: s("bocchi ", "ryo ", "nijika ", "kita "),
 		},
 		{
 			name: "punct",
 			msg:  "'bocchi' 'ryo'",
-			in:   nil,
 			want: s("'", "bocchi", "' ", "'", "ryo", "' "),
+		},
+		{
+			name: "colon",
+			msg:  "bocchi: ryo",
+			want: s("bocchi", ": ", "ryo "),
+		},
+		{
+			name: "at",
+			msg:  "@bocchi ryo",
+			want: s("@", "bocchi ", "ryo "),
 		},
 	}
 	for _, c := range cases {
