@@ -17,18 +17,9 @@ var app = cli.Command{
 	Name:  "robot",
 	Usage: "Markov chain chat bot",
 
-	DefaultCommand: "run",
-	Commands: []*cli.Command{
-		{
-			Name:   "run",
-			Usage:  "Connect to configured chat services",
-			Action: cliRun,
-			Flags: []cli.Flag{
-				&flagConfig,
-			},
-		},
-	},
+	Action: cliRun,
 	Flags: []cli.Flag{
+		&flagConfig,
 		&flagLog,
 		&flagLogFormat,
 	},
