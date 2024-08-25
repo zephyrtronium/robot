@@ -225,8 +225,8 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 			for range 5 {
 				// TODO(zeph): limit to 100
 				streams, err = twitch.UserStreams(ctx, robo.twitch, tok, streams)
-				switch err {
-				case nil:
+				switch {
+				case err == nil:
 					slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
 					// Mark online streams as enabled.
 					// First map names to online status.
@@ -245,7 +245,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 						n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
 						ch.Enabled.Store(m[n])
 					}
-				case twitch.ErrNeedRefresh:
+				case errors.Is(err, twitch.ErrNeedRefresh):
 					tok, err = robo.tmi.tokens.Refresh(ctx, tok)
 					if err != nil {
 						slog.ErrorContext(ctx, "failed to refresh token", slog.Any("err", err))
