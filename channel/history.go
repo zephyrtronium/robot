@@ -1,9 +1,6 @@
 package channel
 
-import (
-	"iter"
-	"sync"
-)
+import "sync"
 
 // History is a message history.
 type History struct {
@@ -43,36 +40,45 @@ func (h *History) Add(id, who, text string) {
 	h.k++ // We don't modulo so that All can detect changed elements.
 }
 
-// All iterates over all messages in the history
+// HistoryMessage is the minimal representation of a message recorded in a
+// channel's history.
+type HistoryMessage struct {
+	ID     string
+	Sender string
+	Text   string
+}
+
+// Messages returns a slice of the messages in the channel history,
 // approximately in order from oldest to newest.
-// The first yielded term is the sender and the second is the message text.
-func (h *History) All() iter.Seq2[string, string] {
-	return func(yield func(string, string) bool) {
-		h.mu.Lock()
-		k := h.k
-		// Iterate from ringsize tickets back.
-		l := uint64(max(int64(k)-ringsize, 0))
-		h.ring[l%ringsize].mu.Lock()
-		h.mu.Unlock()
-		for l < k {
-			if h.ring[l%ringsize].k > k || h.ring[l%ringsize].who == "" {
-				// Extra exit conditions.
-				// We are currently holding the lock on ring[l%ringsize].
-				// Set our final index to l so that we unlock it after the loop.
-				k = l
-				break
-			}
-			if !yield(h.ring[l%ringsize].who, h.ring[l%ringsize].text) {
-				k = l
-				break
-			}
-			// Lock the next element before we unlock the current one
-			// so that no writer can skip past us.
-			i := l + 1
-			h.ring[i%ringsize].mu.Lock()
-			h.ring[l%ringsize].mu.Unlock()
-			l = i
+func (h *History) Messages() []HistoryMessage {
+	r := make([]HistoryMessage, 0, ringsize)
+	h.mu.Lock()
+	k := h.k
+	// Iterate from ringsize tickets back.
+	l := uint64(max(int64(k)-ringsize, 0))
+	h.ring[l%ringsize].mu.Lock()
+	h.mu.Unlock()
+	for l < k {
+		if h.ring[l%ringsize].k > k || h.ring[l%ringsize].who == "" {
+			// Extra exit conditions.
+			// We are currently holding the lock on ring[l%ringsize].
+			// Set our final index to l so that we unlock it after the loop.
+			k = l
+			break
 		}
-		h.ring[k%ringsize].mu.Unlock()
+		m := HistoryMessage{
+			ID:     h.ring[l%ringsize].id,
+			Sender: h.ring[l%ringsize].who,
+			Text:   h.ring[l%ringsize].text,
+		}
+		r = append(r, m)
+		// Lock the next element before we unlock the current one
+		// so that no writer can skip past us.
+		i := l + 1
+		h.ring[i%ringsize].mu.Lock()
+		h.ring[l%ringsize].mu.Unlock()
+		l = i
 	}
+	h.ring[k%ringsize].mu.Unlock()
+	return r
 }
