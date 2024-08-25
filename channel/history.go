@@ -15,9 +15,9 @@ type History struct {
 type histelem struct {
 	mu   sync.Mutex
 	k    uint64 // total number of elements written up to this one
+	id   string
 	who  string
 	text string
-	_    [16]byte // cache line pad
 }
 
 // ringsize is the number of messages in a history.
@@ -30,12 +30,13 @@ func NewHistory() *History {
 	return &History{ring: make([]histelem, ringsize)}
 }
 
-func (h *History) Add(who, text string) {
+func (h *History) Add(id, who, text string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	k := h.k % ringsize
 	h.ring[k].mu.Lock()
 	h.ring[k].k = k
+	h.ring[k].id = id
 	h.ring[k].who = who
 	h.ring[k].text = text
 	h.ring[k].mu.Unlock()

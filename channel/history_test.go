@@ -17,7 +17,7 @@ func TestHistory(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			seen := make(map[string]bool)
-			h.Add(strconv.Itoa(i), strconv.Itoa(i))
+			h.Add(strconv.Itoa(i), strconv.Itoa(i), strconv.Itoa(i))
 			for who, text := range h.All() {
 				if who == "" || text == "" {
 					t.Errorf("empty iter: who=%q text=%q", who, text)
@@ -54,7 +54,7 @@ func TestHistoryRange(t *testing.T) {
 	})
 	t.Run("short", func(t *testing.T) {
 		h := channel.NewHistory()
-		h.Add("1", "1")
+		h.Add("1", "1", "1")
 		var got []string
 		for who := range h.All() {
 			got = append(got, who)
@@ -71,7 +71,7 @@ func TestHistoryRange(t *testing.T) {
 		for i := range 512 {
 			s := strconv.Itoa(i)
 			want = append(want, s)
-			h.Add(s, s)
+			h.Add(s, s, s)
 		}
 		var got []string
 		for who := range h.All() {
@@ -87,7 +87,7 @@ func TestHistoryRange(t *testing.T) {
 		for i := range 600 {
 			s := strconv.Itoa(i)
 			want = append(want, s)
-			h.Add(s, s)
+			h.Add(s, s, s)
 		}
 		// Slice here must match the size of the ring buffer.
 		want = want[len(want)-512:]
