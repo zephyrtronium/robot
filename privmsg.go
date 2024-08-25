@@ -387,9 +387,8 @@ var twitchAny = []twitchCommand{
 		name:  "who",
 	},
 	{
-		// NOTE(zeph): This command MUST be last, because it swallows all
-		// invocations for the prompt.
-		parse: regexp.MustCompile(`^(?i:say|generate)?\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s*(?<prompt>.*)`),
+		// NOTE(zeph): This command MUST be last, because it swallows all invocations.
+		parse: regexp.MustCompile(`^(?i:say|generate)\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s*(?<prompt>.*)|`),
 		fn:    command.Speak,
 		name:  "speak",
 	},
