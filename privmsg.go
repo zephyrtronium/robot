@@ -37,10 +37,6 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			slog.DebugContext(ctx, "message from ignored user", slog.String("in", ch.Name))
 			return
 		}
-		if ch.Block.MatchString(m.Text) {
-			slog.InfoContext(ctx, "blocked message", slog.String("in", ch.Name))
-			return
-		}
 		if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
 			robo.command(ctx, ch, m, from, cmd)
 			return
@@ -55,7 +51,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			r := ch.Rate.ReserveN(t, 1)
 			if d := r.DelayFrom(t); d > 0 {
 				// But we can't meme it. Restore it so we can next time.
-				slog.InfoContext(ctx, "won't speak; rate limited",
+				slog.InfoContext(ctx, "won't copypasta; rate limited",
 					slog.String("action", "copypasta"),
 					slog.String("in", ch.Name),
 					slog.String("delay", d.String()),
@@ -68,8 +64,14 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			f := ch.Effects.Pick(rand.Uint32())
 			s := command.Effect(f, text)
 			ch.Memery.Block(m.Time(), s)
+			if ch.Block.MatchString(s) {
+				// Don't send things we wouldn't learn.
+				slog.InfoContext(ctx, "won't copypasta blocked message", slog.String("message", s), slog.String("effect", f))
+				r.CancelAt(t)
+				break
+			}
 			slog.InfoContext(ctx, "copypasta", slog.String("message", s), slog.String("effect", f))
-			msg := message.Format("", ch.Name, "%s", text)
+			msg := message.Format("", ch.Name, "%s", s)
 			robo.sendTMI(ctx, send, msg)
 			return
 		default:
