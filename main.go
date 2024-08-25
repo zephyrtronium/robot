@@ -11,18 +11,51 @@ import (
 	"strings"
 
 	"github.com/urfave/cli/v3"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/brain/kvbrain"
+	"github.com/zephyrtronium/robot/brain/sqlbrain"
 )
 
 var app = cli.Command{
 	Name:  "robot",
 	Usage: "Markov chain chat bot",
 
-	Action: cliRun,
 	Flags: []cli.Flag{
 		&flagConfig,
 		&flagLog,
 		&flagLogFormat,
 	},
+	Commands: []*cli.Command{
+		{
+			Name:    "speak",
+			Aliases: []string{"talk", "generate", "say"},
+			Usage:   "Generate messages without serving",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "tag",
+					Usage:    "Tag from which to generate messages",
+					Required: true,
+				},
+				&cli.IntFlag{
+					Name:  "n",
+					Usage: "Number of messages to generate",
+					Value: 10,
+				},
+				&cli.StringFlag{
+					Name:  "prompt",
+					Usage: "Prompt to use for all generated messages",
+				},
+				&cli.BoolFlag{
+					Name:  "trace",
+					Usage: "Print ID traces with messages",
+				},
+			},
+			Action: cliSpeak,
+		},
+	},
+	Action: cliRun,
 
 	Authors: []any{
 		"Branden J Brown  @zephyrtronium",
@@ -79,11 +112,63 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 	return robo.Run(ctx)
 }
 
+func cliSpeak(ctx context.Context, cmd *cli.Command) error {
+	slog.SetDefault(loggerFromFlags(cmd))
+	r, err := os.Open(cmd.String("config"))
+	if err != nil {
+		return fmt.Errorf("couldn't open config file: %w", err)
+	}
+	cfg, _, err := Load(ctx, r)
+	if err != nil {
+		return fmt.Errorf("couldn't load config: %w", err)
+	}
+	r.Close()
+	kv, sql, _, _, err := loadDBs(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	var br brain.Brain
+	if sql == nil {
+		if kv == nil {
+			panic("robot: no brain")
+		}
+		br = kvbrain.New(kv)
+		defer kv.Close()
+	} else {
+		br, err = sqlbrain.Open(ctx, sql)
+		defer sql.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("couldn't open brain: %w", err)
+	}
+	group, ctx := errgroup.WithContext(ctx)
+	group.SetLimit(runtime.GOMAXPROCS(0))
+	tag := cmd.String("tag")
+	trace := cmd.Bool("trace")
+	prompt := cmd.String("prompt")
+	for range cmd.Int("n") {
+		group.Go(func() error {
+			m, tr, err := brain.Speak(ctx, br, tag, prompt)
+			if err != nil {
+				return err
+			}
+			a := []any{m}
+			if trace {
+				a = append(a, tr)
+			}
+			fmt.Println(a...)
+			return nil
+		})
+	}
+	return group.Wait()
+}
+
 var (
 	flagConfig = cli.StringFlag{
-		Name:     "config",
-		Required: true,
-		Usage:    "TOML config file",
+		Name:       "config",
+		Required:   true,
+		Usage:      "TOML config file",
+		Persistent: true,
 		Action: func(ctx context.Context, cmd *cli.Command, s string) error {
 			i, err := os.Stat(s)
 			if err != nil {
