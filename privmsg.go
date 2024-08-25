@@ -346,6 +346,11 @@ var twitchMod = []twitchCommand{
 		fn:    command.DescribeMarriage,
 		name:  "describe-marriage",
 	},
+	{
+		parse: regexp.MustCompile(`(?i)^forgr?[eo]?r?t\s+(?:everything$|(?<term>.+))`),
+		fn:    command.Forget,
+		name:  "forget",
+	},
 }
 
 var twitchAny = []twitchCommand{
