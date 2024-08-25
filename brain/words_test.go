@@ -51,7 +51,7 @@ func TestWords(t *testing.T) {
 		{
 			name: "at",
 			msg:  "@bocchi ryo",
-			want: s("@", "bocchi ", "ryo "),
+			want: s("@bocchi ", "ryo "),
 		},
 	}
 	for _, c := range cases {

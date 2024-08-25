@@ -25,6 +25,16 @@ func Tokens(dst []string, msg string) []string {
 		// Then, skip remaining spaces and repeat.
 		c, l := utf8.DecodeRuneInString(msg)
 		switch {
+		case c == '@':
+			// Since we're at the start of a token, treat this as a letter or
+			// number so it combines with a subsequent username.
+			// We could do more advanced things by looking ahead in the string
+			// to verify we're looking at a name, but that is much more code to
+			// write for a case that will be uncommon.
+			// In terms of control flow, we can fall through to the next case,
+			// after we skip past the @ itself.
+			l++
+			fallthrough
 		case unicode.Is(ln, c):
 			for l < len(msg) {
 				c, k := utf8.DecodeRuneInString(msg[l:])
