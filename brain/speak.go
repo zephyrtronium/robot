@@ -23,6 +23,8 @@ var (
 
 // Speak produces a new message and the trace of messages used to form it
 // from the given prompt.
+// If the speaker does not produce any terms, the result is the empty string
+// regardless of the prompt, with no error.
 func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, []string, error) {
 	w := builderPool.Get()
 	toks := Tokens(tokensPool.Get(), prompt)
@@ -40,6 +42,9 @@ func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, []string
 	err := s.Speak(ctx, tag, toks, w)
 	if err != nil {
 		return "", nil, fmt.Errorf("couldn't speak: %w", err)
+	}
+	if len(w.Trace()) == 0 {
+		return "", nil, nil
 	}
 	return strings.TrimSpace(w.String()), slices.Clone(w.Trace()), nil
 }

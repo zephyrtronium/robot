@@ -88,6 +88,10 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
 			return
 		}
+		if s == "" {
+			slog.InfoContext(ctx, "spoke nothing", slog.String("tag", ch.Send))
+			return
+		}
 		x := rand.Uint64()
 		e := ch.Emotes.Pick(uint32(x))
 		f := ch.Effects.Pick(uint32(x >> 32))

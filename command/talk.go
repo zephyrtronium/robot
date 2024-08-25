@@ -29,6 +29,10 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 		robo.Log.ErrorContext(ctx, "couldn't speak", "err", err.Error())
 		return ""
 	}
+	if m == "" {
+		slog.InfoContext(ctx, "spoke nothing", slog.String("tag", call.Channel.Send), slog.String("prompt", call.Args["prompt"]))
+		return ""
+	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	s := m + " " + e
 	if err := robo.Spoken.Record(ctx, call.Channel.Send, s, trace, call.Message.Time(), cost, m, e, effect); err != nil {
