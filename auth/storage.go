@@ -17,10 +17,10 @@ import (
 
 // Storage is a secure means to store OAuth2 tokens.
 type Storage interface {
-	// Load returns the current refresh token. If the result is nil,
-	// the caller should use acquire a new refresh token.
+	// Load returns the current token.
+	// If the result is nil, the caller should acquire a new refresh token.
 	Load(ctx context.Context) (*oauth2.Token, error)
-	// Store sets a new token. If tok nil, the storage should be cleared.
+	// Store sets a new token. If tok is nil, the storage should be cleared.
 	Store(ctx context.Context, tok *oauth2.Token) error
 }
 
