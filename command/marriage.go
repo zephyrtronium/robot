@@ -39,8 +39,6 @@ func score(h *channel.History, user string) float64 {
 		l = max(l, len(text))
 	}
 	// Calculate score from components.
-	// Recall that the history is limited to 512 messages, which means having
-	// more than a couple dozen of your own messages is already impressive.
 	// Participating in copypasta generally should matter more than generic
 	// talking (even in the chats that don't copypasta, where this part just
 	// tends toward zero).
