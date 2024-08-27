@@ -48,8 +48,8 @@ func (robo *Robot) tmiLoop(ctx context.Context, group *errgroup.Group, send chan
 }
 
 func (robo *Robot) joinTwitch(ctx context.Context, send chan<- *tmi.Message) {
-	ls := make([]string, 0, len(robo.channels))
-	for _, ch := range robo.channels {
+	ls := make([]string, 0, robo.channels.Len())
+	for _, ch := range robo.channels.All() {
 		ls = append(ls, ch.Name)
 	}
 	burst := 20
@@ -79,7 +79,7 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 	if len(msg.Params) == 0 {
 		return
 	}
-	ch := robo.channels[msg.To()]
+	ch, _ := robo.channels.Load(msg.To())
 	if ch == nil {
 		return
 	}
@@ -144,7 +144,7 @@ func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi
 	if len(msg.Params) == 0 {
 		return
 	}
-	ch := robo.channels[msg.To()]
+	ch, _ := robo.channels.Load(msg.To())
 	if ch == nil {
 		return
 	}

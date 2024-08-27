@@ -18,6 +18,7 @@ import (
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
+	"github.com/zephyrtronium/robot/syncmap"
 	"github.com/zephyrtronium/robot/twitch"
 )
 
@@ -30,7 +31,7 @@ type Robot struct {
 	// spoken is the history of generated messages.
 	spoken *spoken.History
 	// channels are the channels.
-	channels map[string]*channel.Channel // TODO(zeph): syncmap[string]channel.Channel
+	channels *syncmap.Map[string, *channel.Channel]
 	// works is the worker queue.
 	works chan chan func(context.Context)
 	// secrets are the bot's keys.
@@ -71,7 +72,7 @@ type client[Send, Receive any] struct {
 // to initialize the robot.
 func New(poolSize int) *Robot {
 	return &Robot{
-		channels: make(map[string]*channel.Channel),
+		channels: syncmap.New[string, *channel.Channel](),
 		works:    make(chan chan func(context.Context), poolSize),
 	}
 }
@@ -154,18 +155,18 @@ func (robo *Robot) twitchValidateLoop(ctx context.Context) error {
 	}
 }
 
-func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel.Channel) error {
+func (robo *Robot) streamsLoop(ctx context.Context, channels *syncmap.Map[string, *channel.Channel]) error {
 	// TODO(zeph): one day we should switch to eventsub
 	// TODO(zeph): remove anything learned since the last check when offline
 	tok, err := robo.tmi.tokens.Token(ctx)
 	if err != nil {
 		return err
 	}
-	streams := make([]twitch.Stream, 0, len(channels))
-	m := make(map[string]bool, len(channels))
+	streams := make([]twitch.Stream, 0, channels.Len())
+	m := make(map[string]bool, channels.Len())
 	// Run once at the start so we start learning in online streams immediately.
 	streams = streams[:0]
-	for _, ch := range channels {
+	for _, ch := range channels.All() {
 		n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
 		streams = append(streams, twitch.Stream{UserLogin: n})
 	}
@@ -188,7 +189,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 				m[n] = true
 			}
 			// Now loop all streams.
-			for _, ch := range channels {
+			for _, ch := range channels.All() {
 				n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
 				ch.Enabled.Store(m[n])
 			}
@@ -218,7 +219,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-tick.C:
-			for _, ch := range channels {
+			for _, ch := range channels.All() {
 				n := strings.TrimPrefix(ch.Name, "#")
 				streams = append(streams, twitch.Stream{UserLogin: n})
 			}
@@ -241,7 +242,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 						m[n] = true
 					}
 					// Now loop all streams.
-					for _, ch := range channels {
+					for _, ch := range channels.All() {
 						n := strings.ToLower(strings.TrimPrefix(ch.Name, "#"))
 						ch.Enabled.Store(m[n])
 					}
@@ -255,7 +256,7 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels map[string]*channel
 				default:
 					slog.ErrorContext(ctx, "failed to query online broadcasters", slog.Any("streams", streams), slog.Any("err", err))
 					// Set all streams as offline.
-					for _, ch := range channels {
+					for _, ch := range channels.All() {
 						ch.Enabled.Store(false)
 					}
 				}
