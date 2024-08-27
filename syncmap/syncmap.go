@@ -47,16 +47,20 @@ func (m *Map[K, V]) Len() int {
 	return len(m.m)
 }
 
-// Range calls f sequentially for each key and value present in the map.
-// If f returns false, range stops the iteration.
+// All iterates over all elements in the map
 func (m *Map[K, V]) All() iter.Seq2[K, V] {
 	return func(f func(K, V) bool) {
 		m.mu.Lock()
-		defer m.mu.Unlock()
 		for k, v := range m.m {
+			m.mu.Unlock()
 			if !f(k, v) {
+				m.mu.Lock()
 				break
 			}
+
+			m.mu.Lock()
 		}
+
+		m.mu.Unlock()
 	}
 }
