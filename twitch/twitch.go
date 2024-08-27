@@ -22,13 +22,21 @@ type Client struct {
 
 // reqjson performs an HTTP request and decodes the response as JSON.
 // The response body is truncated to 2 MB.
-func reqjson[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url string, body io.Reader, u *Resp) error {
+func reqjson[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url string, u *Resp) error {
+	return reqjsonbody(ctx, client, tok, method, url, "", nil, u)
+}
+
+// reqjsonbody is like reqjson but takes a request body and content type.
+func reqjsonbody[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url, content string, body io.Reader, u *Resp) error {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return fmt.Errorf("couldn't make request: %w", err)
 	}
 	tok.SetAuthHeader(req)
 	req.Header.Set("Client-Id", client.ID)
+	if content != "" {
+		req.Header.Set("Content-Type", content)
+	}
 	hc := client.HTTP
 	if hc == nil {
 		hc = http.DefaultClient

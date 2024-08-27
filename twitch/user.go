@@ -48,7 +48,7 @@ func Users(ctx context.Context, client Client, tok *oauth2.Token, users []User) 
 		}
 	}
 	url := apiurl("/helix/users", v)
-	err := reqjson(ctx, client, tok, "GET", url, nil, &users)
+	err := reqjson(ctx, client, tok, "GET", url, &users)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get users info: %w", err)
 	}

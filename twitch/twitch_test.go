@@ -61,7 +61,7 @@ func TestReqJSON(t *testing.T) {
 		}
 		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", nil, &u)
+		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
 		if err != nil {
 			t.Errorf("failed to request: %v", err)
 		}
@@ -93,7 +93,7 @@ func TestReqJSON(t *testing.T) {
 		}
 		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", nil, &u)
+		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
 		if !errors.Is(err, ErrNeedRefresh) {
 			t.Errorf("unauthorized request didn't return ErrNeedRefresh error")
 		}
