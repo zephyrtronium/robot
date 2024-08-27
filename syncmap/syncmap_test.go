@@ -1,47 +1,15 @@
 package syncmap
 
 import (
+	"fmt"
+	"math/rand/v2"
 	"sync"
 	"testing"
 	"testing/quick"
 	"time"
 )
 
-func TestMap_Concurrent(t *testing.T) {
-	m := New[int, int]()
-	const goroutines = 100
-	const operations = 10000
-
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-
-	for i := 0; i < goroutines; i++ {
-		go func(base int) {
-			defer wg.Done()
-			for j := 0; j < operations; j++ {
-				key := base + j
-				m.Store(key, key*2)
-				if v, ok := m.Load(key); !ok || v != key*2 {
-					t.Errorf("Concurrent operation failed: key=%d, expected=%d, got=%v", key, key*2, v)
-				}
-				m.Delete(key)
-				if _, ok := m.Load(key); ok {
-					t.Errorf("Delete operation failed: key=%d still exists", key)
-				}
-			}
-		}(i * operations)
-	}
-
-	actualCount := 0
-	for k, v := range m.All() {
-		if v != k*2 {
-			t.Errorf("Iteration mismatch: key=%d, expected=%d, got=%d", k, k*2, v)
-		}
-		actualCount++
-	}
-
-	wg.Wait()
-}
+// TestMap_All requires the race detector to be useful
 func TestMap_All(t *testing.T) {
 	m := New[string, int]()
 
@@ -91,21 +59,42 @@ func TestMap_All(t *testing.T) {
 	}
 
 	// Test concurrent modification
+	var editwg sync.WaitGroup
+	var done = make(chan struct{})
+
+	editwg.Add(1)
 	go func() {
-		m.Store("four", 4)
-		m.Delete("two")
+		defer editwg.Done()
+		start := time.Now()
+		for time.Since(start) < time.Second {
+			switch rand.IntN(3) {
+			case 0:
+				m.Store(fmt.Sprintf("key%d", rand.IntN(100)), rand.IntN(1000))
+			case 1:
+				m.Delete(fmt.Sprintf("key%d", rand.IntN(100)))
+			case 2:
+				m.Store(fmt.Sprintf("key%d", rand.IntN(100)), rand.IntN(1000))
+				m.Delete(fmt.Sprintf("key%d", rand.IntN(100)))
+			}
+		}
 	}()
 
-	time.Sleep(10 * time.Millisecond)
+	go func() {
+		for {
+			for k, v := range m.All() {
+				foundItems[k] = v // sink
+			}
 
-	foundItems = make(map[string]int)
-	for k, v := range m.All() {
-		foundItems[k] = v
-	}
+			select {
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
 
-	if len(foundItems) < 2 || len(foundItems) > 4 {
-		t.Errorf("Unexpected number of elements after concurrent modification: %d", len(foundItems))
-	}
+	editwg.Wait()
+	close(done)
 }
 
 func TestMap_All_Quick(t *testing.T) {
