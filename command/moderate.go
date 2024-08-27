@@ -7,9 +7,9 @@ import (
 )
 
 func Forget(ctx context.Context, robo *Robot, call *Invocation) {
-	h := call.Channel.History.Messages()
+	h := call.Channel.History.All()
 	term := strings.ToLower(call.Args["term"])
-	for _, m := range h {
+	for m := range h {
 		if !strings.Contains(strings.ToLower(m.Text), term) {
 			continue
 		}

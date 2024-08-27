@@ -14,7 +14,7 @@ import (
 func score(h *channel.History, user string) float64 {
 	mine := make(map[string]map[string]struct{})
 	f, c, l, n := 0, 0, 0, 0
-	for _, m := range h.Messages() {
+	for m := range h.All() {
 		who, text := m.Sender, m.Text
 		n++
 		// Count the number of distinct other users who said each of your messages
