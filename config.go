@@ -299,6 +299,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				Rate:      rate.NewLimiter(rate.Every(fseconds(ch.Rate.Every)), ch.Rate.Num),
 				Ignore:    ign,
 				Mod:       mod,
+				History:   new(channel.History),
 				Memery:    channel.NewMemeDetector(ch.Copypasta.Need, fseconds(ch.Copypasta.Within)),
 				Emotes:    emotes,
 				Effects:   effects,
