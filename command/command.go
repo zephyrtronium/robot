@@ -9,13 +9,14 @@ import (
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
+	"github.com/zephyrtronium/robot/syncmap"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Robot is the bot state as is visible to commands.
 type Robot struct {
 	Log      *slog.Logger
-	Channels map[string]*channel.Channel // TODO(zeph): syncmap[string]channel.Channel
+	Channels *syncmap.Map[string, *channel.Channel]
 	Brain    brain.Brain
 	Privacy  *privacy.List
 	Spoken   *spoken.History

@@ -10,7 +10,7 @@ import (
 //   - msg: Message to send.
 func EchoIn(ctx context.Context, robo *Robot, call *Invocation) {
 	t := call.Args["in"]
-	ch := robo.Channels[t]
+	ch, _ := robo.Channels.Load(t)
 	if ch == nil {
 		robo.Log.WarnContext(ctx, "echo into unknown channel", slog.String("target", t))
 		return

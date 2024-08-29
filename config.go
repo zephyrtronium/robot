@@ -307,7 +307,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				msg := message.Format(reply, v.Name, "%s", text)
 				robo.sendTMI(ctx, robo.tmi.send, msg)
 			}
-			robo.channels[p] = v
+			robo.channels.Store(p, v)
 		}
 	}
 	return nil

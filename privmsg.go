@@ -23,7 +23,7 @@ import (
 
 // tmiMessage processes a PRIVMSG from TMI.
 func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, msg *tmi.Message) {
-	ch := robo.channels[msg.To()]
+	ch, _ := robo.channels.Load(msg.To())
 	if ch == nil {
 		// TMI gives a WHISPER for a direct message, so this is a message to a
 		// channel that isn't configured. Ignore it.
