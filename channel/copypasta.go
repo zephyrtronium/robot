@@ -72,15 +72,15 @@ func (m *MemeDetector) chopLocked(now int64) {
 }
 
 func (m *MemeDetector) insertLocked(msg, user string, exp int64) {
+	if exp <= m.counts[msg][user] {
+		// This message is (somehow) older than another from the same user.
+		// We don't care about it.
+		return
+	}
 	new := &node{
 		msg:  msg,
 		user: user,
 		exp:  exp,
-	}
-	if new.exp <= m.counts[msg][user] {
-		// This message is (somehow) older than another from the same user.
-		// We don't care about it.
-		return
 	}
 	if m.counts[msg] == nil {
 		m.counts[msg] = make(map[string]int64)
@@ -93,6 +93,7 @@ func (m *MemeDetector) insertLocked(msg, user string, exp int64) {
 	}
 	if new.exp >= m.front.exp {
 		new.older = m.front
+		m.front.newer = new
 		m.front = new
 		return
 	}

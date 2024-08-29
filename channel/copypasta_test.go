@@ -93,6 +93,17 @@ func TestMemeDetector(t *testing.T) {
 				{3, "ryou", "madoka", nil},
 			},
 		},
+		{
+			name:   "bug",
+			need:   2,
+			within: 15,
+			memes: []meme{
+				{0, "bocchi", "madoka", channel.ErrNotCopypasta},
+				{1, "ryo", "homura", channel.ErrNotCopypasta},
+				{16, "ryo", "madoka", channel.ErrNotCopypasta},
+				{17, "bocchi", "homura", channel.ErrNotCopypasta},
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
