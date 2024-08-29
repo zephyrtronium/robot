@@ -73,12 +73,10 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			f := ch.Effects.Pick(rand.Uint32())
 			s := command.Effect(f, text)
 			ch.Memery.Block(m.Time(), s)
-			if ch.Block.MatchString(s) {
-				// Don't send things we wouldn't learn.
-				slog.InfoContext(ctx, "won't copypasta blocked message", slog.String("message", s), slog.String("effect", f))
-				r.CancelAt(t)
-				break
-			}
+			// TODO(zeph): ideally we wouldn't send things we block from learning,
+			// but that may include trivial checks like "require multiple words."
+			// for now we just assume that chats are moderated, but eventually
+			// we should have some variety of configuration for this.
 			slog.InfoContext(ctx, "copypasta", slog.String("message", s), slog.String("effect", f))
 			msg := message.Format("", ch.Name, "%s", s)
 			robo.sendTMI(ctx, send, msg)
