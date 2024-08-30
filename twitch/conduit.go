@@ -95,9 +95,14 @@ func Shards(ctx context.Context, client Client, tok *oauth2.Token, conduit, stat
 		var resp []Shard
 		for {
 			url := apiurl("/helix/eventsub/conduits/shards", vals)
-			pag, err := reqjson(ctx, client, tok, "GET", url, &resp)
+			rest, err := reqjson(ctx, client, tok, "GET", url, &resp)
 			if err != nil {
 				yield(nil, fmt.Errorf("couldn't get shards: %w", err))
+				return
+			}
+			pag, err := pagination(rest)
+			if err != nil {
+				yield(nil, fmt.Errorf("couldn't get pagination: %w", err))
 				return
 			}
 			if pag == "" {

@@ -61,15 +61,15 @@ func TestReqJSON(t *testing.T) {
 		}
 		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		pag, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
+		rest, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
 		if err != nil {
 			t.Errorf("failed to request: %v", err)
 		}
 		if u != 1 {
 			t.Errorf("didn't get the result: want 1, got %d", u)
 		}
-		if pag != "" {
-			t.Errorf("unexpected pagination cursor %q", pag)
+		if len(rest) != 0 {
+			t.Errorf("unexpected pagination cursor %q", rest)
 		}
 		if got := spy.got.URL.String(); got != "https://bocchi.rocks/bocchi" {
 			t.Errorf(`request went to the wrong place: want "https://bocchi.rocks/bocchi", got %q`, got)
@@ -114,9 +114,13 @@ func TestReqJSON(t *testing.T) {
 		}
 		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		pag, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
+		rest, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
 		if err != nil {
 			t.Errorf("failed to request: %v", err)
+		}
+		pag, err := pagination(rest)
+		if err != nil {
+			t.Errorf("couldn't get pagination: %v", err)
 		}
 		if pag != "bocchi" {
 			t.Errorf("wrong pagination cursor: want %q, got %q", "bocchi", pag)
