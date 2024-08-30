@@ -3,6 +3,7 @@ package twitch
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"iter"
 	"net/url"
@@ -161,10 +162,25 @@ func UpdateShards(ctx context.Context, client Client, tok *oauth2.Token, conduit
 	}
 	url := apiurl("/helix/eventsub/conduits/shards", nil)
 	var resp []Shard
-	_, err = reqjsonbody(ctx, client, tok, "PATCH", url, "application/json", bytes.NewReader(body), &resp)
+	rest, err := reqjsonbody(ctx, client, tok, "PATCH", url, "application/json", bytes.NewReader(body), &resp)
 	if err != nil {
-		// UpdateShards can return both successful results and any number of errors.
-		err = fmt.Errorf("couldn't update shards: %w", err)
+		return nil, fmt.Errorf("couldn't update shards: %w", err)
+	}
+	if len(rest) != 0 {
+		// Extra is error messages.
+		var ee struct {
+			Errors []struct {
+				ID      int    `json:"id,string"`
+				Message string `json:"message"`
+				Code    string `json:"code"`
+			} `json:"errors"`
+		}
+		if err := json.Unmarshal([]byte(rest), &ee); err != nil {
+			return resp, fmt.Errorf("couldn't unmarshal errors from %q: %w", rest, err)
+		}
+		for _, e := range ee.Errors {
+			err = errors.Join(err, fmt.Errorf("shard %d: %s (%s)", e.ID, e.Message, e.Code))
+		}
 	}
 	return resp, err
 }

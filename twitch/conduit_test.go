@@ -3,6 +3,7 @@ package twitch
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -190,10 +191,12 @@ func TestUpdateShards(t *testing.T) {
 			},
 		},
 	}
-	// TODO(zeph): errors
 	got, err := UpdateShards(context.Background(), cl, tok, id, up)
 	if err != nil {
-		t.Error(err)
+		msg := err.Error()
+		if !strings.Contains(msg, "3") || !strings.Contains(msg, "invalid_parameter") {
+			t.Errorf("error message %q seems wrong", msg)
+		}
 	}
 	if diff := cmp.Diff(got, want); diff != "" {
 		t.Errorf("wrong results (+got/-want):\n%s", diff)
