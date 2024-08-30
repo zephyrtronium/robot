@@ -3,12 +3,12 @@ package twitch
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"iter"
 	"net/url"
 	"strings"
 
+	"github.com/go-json-experiment/json"
 	"golang.org/x/oauth2"
 )
 

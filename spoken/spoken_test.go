@@ -2,7 +2,6 @@ package spoken_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -10,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-json-experiment/json"
 	"github.com/zephyrtronium/robot/spoken"
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"

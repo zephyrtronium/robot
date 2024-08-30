@@ -3,11 +3,11 @@ package spoken
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"iter"
 	"time"
 
+	"github.com/go-json-experiment/json"
 	"zombiezen.com/go/sqlite/sqlitex"
 )
 
@@ -26,7 +26,7 @@ type meta struct {
 	// Effect is the name of the effect applied to the message.
 	Effect string `json:"effect,omitempty"`
 	// Cost is the time in nanoseconds spent generating the message.
-	Cost int64 `json:"cost,omitempty"` // TODO(zeph): omitzero if go-json-experiment
+	Cost int64 `json:"cost,omitempty,omitzero"`
 }
 
 // Open opens an existing history in a DB.
@@ -57,7 +57,7 @@ func (h *History) Record(ctx context.Context, tag, msg string, trace []string, t
 	if err != nil {
 		return fmt.Errorf("couldn't prepare statement to record trace: %w", err)
 	}
-	tr, err := json.Marshal(trace) // TODO(zeph): go-json-experiment?
+	tr, err := json.Marshal(trace)
 	if err != nil {
 		// Should be impossible. Explode loudly.
 		go panic(fmt.Errorf("spoken: couldn't marshal trace %#v: %w", trace, err))

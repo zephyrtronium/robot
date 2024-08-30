@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-json-experiment/json"
 	"golang.org/x/oauth2"
 )
 

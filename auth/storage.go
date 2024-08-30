@@ -5,12 +5,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 
+	"github.com/go-json-experiment/json"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/oauth2"
 )
