@@ -1,0 +1,27 @@
+{
+    "data": [
+        {
+            "id": "0",
+            "status": "enabled",
+            "transport": {
+                "method": "webhook",
+                "callback": "https://this-is-a-callback.com"
+            }
+        },
+        {
+            "id": "1",
+            "status": "webhook_callback_verification_pending",
+            "transport": {
+                "method": "webhook",
+                "callback": "https://this-is-a-callback-2.com"
+            }
+        }
+    ],
+    "errors": [
+        {
+            "id": "3",
+            "message": "The shard id is outside the conduit's range",
+            "code": "invalid_parameter"
+        }
+    ]
+}

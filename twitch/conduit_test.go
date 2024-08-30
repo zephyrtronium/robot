@@ -81,3 +81,121 @@ func TestUpdateConduit(t *testing.T) {
 		t.Errorf("content type was %s, not application/json", got)
 	}
 }
+
+func TestShards(t *testing.T) {
+	spy := apiresp(200, "get-conduit-shards.json")
+	cl := Client{
+		HTTP: &http.Client{Transport: spy},
+	}
+	tok := &oauth2.Token{AccessToken: "bocchi"}
+	id := "bfcfc993-26b1-b876-44d9-afe75a379dac"
+	want := []Shard{
+		{
+			ID:     0,
+			Status: "enabled",
+			Transport: &ShardTransport{
+				Method:   "webhook",
+				Callback: "https://this-is-a-callback.com",
+			},
+		},
+		{
+			ID:     1,
+			Status: "webhook_callback_verification_pending",
+			Transport: &ShardTransport{
+				Method:   "webhook",
+				Callback: "https://this-is-a-callback-2.com",
+			},
+		},
+		{
+			ID:     2,
+			Status: "enabled",
+			Transport: &ShardTransport{
+				Method:    "websocket",
+				Session:   "9fd5164a-a958-4c60-b7f4-6a7202506ca0",
+				Connected: "2020-11-10T14:32:18.730260295Z",
+			},
+		},
+		{
+			ID:     3,
+			Status: "enabled",
+			Transport: &ShardTransport{
+				Method:    "websocket",
+				Session:   "238b4b08-13f1-4b8f-8d31-56665a7a9d9f",
+				Connected: "2020-11-10T14:32:18.730260295Z",
+			},
+		},
+		{
+			ID:     4,
+			Status: "websocket_disconnected",
+			Transport: &ShardTransport{
+				Method:       "websocket",
+				Session:      "ad1c9fc3-0d99-4eb7-8a04-8608e8ff9ec9",
+				Connected:    "2020-11-10T14:32:18.730260295Z",
+				Disconnected: "2020-11-11T14:32:18.730260295Z",
+			},
+		},
+	}
+	for got, err := range Shards(context.Background(), cl, tok, id, "") {
+		if err != nil {
+			t.Error(err)
+		}
+		if diff := cmp.Diff(got, want); diff != "" {
+			t.Errorf("wrong result (+got/-want):\n%s", diff)
+		}
+	}
+}
+
+func TestUpdateShards(t *testing.T) {
+	spy := apiresp(200, "update-conduit-shards.json")
+	cl := Client{
+		HTTP: &http.Client{Transport: spy},
+	}
+	tok := &oauth2.Token{AccessToken: "bocchi"}
+	id := "bfcfc993-26b1-b876-44d9-afe75a379dac"
+	up := []ShardUpdate{
+		{
+			ID:       0,
+			Method:   "webhook",
+			Callback: "https://this-is-a-callback.com",
+			Secret:   "s3cre7",
+		},
+		{
+			ID:       1,
+			Method:   "webhook",
+			Callback: "https://this-is-a-callback-2.com",
+			Secret:   "s3cre7",
+		},
+		{
+			ID:       3,
+			Method:   "webhook",
+			Callback: "https://this-is-a-callback-3.com",
+			Secret:   "s3cre7",
+		},
+	}
+	want := []Shard{
+		{
+			ID:     0,
+			Status: "enabled",
+			Transport: &ShardTransport{
+				Method:   "webhook",
+				Callback: "https://this-is-a-callback.com",
+			},
+		},
+		{
+			ID:     1,
+			Status: "webhook_callback_verification_pending",
+			Transport: &ShardTransport{
+				Method:   "webhook",
+				Callback: "https://this-is-a-callback-2.com",
+			},
+		},
+	}
+	// TODO(zeph): errors
+	got, err := UpdateShards(context.Background(), cl, tok, id, up)
+	if err != nil {
+		t.Error(err)
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("wrong results (+got/-want):\n%s", diff)
+	}
+}

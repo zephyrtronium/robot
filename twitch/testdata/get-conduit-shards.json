@@ -1,0 +1,49 @@
+{
+    "data": [
+        {
+            "id": "0",
+            "status": "enabled",
+            "transport": {
+                "method": "webhook",
+                "callback": "https://this-is-a-callback.com"
+            }
+        },
+        {
+            "id": "1",
+            "status": "webhook_callback_verification_pending",
+            "transport": {
+                "method": "webhook",
+                "callback": "https://this-is-a-callback-2.com"
+            }
+        },
+        {
+            "id": "2",
+            "status": "enabled",
+            "transport": {
+                "method": "websocket",
+                "session_id": "9fd5164a-a958-4c60-b7f4-6a7202506ca0",
+                "connected_at": "2020-11-10T14:32:18.730260295Z"
+            }
+        },
+        {
+            "id": "3",
+            "status": "enabled",
+            "transport": {
+                "method": "websocket",
+                "session_id": "238b4b08-13f1-4b8f-8d31-56665a7a9d9f",
+                "connected_at": "2020-11-10T14:32:18.730260295Z"
+            }
+        },
+        {
+            "id": "4",
+            "status": "websocket_disconnected",
+            "transport": {
+                "method": "websocket",
+                "session_id": "ad1c9fc3-0d99-4eb7-8a04-8608e8ff9ec9",
+                "connected_at": "2020-11-10T14:32:18.730260295Z",
+                "disconnected_at": "2020-11-11T14:32:18.730260295Z"
+            }
+        }
+    ],
+    "pagination": {}
+}
