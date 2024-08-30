@@ -23,7 +23,7 @@ type Conduit struct {
 func Conduits(ctx context.Context, client Client, tok *oauth2.Token) ([]Conduit, error) {
 	url := apiurl("/helix/eventsub/conduits", nil)
 	resp := make([]Conduit, 0, 5) // api limits to 5 conduits
-	err := reqjson(ctx, client, tok, "GET", url, &resp)
+	_, err := reqjson(ctx, client, tok, "GET", url, &resp)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get conduits: %w", err)
 	}
@@ -36,7 +36,7 @@ func CreateConduit(ctx context.Context, client Client, tok *oauth2.Token, shards
 	body := fmt.Sprintf(`{"shard_count":%d}`, shards) // json the easy way
 	url := apiurl("/helix/eventsub/conduits", nil)
 	var resp []Conduit
-	err := reqjsonbody(ctx, client, tok, "POST", url, "application/json", strings.NewReader(body), &resp)
+	_, err := reqjsonbody(ctx, client, tok, "POST", url, "application/json", strings.NewReader(body), &resp)
 	if err != nil {
 		return Conduit{}, fmt.Errorf("couldn't create conduit: %w", err)
 	}
@@ -56,7 +56,7 @@ func UpdateConduit(ctx context.Context, client Client, tok *oauth2.Token, condui
 	}
 	url := apiurl("/helix/eventsub/conduits", nil)
 	var resp []Conduit
-	err = reqjsonbody(ctx, client, tok, "PATCH", url, "application/json", bytes.NewReader(body), &resp)
+	_, err = reqjsonbody(ctx, client, tok, "PATCH", url, "application/json", bytes.NewReader(body), &resp)
 	if err != nil {
 		return Conduit{}, fmt.Errorf("couldn't update conduit: %w", err)
 	}
@@ -95,13 +95,15 @@ func Shards(ctx context.Context, client Client, tok *oauth2.Token, conduit, stat
 		var resp []Shard
 		for {
 			url := apiurl("/helix/eventsub/conduits/shards", vals)
-			err := reqjson(ctx, client, tok, "GET", url, &resp)
+			pag, err := reqjson(ctx, client, tok, "GET", url, &resp)
 			if err != nil {
 				yield(nil, fmt.Errorf("couldn't get shards: %w", err))
 				return
 			}
-			// TODO(zeph): pagination
-			return
+			if pag == "" {
+				return
+			}
+			vals["after"] = []string{pag}
 		}
 	}
 }
@@ -154,7 +156,7 @@ func UpdateShards(ctx context.Context, client Client, tok *oauth2.Token, conduit
 	}
 	url := apiurl("/helix/eventsub/conduits/shards", nil)
 	var resp []Shard
-	err = reqjsonbody(ctx, client, tok, "PATCH", url, "application/json", bytes.NewReader(body), &resp)
+	_, err = reqjsonbody(ctx, client, tok, "PATCH", url, "application/json", bytes.NewReader(body), &resp)
 	if err != nil {
 		// UpdateShards can return both successful results and any number of errors.
 		err = fmt.Errorf("couldn't update shards: %w", err)

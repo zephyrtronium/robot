@@ -54,7 +54,7 @@ func UserStreams(ctx context.Context, client Client, tok *oauth2.Token, streams 
 		}
 	}
 	url := apiurl("/helix/streams", v)
-	err := reqjson(ctx, client, tok, "GET", url, &streams)
+	_, err := reqjson(ctx, client, tok, "GET", url, &streams)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get streams info: %w", err)
 	}

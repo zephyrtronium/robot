@@ -21,16 +21,17 @@ type Client struct {
 }
 
 // reqjson performs an HTTP request and decodes the response as JSON.
+// The returned string is the pagination cursor, if any.
 // The response body is truncated to 2 MB.
-func reqjson[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url string, u *Resp) error {
+func reqjson[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url string, u *Resp) (string, error) {
 	return reqjsonbody(ctx, client, tok, method, url, "", nil, u)
 }
 
 // reqjsonbody is like reqjson but takes a request body and content type.
-func reqjsonbody[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url, content string, body io.Reader, u *Resp) error {
+func reqjsonbody[Resp any](ctx context.Context, client Client, tok *oauth2.Token, method, url, content string, body io.Reader, u *Resp) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return fmt.Errorf("couldn't make request: %w", err)
+		return "", fmt.Errorf("couldn't make request: %w", err)
 	}
 	tok.SetAuthHeader(req)
 	req.Header.Set("Client-Id", client.ID)
@@ -43,27 +44,30 @@ func reqjsonbody[Resp any](ctx context.Context, client Client, tok *oauth2.Token
 	}
 	resp, err := hc.Do(req)
 	if err != nil {
-		return fmt.Errorf("couldn't %s: %w", method, err)
+		return "", fmt.Errorf("couldn't %s: %w", method, err)
 	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if err != nil {
-		return fmt.Errorf("couldn't read response: %w", err)
+		return "", fmt.Errorf("couldn't read response: %w", err)
 	}
 	resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusOK: // do nothing
 	case http.StatusUnauthorized:
-		return fmt.Errorf("request failed: %s (%w)", b, ErrNeedRefresh)
+		return "", fmt.Errorf("request failed: %s (%w)", b, ErrNeedRefresh)
 	default:
-		return fmt.Errorf("request failed: %s (%s)", b, resp.Status)
+		return "", fmt.Errorf("request failed: %s (%s)", b, resp.Status)
 	}
 	r := struct {
-		Data *Resp `json:"data"`
-	}{u}
+		Data       *Resp `json:"data"`
+		Pagination struct {
+			Cursor string `json:"cursor"`
+		} `json:"pagination"`
+	}{Data: u}
 	if err := json.Unmarshal(b, &r); err != nil {
-		return fmt.Errorf("couldn't decode JSON response: %w", err)
+		return "", fmt.Errorf("couldn't decode JSON response: %w", err)
 	}
-	return nil
+	return r.Pagination.Cursor, nil
 }
 
 // apiurl creates an api.twitch.tv URL for the given endpoint and with the

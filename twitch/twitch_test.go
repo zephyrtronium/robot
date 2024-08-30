@@ -61,12 +61,15 @@ func TestReqJSON(t *testing.T) {
 		}
 		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
+		pag, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
 		if err != nil {
 			t.Errorf("failed to request: %v", err)
 		}
 		if u != 1 {
 			t.Errorf("didn't get the result: want 1, got %d", u)
+		}
+		if pag != "" {
+			t.Errorf("unexpected pagination cursor %q", pag)
 		}
 		if got := spy.got.URL.String(); got != "https://bocchi.rocks/bocchi" {
 			t.Errorf(`request went to the wrong place: want "https://bocchi.rocks/bocchi", got %q`, got)
@@ -93,9 +96,30 @@ func TestReqJSON(t *testing.T) {
 		}
 		tok := &oauth2.Token{AccessToken: "ryo"}
 		var u int
-		err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
+		_, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
 		if !errors.Is(err, ErrNeedRefresh) {
 			t.Errorf("unauthorized request didn't return ErrNeedRefresh error")
+		}
+	})
+	t.Run("paginated", func(t *testing.T) {
+		spy := &reqspy{
+			respond: &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(strings.NewReader(`{"data":1,"pagination":{"cursor":"bocchi"}}`)),
+			},
+		}
+		cl := Client{
+			HTTP: &http.Client{Transport: spy},
+			ID:   "bocchi",
+		}
+		tok := &oauth2.Token{AccessToken: "ryo"}
+		var u int
+		pag, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
+		if err != nil {
+			t.Errorf("failed to request: %v", err)
+		}
+		if pag != "bocchi" {
+			t.Errorf("wrong pagination cursor: want %q, got %q", "bocchi", pag)
 		}
 	})
 }
