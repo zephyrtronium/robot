@@ -9,13 +9,16 @@ import (
 	"os/signal"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/urfave/cli/v3"
 	"golang.org/x/sync/errgroup"
+	"zombiezen.com/go/sqlite/sqlitex"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/kvbrain"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
+	"github.com/zephyrtronium/robot/userhash"
 )
 
 var app = cli.Command{
@@ -53,6 +56,18 @@ var app = cli.Command{
 				},
 			},
 			Action: cliSpeak,
+		},
+		{
+			Name:  "ancient",
+			Usage: "Import messages from a v0.1.0 Robot database",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:     "db",
+					Usage:    "Ancient version database",
+					Required: true,
+				},
+			},
+			Action: cliAncient,
 		},
 	},
 	Action: cliRun,
@@ -161,6 +176,70 @@ func cliSpeak(ctx context.Context, cmd *cli.Command) error {
 		})
 	}
 	return group.Wait()
+}
+
+func cliAncient(ctx context.Context, cmd *cli.Command) error {
+	slog.SetDefault(loggerFromFlags(cmd))
+	r, err := os.Open(cmd.String("config"))
+	if err != nil {
+		return fmt.Errorf("couldn't open config file: %w", err)
+	}
+	cfg, _, err := Load(ctx, r)
+	if err != nil {
+		return fmt.Errorf("couldn't load config: %w", err)
+	}
+	r.Close()
+	kv, sql, _, _, err := loadDBs(ctx, cfg.DB)
+	if err != nil {
+		return err
+	}
+	var br brain.Brain
+	if sql == nil {
+		if kv == nil {
+			panic("robot: no brain")
+		}
+		br = kvbrain.New(kv)
+		defer kv.Close()
+	} else {
+		conn, _ := sql.Take(ctx)
+		sqlitex.ExecuteScript(conn, `PRAGMA synchronous=OFF; PRAGMA journal_mode=OFF`, nil)
+		sql.Put(conn)
+		br, err = sqlbrain.Open(ctx, sql)
+		defer sql.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("couldn't open brain: %w", err)
+	}
+	file := cmd.String("db")
+	conn, order, err := ancientOpen(file)
+	if err != nil {
+		return fmt.Errorf("couldn't open ancient db: %w", err)
+	}
+	slog.InfoContext(ctx, "importing", slog.String("file", file), slog.Int("order", order))
+	var n int64
+	var toks []string
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+	for msg, err := range ancientMessages(conn, order) {
+		n++
+		if err != nil {
+			slog.ErrorContext(ctx, "error getting message", slog.Any("err", err))
+			return err
+		}
+		id := fmt.Sprintf("import:%s:%d", file, n)
+		toks = brain.Tokens(toks[:0], msg.text)
+		slog.DebugContext(ctx, "learn", slog.String("tag", msg.tag), slog.String("text", msg.text))
+		if err := brain.Learn(ctx, br, msg.tag, id, userhash.Hash{}, time.Now(), toks); err != nil {
+			slog.ErrorContext(ctx, "error learning message", slog.Any("err", err))
+			return err
+		}
+		select {
+		case <-t.C:
+			slog.InfoContext(ctx, "imported", slog.Int64("n", n))
+		default: // do nothing
+		}
+	}
+	return nil
 }
 
 var (
