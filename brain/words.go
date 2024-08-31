@@ -33,6 +33,9 @@ func Tokens(dst []string, msg string) []string {
 			// write for a case that will be uncommon.
 			// In terms of control flow, we can fall through to the next case,
 			// after we skip past the @ itself.
+			if l == len(msg) {
+				break
+			}
 			l++
 			fallthrough
 		case unicode.Is(ln, c):

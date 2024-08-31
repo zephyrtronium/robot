@@ -53,6 +53,11 @@ func TestWords(t *testing.T) {
 			msg:  "@bocchi ryo",
 			want: s("@bocchi ", "ryo "),
 		},
+		{
+			name: "at-end",
+			msg:  "bocchi@",
+			want: s("bocchi", "@ "),
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
