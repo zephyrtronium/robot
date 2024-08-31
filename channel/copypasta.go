@@ -117,6 +117,10 @@ func (m *MemeDetector) Check(t time.Time, from, msg string) error {
 	now := t.UnixMilli()
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.need <= 0 {
+		// This channel is memeless.
+		return ErrNotCopypasta
+	}
 	// Remove old messages and discard old memes.
 	m.chopLocked(now)
 	// Insert the new message.
