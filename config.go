@@ -266,7 +266,18 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 	// TODO(zeph): we can convert this to a SetChannels, where it just adds the
 	// channels for any given service
 	for nm, ch := range channels {
-		blk, err := regexp.Compile("(" + global.Block + ")|(" + ch.Block + ")")
+		var re string
+		switch {
+		case global.Block != "" && ch.Block != "":
+			re = "(" + global.Block + ")|(" + ch.Block + ")"
+		case global.Block != "":
+			re = global.Block
+		case ch.Block != "":
+			re = ch.Block
+		default:
+			re = "$^"
+		}
+		blk, err := regexp.Compile(re)
 		if err != nil {
 			return fmt.Errorf("bad global or channel block expression for twitch.%s: %w", nm, err)
 		}
