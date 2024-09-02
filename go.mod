@@ -4,6 +4,7 @@ go 1.23.0
 
 require (
 	github.com/BurntSushi/toml v1.4.0
+	github.com/coder/websocket v1.8.12
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/go-json-experiment/json v0.0.0-20240815175050-ebd3a8989ca1
 	github.com/google/go-cmp v0.6.0
