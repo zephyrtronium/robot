@@ -91,7 +91,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 	me := &partner{who: call.Message.Sender, until: call.Message.Time().Add(time.Hour)}
 	for {
 		l, ok := call.Channel.Extra.LoadOrStore(partnerKey{}, me)
-		if ok {
+		if !ok {
 			// No competition. We're a shoo-in.
 			call.Channel.Message(ctx, call.Message.ID, "sure why not "+e)
 			return
