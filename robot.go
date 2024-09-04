@@ -93,18 +93,6 @@ func (robo *Robot) Run(ctx context.Context) error {
 }
 
 func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
-	tok, err := robo.tmi.tokens.Token(ctx)
-	if err != nil {
-		return err
-	}
-	cfg := tmi.ConnectConfig{
-		Dial:         new(tls.Dialer).DialContext,
-		RetryWait:    tmi.RetryList(true, 0, time.Second, time.Minute, 5*time.Minute),
-		Nick:         strings.ToLower(robo.tmi.name),
-		Pass:         "oauth:" + tok.AccessToken,
-		Capabilities: []string{"twitch.tv/commands", "twitch.tv/tags"},
-		Timeout:      300 * time.Second,
-	}
 	group.Go(func() error {
 		robo.tmiLoop(ctx, group, robo.tmi.send, robo.tmi.recv)
 		return nil
@@ -115,8 +103,34 @@ func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
 	group.Go(func() error {
 		return robo.streamsLoop(ctx, robo.channels)
 	})
-	tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
-	return ctx.Err()
+	tok, err := robo.tmi.tokens.Token(ctx)
+	if err != nil {
+		return err
+	}
+	for {
+		cfg := tmi.ConnectConfig{
+			Dial:         new(tls.Dialer).DialContext,
+			RetryWait:    tmi.RetryList(true, 0, time.Second, time.Minute, 5*time.Minute),
+			Nick:         strings.ToLower(robo.tmi.name),
+			Pass:         "oauth:" + tok.AccessToken,
+			Capabilities: []string{"twitch.tv/commands", "twitch.tv/tags"},
+			Timeout:      300 * time.Second,
+		}
+		err = tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
+		switch {
+		case err == nil:
+			// We received (or sent) a RECONNECT and exited normally. Do nothing.
+			// It's likely but not guaranteed we'll need a refresh,
+			// but we can worry about that when we're told to.
+		case errors.Is(err, tmi.ErrAuthenticationFailed):
+			tok, err = robo.tmi.tokens.Refresh(ctx, tok)
+			if err != nil {
+				return err
+			}
+		default:
+			return err
+		}
+	}
 }
 
 func (robo *Robot) twitchValidateLoop(ctx context.Context) error {
