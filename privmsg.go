@@ -47,8 +47,8 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		// That's helpful for commands, which we've already processed, but
 		// otherwise we probably don't want to see it. Remove it.
 		if _, ok := msg.Tag("reply-parent-msg-id"); ok && strings.HasPrefix(m.Text, "@") {
-			at, t, _ := strings.Cut(m.Text, " ")
-			slog.DebugContext(ctx, "stripped reply mention", slog.String("mention", at), slog.String("text", t))
+			_, t, _ := strings.Cut(m.Text, " ")
+			slog.DebugContext(ctx, "stripped reply mention", slog.String("text", t))
 			m.Text = t
 		}
 		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
@@ -77,7 +77,11 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			// but that may include trivial checks like "require multiple words."
 			// for now we just assume that chats are moderated, but eventually
 			// we should have some variety of configuration for this.
-			slog.InfoContext(ctx, "copypasta", slog.String("message", s), slog.String("effect", f))
+			slog.InfoContext(ctx, "copypasta",
+				slog.String("in", ch.Name),
+				slog.String("message", s),
+				slog.String("effect", f),
+			)
 			msg := message.Format("", ch.Name, "%s", s)
 			robo.sendTMI(ctx, send, msg)
 			return
@@ -102,7 +106,12 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		x := rand.Uint64()
 		e := ch.Emotes.Pick(uint32(x))
 		f := ch.Effects.Pick(uint32(x >> 32))
-		slog.InfoContext(ctx, "speak", slog.String("text", s), slog.String("emote", e), slog.String("effect", f))
+		slog.InfoContext(ctx, "speak",
+			slog.String("in", ch.Name),
+			slog.String("text", s),
+			slog.String("emote", e),
+			slog.String("effect", f),
+		)
 		se := strings.TrimSpace(s + " " + e)
 		sef := command.Effect(f, se)
 		if err := robo.spoken.Record(ctx, ch.Send, sef, trace, time.Now(), cost, s, e, f); err != nil {
@@ -157,7 +166,12 @@ func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.
 	if c == nil {
 		return
 	}
-	slog.InfoContext(ctx, "command", slog.String("level", level), slog.String("name", c.name), slog.Any("args", args))
+	slog.InfoContext(ctx, "command",
+		slog.String("level", level),
+		slog.String("name", c.name),
+		slog.Any("args", args),
+		slog.String("in", ch.Name),
+	)
 	r := command.Robot{
 		Log:      slog.Default(),
 		Channels: robo.channels,
