@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math"
 	"math/rand/v2"
+	"strings"
 	"time"
 
 	"github.com/zephyrtronium/robot/channel"
@@ -58,6 +59,8 @@ func score(h *channel.History, user string) float64 {
 	return x
 }
 
+type broadcasterAffectionKey struct{}
+
 // Affection describes the caller's affection MMR.
 // No arguments.
 func Affection(ctx context.Context, robo *Robot, call *Invocation) {
@@ -65,6 +68,16 @@ func Affection(ctx context.Context, robo *Robot, call *Invocation) {
 	// Anything we do will require an emote.
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	if x == 0 {
+		// Check for the broadcaster. They get special treatment.
+		if strings.EqualFold(call.Message.Name, strings.TrimPrefix("#", call.Channel.Name)) {
+			if _, ok := call.Channel.Extra.LoadOrStore(broadcasterAffectionKey{}, struct{}{}); ok {
+				call.Channel.Message(ctx, call.Message.ID, "Don't make me repeat myself, it's embarrassing! "+e)
+				return
+			}
+			const funnyMessage = `It's a bit awkward to think of you like that, streamer... But, well, it's so fun to be here, and I have you to thank for that! So I'd say a whole bunch!`
+			call.Channel.Message(ctx, call.Message.ID, funnyMessage+" "+e)
+			return
+		}
 		// possible!
 		call.Channel.Message(ctx, call.Message.ID, "literally zero "+e)
 		return
@@ -84,7 +97,8 @@ type partner struct {
 func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 	x := score(call.Channel.History, call.Message.Sender)
 	e := call.Channel.Emotes.Pick(rand.Uint32())
-	if x < 10 {
+	broadcaster := strings.EqualFold(call.Message.Name, strings.TrimPrefix("#", call.Channel.Name)) && x == 0
+	if x < 10 && !broadcaster {
 		call.Channel.Message(ctx, call.Message.ID, "no "+e)
 		return
 	}
@@ -116,7 +130,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 			return
 		}
 		y := score(call.Channel.History, cur.who)
-		if x < y {
+		if x < y && !broadcaster {
 			call.Channel.Message(ctx, call.Message.ID, "I'm touched, but I must decline. I'm in love with someone else. "+e)
 			return
 		}
