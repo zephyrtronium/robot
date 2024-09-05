@@ -387,7 +387,7 @@ var twitchAny = []twitchCommand{
 		name:  "marry",
 	},
 	{
-		parse: regexp.MustCompile(`^how\s+much\s+do\s+you\s+(?:like|love|luv)\s+me`),
+		parse: regexp.MustCompile(`^(?i)how\s+much\s+do\s+you\s+(?:like|love|luv)\s+me`),
 		fn:    command.Affection,
 		name:  "affection",
 	},
