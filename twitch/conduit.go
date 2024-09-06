@@ -184,3 +184,42 @@ func UpdateShards(ctx context.Context, client Client, tok *oauth2.Token, conduit
 	}
 	return resp, err
 }
+
+// SubscribeConduit calls the Create EventSub Subscription API for a conduit.
+// Requires an app access token.
+func SubscribeConduit(ctx context.Context, client Client, tok *oauth2.Token, conduit, sub, version string, condition map[string]string) (string, error) {
+	r := struct {
+		Type      string            `json:"type"`
+		Version   string            `json:"version"`
+		Condition map[string]string `json:"condition"`
+		Transport struct {
+			Method    string `json:"method"`
+			ConduitID string `json:"conduit_id"`
+		} `json:"transport"`
+	}{
+		Type:      sub,
+		Version:   version,
+		Condition: condition,
+	}
+	r.Transport.Method = "conduit"
+	r.Transport.ConduitID = conduit
+	body, err := json.Marshal(&r)
+	if err != nil {
+		// should never happen
+		panic(err)
+	}
+	url := apiurl("/helix/eventsub/subscriptions", nil)
+	var resp []struct {
+		ID string `json:"id"`
+		// Many other fields that we don't really care about yet.
+	}
+	// TODO(zeph): the first result here includes cost information
+	_, err = reqjsonbody(ctx, client, tok, "POST", url, "application/json", bytes.NewReader(body), &resp)
+	if err != nil {
+		return "", fmt.Errorf("couldn't create subscription for conduit %s: %w", conduit, err)
+	}
+	if len(resp) != 1 {
+		return "", fmt.Errorf("somehow got %d subscriptons", len(resp))
+	}
+	return resp[0].ID, nil
+}

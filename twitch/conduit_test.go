@@ -202,3 +202,21 @@ func TestUpdateShards(t *testing.T) {
 		t.Errorf("wrong results (+got/-want):\n%s", diff)
 	}
 }
+
+func TestSubscribeConduit(t *testing.T) {
+	spy := apiresp(200, "create-eventsub-subscription-conduit.json")
+	cl := Client{
+		HTTP: &http.Client{Transport: spy},
+	}
+	tok := &oauth2.Token{AccessToken: "bocchi"}
+	condition := map[string]string{"user_id": "1234"}
+	conduit := "bfcfc993-26b1-b876-44d9-afe75a379dac"
+	want := "26b1c993-bfcf-44d9-b876-379dacafe75a"
+	got, err := SubscribeConduit(context.Background(), cl, tok, conduit, "user.update", "1", condition)
+	if err != nil {
+		t.Error(err)
+	}
+	if want != got {
+		t.Errorf("wrong subscription id: want %q, got %q", want, got)
+	}
+}
