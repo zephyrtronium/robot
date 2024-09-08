@@ -70,7 +70,7 @@ var affections = pick.New([]pick.Case[string]{
 	{E: "Right now, I'd say %[1]f. But who knows what the future may hold? %[2]s", W: 1},
 	{E: "%[1]f, and yes, that is a threat. %[2]s", W: 1},
 	{E: "%.0[1]f %.1[1]f %.2[1]f %.3[1]f %.4[1]f %.5[1]f %.6[1]f %.7[1]f %.8[1]f %.9[1]f", W: 1},
-	{E: "%[1]f, given score = c²/(f+1) + (c+1)f + √l, f=%[4]d from your messages sent, l=%[5]d from length of your longest message, and c=%[3]d from memes, across messages in the last fifteen minutes %[2]s", W: 1},
+	{E: "%[1]f, given score = c²/(f+1) + (c+1)f + √l, f=%[4]d from your messages sent, l=%[5]d from length of your longest message, and c=%[3]d from memes, across %[6]d messages in the last fifteen minutes %[2]s", W: 1},
 })
 
 // Affection describes the caller's affection MMR.
