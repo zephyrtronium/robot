@@ -20,6 +20,7 @@ import (
 	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/syncmap"
 	"github.com/zephyrtronium/robot/twitch"
+	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Robot is the overall configuration for the bot.
@@ -34,8 +35,8 @@ type Robot struct {
 	channels *syncmap.Map[string, *channel.Channel]
 	// works is the worker queue.
 	works chan chan func(context.Context)
-	// secrets are the bot's keys.
-	secrets *keys
+	// hashes is a function that obtains userhashers.
+	hashes func() userhash.Hasher
 	// owner is the username of the owner.
 	owner string
 	// ownerContact describes contact information for the owner.
@@ -70,10 +71,11 @@ type client[Send, Receive any] struct {
 
 // New creates a new robot instance. Use SetOwner, SetSecrets, &c. as needed
 // to initialize the robot.
-func New(poolSize int) *Robot {
+func New(usersKey []byte, poolSize int) *Robot {
 	return &Robot{
 		channels: syncmap.New[string, *channel.Channel](),
 		works:    make(chan chan func(context.Context), poolSize),
+		hashes:   func() userhash.Hasher { return userhash.New(usersKey) },
 	}
 }
 
@@ -119,9 +121,9 @@ func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
 		err = tmi.Connect(ctx, cfg, &tmiSlog{slog.Default()}, robo.tmi.send, robo.tmi.recv)
 		switch {
 		case err == nil:
-			// We received (or sent) a RECONNECT and exited normally. Do nothing.
-			// It's likely but not guaranteed we'll need a refresh,
-			// but we can worry about that when we're told to.
+			// We received a RECONNECT and exited normally. Do nothing.
+			// It's likely (though not guaranteed) we'll need a refresh,
+			// but we can worry about that when we're told to do it.
 		case errors.Is(err, tmi.ErrAuthenticationFailed):
 			tok, err = robo.tmi.tokens.Refresh(ctx, tok)
 			if err != nil {

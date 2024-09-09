@@ -125,7 +125,7 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 		// We use the user's current and previous userhash, since userhashes
 		// are time-based.
 		work = func(ctx context.Context) {
-			hr := userhash.New(robo.secrets.userhash)
+			hr := robo.hashes()
 			h := hr.Hash(new(userhash.Hash), t, msg.To(), msg.Time())
 			if err := robo.brain.ForgetUser(ctx, h); err != nil {
 				slog.ErrorContext(ctx, "failed to forget recent messages from user", slog.Any("err", err), slog.String("channel", msg.To()))

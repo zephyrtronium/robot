@@ -10,7 +10,6 @@ import (
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/syncmap"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Robot is the bot state as is visible to commands.
@@ -32,8 +31,6 @@ type Invocation struct {
 	Message *message.Received
 	// Args is the parsed arguments to the command.
 	Args map[string]string
-	// Hasher is a user hasher for the command's use.
-	Hasher userhash.Hasher
 }
 
 // Func is a command function.

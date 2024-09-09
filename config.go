@@ -53,19 +53,19 @@ func (robo *Robot) SetOwner(ownerName, ownerContact string) {
 	robo.ownerContact = ownerContact
 }
 
-// SetSecrets loads the robot's fixed secret and initializes derived secrets.
-func (robo *Robot) SetSecrets(file string) error {
+// loadSecrets loads Robot's fixed secret and initializes derived secrets.
+func loadSecrets(file string) (*keys, error) {
 	k, err := os.ReadFile(file)
 	if err != nil {
-		return fmt.Errorf("couldn't read secret key: %w", err)
+		return nil, fmt.Errorf("couldn't read secret key: %w", err)
 	}
 	uk := domainkey(make([]byte, 64), k, []byte("userhash"))
 	tk := domainkey(make([]byte, auth.KeySize), k, []byte("oauth2.twitch"))
-	robo.secrets = &keys{
+	r := &keys{
 		userhash: uk,
-		twitch:   (*[32]byte)(tk),
+		twitch:   (*[auth.KeySize]byte)(tk),
 	}
-	return nil
+	return r, nil
 }
 
 // SetSources opens the brain and privacy list wrappers around the respective
@@ -96,8 +96,7 @@ func (robo *Robot) SetSources(ctx context.Context, kv *badger.DB, sql, priv, spo
 }
 
 // InitTwitch initializes the Twitch and TMI clients and channel configuration.
-// It must be called after SetSecrets.
-func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg) error {
+func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg, secrets *keys) error {
 	cfg.endpoint = oauth2.Endpoint{
 		DeviceAuthURL: "https://id.twitch.tv/oauth2/device",
 		TokenURL:      "https://id.twitch.tv/oauth2/token",
@@ -113,7 +112,7 @@ func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg) error {
 		func(c oauth2.Config, s auth.Storage) auth.TokenSource {
 			return auth.DeviceCodeFlow(c, s, client, deviceCodePrompt)
 		},
-		*robo.secrets.twitch,
+		*secrets.twitch,
 		"chat:read", "chat:edit",
 	)
 	if err != nil {
@@ -129,19 +128,21 @@ func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg) error {
 		val, err := twitch.Validate(ctx, robo.twitch.HTTP, tok)
 		slog.InfoContext(ctx, "Twitch validation", slog.Any("response", val), slog.Any("err", err))
 		switch {
-		case err == nil: // do nothing
+		case err == nil:
+			robo.tmi.name = val.Login
+			robo.tmi.userID = val.UserID
+			return nil
+
 		case errors.Is(err, twitch.ErrNeedRefresh):
 			tok, err = robo.tmi.tokens.Refresh(ctx, tok)
 			if err != nil {
 				return fmt.Errorf("couldn't refresh Twitch token: %w", err)
 			}
 			continue
+
 		default:
 			return fmt.Errorf("couldn't validate Twitch token: %w", err)
 		}
-		robo.tmi.name = val.Login
-		robo.tmi.userID = val.UserID
-		return nil
 	}
 	return fmt.Errorf("gave up on validation attempts")
 }

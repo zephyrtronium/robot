@@ -23,14 +23,14 @@ import (
 
 // tmiMessage processes a PRIVMSG from TMI.
 func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, msg *tmi.Message) {
-	ch, _ := robo.channels.Load(msg.To())
-	if ch == nil {
-		// TMI gives a WHISPER for a direct message, so this is a message to a
-		// channel that isn't configured. Ignore it.
-		return
-	}
-	// Run the rest in a worker so that we don't block the message loop.
+	// Run in a worker so that we don't block the message loop.
 	work := func(ctx context.Context) {
+		ch, _ := robo.channels.Load(msg.To())
+		if ch == nil {
+			// TMI gives a WHISPER for a direct message, so this is a message to a
+			// channel that isn't configured. Ignore it.
+			return
+		}
 		m := message.FromTMI(msg)
 		from := m.Sender
 		if ch.Ignore[from] {
@@ -51,7 +51,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			slog.DebugContext(ctx, "stripped reply mention", slog.String("text", t))
 			m.Text = t
 		}
-		robo.learn(ctx, ch, userhash.New(robo.secrets.userhash), m)
+		robo.learn(ctx, ch, robo.hashes(), m)
 		switch err := ch.Memery.Check(m.Time(), from, m.Text); err {
 		case channel.ErrNotCopypasta: // do nothing
 		case nil:
@@ -183,7 +183,6 @@ func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.
 		Channel: ch,
 		Message: m,
 		Args:    args,
-		Hasher:  userhash.New(robo.secrets.userhash),
 	}
 	c.fn(ctx, &r, &inv)
 }

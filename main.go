@@ -101,11 +101,13 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 		return fmt.Errorf("couldn't load config: %w", err)
 	}
 	r.Close()
-	robo := New(runtime.GOMAXPROCS(0))
-	robo.SetOwner(cfg.Owner.Name, cfg.Owner.Contact)
-	if err := robo.SetSecrets(cfg.SecretFile); err != nil {
+
+	secrets, err := loadSecrets(cfg.SecretFile)
+	if err != nil {
 		return err
 	}
+	robo := New(secrets.userhash, runtime.GOMAXPROCS(0))
+	robo.SetOwner(cfg.Owner.Name, cfg.Owner.Contact)
 	kv, sql, priv, spoke, err := loadDBs(ctx, cfg.DB)
 	if err != nil {
 		return err
@@ -113,8 +115,9 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 	if err := robo.SetSources(ctx, kv, sql, priv, spoke); err != nil {
 		return err
 	}
+
 	if md.IsDefined("tmi") {
-		if err := robo.InitTwitch(ctx, cfg.TMI); err != nil {
+		if err := robo.InitTwitch(ctx, cfg.TMI, secrets); err != nil {
 			return err
 		}
 		if err := robo.InitTwitchUsers(ctx, &cfg.TMI.Owner, cfg.Global.Privileges.Twitch, cfg.Twitch); err != nil {
@@ -124,6 +127,7 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 	}
+
 	return robo.Run(ctx)
 }
 
