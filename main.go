@@ -117,7 +117,11 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 	}
 
 	if md.IsDefined("tmi") {
-		if err := robo.InitTwitch(ctx, cfg.TMI, secrets); err != nil {
+		secret, err := loadClientSecret(cfg.TMI.SecretFile)
+		if err != nil {
+			return err
+		}
+		if err := robo.InitTwitch(ctx, cfg.TMI, secrets, secret); err != nil {
 			return err
 		}
 		if err := robo.InitTwitchUsers(ctx, &cfg.TMI.Owner, cfg.Global.Privileges.Twitch, cfg.Twitch); err != nil {

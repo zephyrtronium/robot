@@ -96,7 +96,8 @@ func (robo *Robot) SetSources(ctx context.Context, kv *badger.DB, sql, priv, spo
 }
 
 // InitTwitch initializes the Twitch and TMI clients and channel configuration.
-func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg, secrets *keys) error {
+func (robo *Robot) InitTwitch(ctx context.Context, cfg ClientCfg, secrets *keys, clientSecret string) error {
+	cfg.secret = clientSecret
 	cfg.endpoint = oauth2.Endpoint{
 		DeviceAuthURL: "https://id.twitch.tv/oauth2/device",
 		TokenURL:      "https://id.twitch.tv/oauth2/token",
@@ -398,6 +399,15 @@ func fseconds(s float64) time.Duration {
 	return time.Duration(s * float64(time.Second))
 }
 
+func loadClientSecret(file string) (string, error) {
+	secret, err := os.ReadFile(file)
+	if err != nil {
+		return "", fmt.Errorf("couldn't read client secret: %w", err)
+	}
+	secret = bytes.TrimSuffix(bytes.TrimSuffix(secret, []byte{'\n'}), []byte{'\r'})
+	return string(secret), nil
+}
+
 // loadClient loads client configuration from unmarshaled TOML.
 func loadClient[Send, Receive any](
 	t ClientCfg,
@@ -407,18 +417,13 @@ func loadClient[Send, Receive any](
 	key [auth.KeySize]byte,
 	scopes ...string,
 ) (*client[Send, Receive], error) {
-	secret, err := os.ReadFile(t.SecretFile)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't read client secret: %w", err)
-	}
-	secret = bytes.TrimSuffix(bytes.TrimSuffix(secret, []byte{'\n'}), []byte{'\r'})
 	stor, err := auth.NewFileAt(t.TokenFile, key)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't use refresh token storage: %w", err)
 	}
 	cfg := oauth2.Config{
 		ClientID:     t.CID,
-		ClientSecret: string(secret),
+		ClientSecret: t.secret,
 		Endpoint:     t.endpoint,
 		RedirectURL:  t.RedirectURL,
 		Scopes:       scopes,
@@ -539,6 +544,7 @@ type ClientCfg struct {
 	// Rate is the global rate limit for this client.
 	Rate Rate `toml:"rate"`
 
+	secret   string          `toml:"-"`
 	endpoint oauth2.Endpoint `toml:"-"`
 }
 

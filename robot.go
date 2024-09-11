@@ -69,8 +69,7 @@ type client[Send, Receive any] struct {
 	tokens auth.TokenSource
 }
 
-// New creates a new robot instance. Use SetOwner, SetSecrets, &c. as needed
-// to initialize the robot.
+// New creates a new robot instance.
 func New(usersKey []byte, poolSize int) *Robot {
 	return &Robot{
 		channels: syncmap.New[string, *channel.Channel](),
