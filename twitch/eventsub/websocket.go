@@ -23,14 +23,6 @@ type Session struct {
 	timeout time.Duration
 }
 
-type session struct {
-	ID        string `json:"id"`
-	Status    string `json:"status"`
-	Keepalive int    `json:"keepalive_timeout_seconds"`
-	Reconnect string `json:"reconnect_url"`
-	Connected string `json:"connected_at"`
-}
-
 // Connect connects to the Twitch EventSub server.
 // If the HTTP client is nil, [http.DefaultClient] is used instead.
 // keepalive is the interval in seconds to request keepalive messages.

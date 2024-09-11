@@ -8,7 +8,7 @@ import (
 	"github.com/zephyrtronium/robot/twitch/eventsub"
 )
 
-//go:embed testdata
+//go:embed testdata/*.event.json
 var testdata embed.FS
 
 func Testdata(name string) *eventsub.Event {

@@ -10,7 +10,7 @@ import (
 
 func TestStream(t *testing.T) {
 	t.Run("online", func(t *testing.T) {
-		evt := Testdata("stream.online.json")
+		evt := Testdata("stream.online.event.json")
 		var got eventsub.Stream
 		if err := json.Unmarshal([]byte(evt.Event), &got); err != nil {
 			t.Errorf("couldn't unmarshal payload as stream: %v", err)
@@ -28,7 +28,7 @@ func TestStream(t *testing.T) {
 		}
 	})
 	t.Run("offline", func(t *testing.T) {
-		evt := Testdata("stream.offline.json")
+		evt := Testdata("stream.offline.event.json")
 		var got eventsub.Stream
 		if err := json.Unmarshal([]byte(evt.Event), &got); err != nil {
 			t.Errorf("couldn't unmarshal payload as stream: %v", err)

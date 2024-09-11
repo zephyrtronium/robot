@@ -70,3 +70,11 @@ type metadata struct {
 	// SubscriptionVersion is the version of the subscription type.
 	SubscriptionVersion string `json:"subscription_version"`
 }
+
+type session struct {
+	ID        string `json:"id"`
+	Status    string `json:"status"`
+	Keepalive int    `json:"keepalive_timeout_seconds"`
+	Reconnect string `json:"reconnect_url"`
+	Connected string `json:"connected_at"`
+}
