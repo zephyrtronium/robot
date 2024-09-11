@@ -53,7 +53,15 @@ func reqjsonbody[Resp any](ctx context.Context, client Client, tok *oauth2.Token
 	}
 	resp.Body.Close()
 	switch resp.StatusCode {
-	case http.StatusOK: // do nothing
+	case http.StatusOK, http.StatusAccepted: // do nothing
+	case http.StatusNoContent:
+		// We could verify that the response type is supposed to be empty,
+		// but reflecting would be a lot of work for a response that indicates
+		// no work, not to mention it would be fragile in consideration of
+		// e.g. unexported fields.
+		// Instead, just zero the response.
+		*u = *new(Resp)
+		return nil, nil
 	case http.StatusUnauthorized:
 		return nil, fmt.Errorf("request failed: %s (%w)", b, ErrNeedRefresh)
 	default:

@@ -69,7 +69,7 @@ func TestReqJSON(t *testing.T) {
 			t.Errorf("didn't get the result: want 1, got %d", u)
 		}
 		if len(rest) != 0 {
-			t.Errorf("unexpected pagination cursor %q", rest)
+			t.Errorf("unexpected extra data: %q", rest)
 		}
 		if got := spy.got.URL.String(); got != "https://bocchi.rocks/bocchi" {
 			t.Errorf(`request went to the wrong place: want "https://bocchi.rocks/bocchi", got %q`, got)
@@ -79,6 +79,58 @@ func TestReqJSON(t *testing.T) {
 		}
 		if got := spy.got.Header.Get("Client-Id"); got != "bocchi" {
 			t.Errorf(`wrong client-id: want "bocchi", got %q`, got)
+		}
+	})
+	t.Run("accepted", func(t *testing.T) {
+		spy := &reqspy{
+			respond: &http.Response{
+				StatusCode: 202,
+				Body:       io.NopCloser(strings.NewReader(`{"data":1}`)),
+			},
+		}
+		cl := Client{
+			HTTP: &http.Client{
+				Transport: spy,
+			},
+			ID: "bocchi",
+		}
+		tok := &oauth2.Token{AccessToken: "ryo"}
+		var u int
+		rest, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
+		if err != nil {
+			t.Errorf("failed to request: %v", err)
+		}
+		if u != 1 {
+			t.Errorf("didn't get the result: want 1, got %d", u)
+		}
+		if len(rest) != 0 {
+			t.Errorf("unexpected extra data: %q", rest)
+		}
+	})
+	t.Run("no-content", func(t *testing.T) {
+		spy := &reqspy{
+			respond: &http.Response{
+				StatusCode: 204,
+				Body:       io.NopCloser(strings.NewReader(``)),
+			},
+		}
+		cl := Client{
+			HTTP: &http.Client{
+				Transport: spy,
+			},
+			ID: "bocchi",
+		}
+		tok := &oauth2.Token{AccessToken: "ryo"}
+		u := 1
+		rest, err := reqjson(context.Background(), cl, tok, "GET", "https://bocchi.rocks/bocchi", &u)
+		if err != nil {
+			t.Errorf("failed to request: %v", err)
+		}
+		if u != 0 {
+			t.Errorf("result not cleared: want 0, got %d", u)
+		}
+		if len(rest) != 0 {
+			t.Errorf("unexpected extra data: %q", rest)
 		}
 	})
 	t.Run("expired", func(t *testing.T) {
