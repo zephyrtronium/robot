@@ -58,3 +58,21 @@ func TestSubscriptions(t *testing.T) {
 		t.Errorf("wrong result (+got/-want):\n%s", diff)
 	}
 }
+
+func TestDeleteSubscription(t *testing.T) {
+	spy := &reqspy{
+		respond: &http.Response{StatusCode: 204, Body: http.NoBody},
+	}
+	cl := Client{
+		HTTP: &http.Client{Transport: spy},
+	}
+	tok := &oauth2.Token{AccessToken: "bocchi"}
+	id := "26b1c993-bfcf-44d9-b876-379dacafe75a"
+	err := DeleteSubscription(context.Background(), cl, tok, id)
+	if err != nil {
+		t.Error(err)
+	}
+	if spy.got.Method != "DELETE" {
+		t.Errorf("request was %s, not DELETE", spy.got.Method)
+	}
+}

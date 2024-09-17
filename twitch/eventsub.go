@@ -73,3 +73,18 @@ func Subscriptions(ctx context.Context, cl Client, tok *oauth2.Token, typ string
 		}
 	}
 }
+
+// DeleteSubscription calls the Delete EventSub Subscription API to delete a subscription.
+// Requires an app access token for webhook or conduit subscriptions
+// or a user access token for WebSocket subscriptions.
+func DeleteSubscription(ctx context.Context, cl Client, tok *oauth2.Token, id string) error {
+	vals := url.Values{
+		"id": {id},
+	}
+	url := apiurl("/helix/eventsub/subscriptions", vals)
+	_, err := reqjson(ctx, cl, tok, "DELETE", url, new(struct{}))
+	if err != nil {
+		return fmt.Errorf("couldn't delete EventSub subscription: %w", err)
+	}
+	return nil
+}
