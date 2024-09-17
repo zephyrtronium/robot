@@ -84,11 +84,9 @@ type ShardTransport struct {
 }
 
 // Shards calls the Get Conduit Shards API to list a conduit's shards.
-// Results are yielded in groups as they are obtained from the API.
-// The slice passed to the yield function must not be retained.
 // Requires an app access token.
-func Shards(ctx context.Context, client Client, tok *oauth2.Token, conduit, status string) iter.Seq2[[]Shard, error] {
-	return func(yield func([]Shard, error) bool) {
+func Shards(ctx context.Context, client Client, tok *oauth2.Token, conduit, status string) iter.Seq2[Shard, error] {
+	return func(yield func(Shard, error) bool) {
 		vals := url.Values{"conduit_id": {"conduit"}}
 		if status != "" {
 			vals["status"] = []string{status}
@@ -98,13 +96,18 @@ func Shards(ctx context.Context, client Client, tok *oauth2.Token, conduit, stat
 			url := apiurl("/helix/eventsub/conduits/shards", vals)
 			rest, err := reqjson(ctx, client, tok, "GET", url, &resp)
 			if err != nil {
-				yield(nil, fmt.Errorf("couldn't get shards: %w", err))
+				yield(Shard{}, fmt.Errorf("couldn't get shards: %w", err))
 				return
 			}
 			pag, err := pagination(rest)
 			if err != nil {
-				yield(nil, fmt.Errorf("couldn't get pagination: %w", err))
+				yield(Shard{}, fmt.Errorf("couldn't get pagination: %w", err))
 				return
+			}
+			for _, s := range resp {
+				if !yield(s, nil) {
+					return
+				}
 			}
 			if pag == "" {
 				return

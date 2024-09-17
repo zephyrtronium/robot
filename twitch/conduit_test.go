@@ -136,13 +136,15 @@ func TestShards(t *testing.T) {
 			},
 		},
 	}
-	for got, err := range Shards(context.Background(), cl, tok, id, "") {
+	var got []Shard
+	for s, err := range Shards(context.Background(), cl, tok, id, "") {
 		if err != nil {
 			t.Error(err)
 		}
-		if diff := cmp.Diff(got, want); diff != "" {
-			t.Errorf("wrong result (+got/-want):\n%s", diff)
-		}
+		got = append(got, s)
+	}
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Errorf("wrong result (+got/-want):\n%s", diff)
 	}
 }
 
