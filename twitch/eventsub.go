@@ -36,6 +36,7 @@ type SubscriptionTransport struct {
 	Session      string `json:"session,omitempty"`
 	Connected    string `json:"connected_at,omitempty"`
 	Disconnected string `json:"disconnected_at,omitempty"`
+	Conduit      string `json:"conduit_id,omitempty"`
 }
 
 // Subscriptions yields all EventSub subscriptions associated with a client
