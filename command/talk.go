@@ -58,6 +58,8 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 		r.CancelAt(t)
 		return ""
 	}
+	// block the generated message from being later recognized as a meme.
+	call.Channel.Memery.Block(call.Message.Time(), s)
 	slog.InfoContext(ctx, "speak", "in", call.Channel.Name, "text", m, "emote", e)
 	return m + " " + e
 }
