@@ -465,6 +465,8 @@ type Config struct {
 	Owner Owner `toml:"owner"`
 	// DB is the table of database connection strings.
 	DB DBCfg `toml:"db"`
+	// HTTP is the table of HTTP API settings.
+	HTTP APICfg `toml:"http"`
 	// Global is the table of global settings.
 	Global Global `toml:"global"`
 	// TMI is the configuration for connecting to Twitch chat.
@@ -568,6 +570,12 @@ type DBCfg struct {
 	KVFlag   string `toml:"kvflag"`
 	Privacy  string `toml:"privacy"`
 	Spoken   string `toml:"spoken"`
+}
+
+// APICfg is the configuration of the HTTP API.
+type APICfg struct {
+	// Listen is the address and port on which to listen.
+	Listen string `toml:"listen"`
 }
 
 // Rate is a rate limit configuration.

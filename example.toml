@@ -35,6 +35,12 @@ privacy = 'file:$ROBOT_SQLITE'
 # message traces are stored.
 spoken = 'file:$ROBOT_SQLITE'
 
+# http is the settings for the bot's HTTP API.
+[http]
+# listen is the address and port on which to listen.
+# If omitted, the HTTP API is disabled.
+listen = ':4959'
+
 # global includes chat settings that apply to all channels.
 [global]
 # block is a regex that blocks messages from being learned in any channel.

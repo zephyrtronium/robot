@@ -29,6 +29,7 @@ func TestExampleConfig(t *testing.T) {
 	eqcase(t, "Owner.Contact", cfg.Owner.Contact, `/w zephyrtronium`)
 	eqcase(t, "DB.KVBrain", cfg.DB.KVBrain, "")
 	eqcase(t, "DB.KVFlag", cfg.DB.KVFlag, "")
+	eqcase(t, "HTTP.Listen", cfg.HTTP.Listen, ":4959")
 	eqcase(t, "Global.Block", cfg.Global.Block, `(?i)bad\s+stuff[^$x]`)
 	eqcase(t, "Global.Emotes[``]", cfg.Global.Emotes[``], 4)
 	eqcase(t, "Global.Emotes[`;)`]", cfg.Global.Emotes[`;)`], 1)
