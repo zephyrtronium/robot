@@ -254,7 +254,9 @@ func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userha
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
 	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
 		slog.ErrorContext(ctx, "failed to learn", slog.String("err", err.Error()))
+		return
 	}
+	learnedCount.Inc()
 }
 
 // sendTMI sends a message to TMI after waiting for the global rate limit.

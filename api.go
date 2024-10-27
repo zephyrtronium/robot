@@ -21,13 +21,19 @@ var (
 		Namespace: "robot",
 		Subsystem: "tmi",
 		Name:      "messages",
-		Help:      "Number of PRIVMSGs received from TMI during the program lifetime.",
+		Help:      "Number of PRIVMSGs received from TMI.",
 	})
 	tmiCommandsCount = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "robot",
 		Subsystem: "tmi",
 		Name:      "commands",
-		Help:      "Number of command invocations received in Twitch chat during the program lifetime.",
+		Help:      "Number of command invocations received in Twitch chat.",
+	})
+	learnedCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "robot",
+		Subsystem: "brain",
+		Name:      "learned",
+		Help:      "Number of messages learned.",
 	})
 )
 
@@ -43,6 +49,7 @@ func api(ctx context.Context, listen string, mux *http.ServeMux) error {
 	))
 	reg.MustRegister(tmiMsgsCount)
 	reg.MustRegister(tmiCommandsCount)
+	reg.MustRegister(learnedCount)
 	opts := promhttp.HandlerOpts{
 		EnableOpenMetrics: true,
 	}
