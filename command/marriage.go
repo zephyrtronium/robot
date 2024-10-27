@@ -13,7 +13,7 @@ import (
 	"gitlab.com/zephyrtronium/pick"
 )
 
-func score(h *channel.History, user string) (x float64, c, f, l, n int) {
+func score(log *slog.Logger, h *channel.History, user string) (x float64, c, f, l, n int) {
 	mine := make(map[string]map[string]struct{})
 	for m := range h.All() {
 		who, text := m.Sender, m.Text
@@ -23,7 +23,7 @@ func score(h *channel.History, user string) (x float64, c, f, l, n int) {
 		m, ok := mine[text]
 		if who != user {
 			if ok {
-				slog.Debug("scoring meme", slog.String("user", user), slog.String("memer", who), slog.String("msg", text))
+				log.Debug("scoring meme", slog.String("user", user), slog.String("memer", who), slog.String("msg", text))
 				m[who] = struct{}{}
 				c += len(m) // n.b. quadratic growth for this component
 			}
@@ -31,7 +31,7 @@ func score(h *channel.History, user string) (x float64, c, f, l, n int) {
 		}
 		// Count the messages you sent.
 		if !ok {
-			slog.Debug("scoring first", slog.String("user", user), slog.String("msg", text))
+			log.Debug("scoring first", slog.String("user", user), slog.String("msg", text))
 			m = map[string]struct{}{user: {}}
 			mine[text] = m
 			f++
@@ -48,7 +48,7 @@ func score(h *channel.History, user string) (x float64, c, f, l, n int) {
 	// used in messages you've sent or the uniqueness of your messages based on
 	// a metric like tf-idf. However, this can't be too expensive to compute.
 	x = float64(c*c)/float64(f+1) + float64(c*f+f) + math.Sqrt(float64(l))
-	slog.Info("user score",
+	log.Info("user score",
 		slog.String("user", user),
 		slog.Int("msgs", n),
 		slog.Int("freq", f),
@@ -76,7 +76,7 @@ var affections = pick.New([]pick.Case[string]{
 // Affection describes the caller's affection MMR.
 // No arguments.
 func Affection(ctx context.Context, robo *Robot, call *Invocation) {
-	x, c, f, l, n := score(call.Channel.History, call.Message.Sender)
+	x, c, f, l, n := score(robo.Log, call.Channel.History, call.Message.Sender)
 	// Anything we do will require an emote.
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	if x == 0 {
@@ -108,7 +108,7 @@ type partner struct {
 // Marry proposes to the robo.
 //   - partnership: Type of partnership requested, e.g. "wife", "waifu", "daddy". Optional.
 func Marry(ctx context.Context, robo *Robot, call *Invocation) {
-	x, _, _, _, _ := score(call.Channel.History, call.Message.Sender)
+	x, _, _, _, _ := score(robo.Log, call.Channel.History, call.Message.Sender)
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	broadcaster := strings.EqualFold(call.Message.Name, strings.TrimPrefix(call.Channel.Name, "#")) && x == 0
 	if x < 10 && !broadcaster {
@@ -142,7 +142,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 			call.Channel.Message(ctx, call.Message.ID, "My heart yet belongs to another... "+e)
 			return
 		}
-		y, _, _, _, _ := score(call.Channel.History, cur.who)
+		y, _, _, _, _ := score(robo.Log, call.Channel.History, cur.who)
 		if x < y && !broadcaster {
 			call.Channel.Message(ctx, call.Message.ID, "I'm touched, but I must decline. I'm in love with someone else. "+e)
 			return

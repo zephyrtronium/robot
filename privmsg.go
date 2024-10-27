@@ -72,7 +72,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			}
 			text := m.Text
 			f := ch.Effects.Pick(rand.Uint32())
-			s := command.Effect(f, text)
+			s := command.Effect(slog.Default(), f, text)
 			ch.Memery.Block(m.Time(), s)
 			// TODO(zeph): ideally we wouldn't send things we block from learning,
 			// but that may include trivial checks like "require multiple words."
@@ -114,7 +114,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			slog.String("effect", f),
 		)
 		se := strings.TrimSpace(s + " " + e)
-		sef := command.Effect(f, se)
+		sef := command.Effect(slog.Default(), f, se)
 		if err := robo.spoken.Record(ctx, ch.Send, sef, trace, time.Now(), cost, s, e, f); err != nil {
 			slog.ErrorContext(ctx, "record trace failed", slog.Any("err", err))
 			return

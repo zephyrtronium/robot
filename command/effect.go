@@ -9,7 +9,7 @@ import (
 // Effect applies an effect to a message.
 // The currently available effects include "OwO", "AAAAA", "o", and "".
 // Names are not case sensitive.
-func Effect(name, msg string) string {
+func Effect(log *slog.Logger, name, msg string) string {
 	var r string
 	switch {
 	case name == "":
@@ -21,10 +21,10 @@ func Effect(name, msg string) string {
 	case strings.EqualFold(name, "o"):
 		r = oize(msg)
 	default:
-		slog.Error("no such effect", slog.String("name", name), slog.String("msg", msg))
+		log.Error("no such effect", slog.String("name", name), slog.String("msg", msg))
 		return msg
 	}
-	slog.Info("applied effect", slog.String("name", name), slog.String("in", msg), slog.String("out", r))
+	log.Info("applied effect", slog.String("name", name), slog.String("in", msg), slog.String("out", r))
 	return r
 }
 

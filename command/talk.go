@@ -30,7 +30,7 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 		return ""
 	}
 	if m == "" {
-		slog.InfoContext(ctx, "spoke nothing", slog.String("tag", call.Channel.Send), slog.String("prompt", call.Args["prompt"]))
+		robo.Log.InfoContext(ctx, "spoke nothing", slog.String("tag", call.Channel.Send), slog.String("prompt", call.Args["prompt"]))
 		return ""
 	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
@@ -60,7 +60,7 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 	}
 	// block the generated message from being later recognized as a meme.
 	call.Channel.Memery.Block(call.Message.Time(), s)
-	slog.InfoContext(ctx, "speak", "in", call.Channel.Name, "text", m, "emote", e)
+	robo.Log.InfoContext(ctx, "speak", "in", call.Channel.Name, "text", m, "emote", e)
 	return m + " " + e
 }
 
