@@ -33,7 +33,7 @@ var (
 
 func api(ctx context.Context, listen string, mux *http.ServeMux) error {
 	reg := prometheus.NewRegistry()
-	reg.Register(collectors.NewGoCollector(
+	reg.MustRegister(collectors.NewGoCollector(
 		collectors.WithGoCollectorMemStatsMetricsDisabled(),
 		collectors.WithGoCollectorRuntimeMetrics(
 			collectors.GoRuntimeMetricsRule{
@@ -41,6 +41,8 @@ func api(ctx context.Context, listen string, mux *http.ServeMux) error {
 			},
 		),
 	))
+	reg.MustRegister(tmiMsgsCount)
+	reg.MustRegister(tmiCommandsCount)
 	opts := promhttp.HandlerOpts{
 		EnableOpenMetrics: true,
 	}
