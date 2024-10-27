@@ -33,13 +33,14 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			return
 		}
 		m := message.FromTMI(msg)
+		log := slog.With(slog.String("trace", m.ID), slog.String("in", ch.Name))
 		from := m.Sender
 		if ch.Ignore[from] {
-			slog.DebugContext(ctx, "message from ignored user", slog.String("in", ch.Name))
+			log.InfoContext(ctx, "message from ignored user")
 			return
 		}
 		if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
-			robo.command(ctx, ch, m, from, cmd)
+			robo.command(ctx, log, ch, m, from, cmd)
 			return
 		}
 		ch.History.Add(m.Time(), m.ID, m.Sender, m.Text)
@@ -49,10 +50,10 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		// otherwise we probably don't want to see it. Remove it.
 		if _, ok := msg.Tag("reply-parent-msg-id"); ok && strings.HasPrefix(m.Text, "@") {
 			_, t, _ := strings.Cut(m.Text, " ")
-			slog.DebugContext(ctx, "stripped reply mention", slog.String("text", t))
+			log.DebugContext(ctx, "stripped reply mention", slog.String("text", t))
 			m.Text = t
 		}
-		robo.learn(ctx, ch, robo.hashes(), m)
+		robo.learn(ctx, log, ch, robo.hashes(), m)
 		switch err := ch.Memery.Check(m.Time(), from, m.Text); err {
 		case channel.ErrNotCopypasta: // do nothing
 		case nil:
@@ -61,33 +62,30 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			r := ch.Rate.ReserveN(t, 1)
 			if d := r.DelayFrom(t); d > 0 {
 				// But we can't meme it. Restore it so we can next time.
-				slog.InfoContext(ctx, "won't copypasta; rate limited",
+				log.InfoContext(ctx, "rate limited",
 					slog.String("action", "copypasta"),
-					slog.String("in", ch.Name),
 					slog.String("delay", d.String()),
 				)
 				ch.Memery.Unblock(m.Text)
 				r.CancelAt(t)
 				return
 			}
-			text := m.Text
 			f := ch.Effects.Pick(rand.Uint32())
-			s := command.Effect(slog.Default(), f, text)
+			s := command.Effect(log, f, m.Text)
 			ch.Memery.Block(m.Time(), s)
 			// TODO(zeph): ideally we wouldn't send things we block from learning,
 			// but that may include trivial checks like "require multiple words."
 			// for now we just assume that chats are moderated, but eventually
 			// we should have some variety of configuration for this.
-			slog.InfoContext(ctx, "copypasta",
-				slog.String("in", ch.Name),
-				slog.String("message", s),
+			log.InfoContext(ctx, "copypasta",
+				slog.String("text", s),
 				slog.String("effect", f),
 			)
 			msg := message.Format("", ch.Name, "%s", s)
 			robo.sendTMI(ctx, send, msg)
 			return
 		default:
-			slog.ErrorContext(ctx, "failed copypasta check", slog.String("err", err.Error()), slog.Any("message", m))
+			log.ErrorContext(ctx, "failed copypasta check", slog.Any("err", err))
 			// Continue on.
 		}
 		if rand.Float64() > ch.Responses {
@@ -97,30 +95,29 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		s, trace, err := brain.Speak(ctx, robo.brain, ch.Send, "")
 		cost := time.Since(start)
 		if err != nil {
-			slog.ErrorContext(ctx, "wanted to speak but failed", slog.String("err", err.Error()))
+			log.ErrorContext(ctx, "wanted to speak but failed", slog.Any("err", err))
 			return
 		}
 		if s == "" {
-			slog.InfoContext(ctx, "spoke nothing", slog.String("tag", ch.Send))
+			log.InfoContext(ctx, "spoke nothing", slog.String("tag", ch.Send))
 			return
 		}
 		x := rand.Uint64()
 		e := ch.Emotes.Pick(uint32(x))
 		f := ch.Effects.Pick(uint32(x >> 32))
-		slog.InfoContext(ctx, "speak",
-			slog.String("in", ch.Name),
+		log.InfoContext(ctx, "speak",
 			slog.String("text", s),
 			slog.String("emote", e),
 			slog.String("effect", f),
 		)
 		se := strings.TrimSpace(s + " " + e)
-		sef := command.Effect(slog.Default(), f, se)
+		sef := command.Effect(log, f, se)
 		if err := robo.spoken.Record(ctx, ch.Send, sef, trace, time.Now(), cost, s, e, f); err != nil {
-			slog.ErrorContext(ctx, "record trace failed", slog.Any("err", err))
+			log.ErrorContext(ctx, "record trace failed", slog.Any("err", err))
 			return
 		}
 		if ch.Block.MatchString(se) || ch.Block.MatchString(sef) {
-			slog.WarnContext(ctx, "wanted to send blocked message", slog.String("in", ch.Name), slog.String("text", sef))
+			log.WarnContext(ctx, "wanted to send blocked message", slog.String("text", sef))
 			return
 		}
 		// Now that we've done all the work, which might take substantial time,
@@ -128,9 +125,8 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 		t := time.Now()
 		r := ch.Rate.ReserveN(t, 1)
 		if d := r.DelayFrom(t); d > 0 {
-			slog.InfoContext(ctx, "won't speak; rate limited",
-				slog.String("action", "copypasta"),
-				slog.String("in", ch.Name),
+			log.InfoContext(ctx, "rate limited",
+				slog.String("action", "speak"),
 				slog.String("delay", d.String()),
 			)
 			r.CancelAt(t)
@@ -142,7 +138,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 	robo.enqueue(ctx, group, work)
 }
 
-func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.Received, from, cmd string) {
+func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Channel, m *message.Received, from, cmd string) {
 	tmiCommandsCount.Inc()
 	var c *twitchCommand
 	var args map[string]string
@@ -168,14 +164,13 @@ func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.
 	if c == nil {
 		return
 	}
-	slog.InfoContext(ctx, "command",
+	log.InfoContext(ctx, "command",
 		slog.String("level", level),
 		slog.String("name", c.name),
 		slog.Any("args", args),
-		slog.String("in", ch.Name),
 	)
 	r := command.Robot{
-		Log:      slog.Default(),
+		Log:      log.With(slog.String("command", c.name), slog.Any("args", args)),
 		Channels: robo.channels,
 		Brain:    robo.brain,
 		Privacy:  robo.privacy,
@@ -229,31 +224,31 @@ func worker(ctx context.Context, works chan chan func(context.Context), ch chan 
 }
 
 // learn learns a given message's text if it passes ch's filters.
-func (robo *Robot) learn(ctx context.Context, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received) {
+func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received) {
 	if !ch.Enabled.Load() {
-		slog.DebugContext(ctx, "not learning in disabled channel", slog.String("in", ch.Name))
+		log.DebugContext(ctx, "not learning in disabled channel")
 		return
 	}
 	switch err := robo.privacy.Check(ctx, msg.Sender); err {
 	case nil: // do nothing
 	case privacy.ErrPrivate:
-		slog.DebugContext(ctx, "private sender", slog.String("in", ch.Name))
+		log.DebugContext(ctx, "private sender")
 		return
 	default:
-		slog.ErrorContext(ctx, "failed to check privacy", slog.String("err", err.Error()), slog.String("in", ch.Name))
+		log.ErrorContext(ctx, "failed to check privacy", slog.Any("err", err))
 		return
 	}
 	if ch.Block.MatchString(msg.Text) {
-		slog.DebugContext(ctx, "blocked message", slog.String("in", ch.Name), slog.String("text", msg.Text))
+		log.InfoContext(ctx, "blocked message", slog.String("text", msg.Text))
 		return
 	}
 	if ch.Learn == "" {
-		slog.DebugContext(ctx, "no learn tag", slog.String("in", ch.Name))
+		log.DebugContext(ctx, "no learn tag")
 		return
 	}
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
 	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
-		slog.ErrorContext(ctx, "failed to learn", slog.String("err", err.Error()))
+		log.ErrorContext(ctx, "failed to learn", slog.Any("err", err))
 		return
 	}
 	learnedCount.Inc()
