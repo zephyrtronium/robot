@@ -23,6 +23,7 @@ import (
 
 // tmiMessage processes a PRIVMSG from TMI.
 func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, msg *tmi.Message) {
+	tmiMsgsCount.Inc()
 	// Run in a worker so that we don't block the message loop.
 	work := func(ctx context.Context) {
 		ch, _ := robo.channels.Load(msg.To())
@@ -142,6 +143,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 }
 
 func (robo *Robot) command(ctx context.Context, ch *channel.Channel, m *message.Received, from, cmd string) {
+	tmiCommandsCount.Inc()
 	var c *twitchCommand
 	var args map[string]string
 	level := "any"

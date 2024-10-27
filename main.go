@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -130,6 +131,11 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 		if err := robo.SetTwitchChannels(ctx, cfg.Global, cfg.Twitch); err != nil {
 			return err
 		}
+	}
+
+	if cfg.HTTP.Listen != "" {
+		// TODO(zeph): this should be in the errgroup inside Run
+		go api(ctx, cfg.HTTP.Listen, new(http.ServeMux))
 	}
 
 	return robo.Run(ctx)
