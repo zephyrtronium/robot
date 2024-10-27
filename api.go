@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/pprof" // register handlers
 	"regexp"
 	"time"
 
@@ -54,6 +55,11 @@ func api(ctx context.Context, listen string, mux *http.ServeMux) error {
 		EnableOpenMetrics: true,
 	}
 	mux.Handle("GET /metrics", promhttp.HandlerFor(reg, opts))
+	mux.HandleFunc("GET /debug/pprof/", pprof.Index)
+	mux.HandleFunc("GET /debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
 	l, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("couldn't start API server: %w", err)
