@@ -190,7 +190,6 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels *syncmap.Map[string
 		streams, err = twitch.UserStreams(ctx, robo.twitch, tok, streams)
 		switch {
 		case err == nil:
-			slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
 			// Mark online streams as enabled.
 			// First map names to online status.
 			for _, s := range streams {
@@ -243,7 +242,6 @@ func (robo *Robot) streamsLoop(ctx context.Context, channels *syncmap.Map[string
 				streams, err = twitch.UserStreams(ctx, robo.twitch, tok, streams)
 				switch {
 				case err == nil:
-					slog.InfoContext(ctx, "stream infos", slog.Int("count", len(streams)))
 					// Mark online streams as enabled.
 					// First map names to online status.
 					for _, s := range streams {
