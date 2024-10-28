@@ -96,9 +96,15 @@ rate = { every = 30, num = 20 }
 # channels is the list of channels using this configuration. It is an array to
 # support future integrations.
 channels = ['#bocchi']
-# learn is the tag used to learn Markov chain data from this channel.
+# learn is the tag applied to learned Markov chain data from this channel.
+# If omitted or empty, learning is disabled. A channel with learning disabled
+# can still use a send tag to speak.
 learn = 'bocchi'
-# send is the tag used to generate messages.
+# send is the tag used to select data to generate messages in this channel.
+# If omitted or empty, speaking is disabled, except via messages with fixed
+# responses. A channel with speaking disabled can still use a learn tag to
+# collect data, but actually doing this could be a privacy concern.
+# Usually, send should match learn within a channel.
 send = 'bocchi'
 # block is a regex that blocks messages from being learned in this channel. Any
 # message containing text matching this or the global block regex is not used
