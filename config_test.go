@@ -55,6 +55,7 @@ func TestExampleConfig(t *testing.T) {
 	eqcase(t, "Twitch[`bocchi`].Rate.Num", cfg.Twitch[`bocchi`].Rate.Num, 2)
 	eqcase(t, "Twitch[`bocchi`].Copypasta.Need", cfg.Twitch[`bocchi`].Copypasta.Need, 2)
 	eqcase(t, "Twitch[`bocchi`].Copypasta.Within", cfg.Twitch[`bocchi`].Copypasta.Within, 30)
+	eqcase(t, "Twitch[`bocchi`].Meme", cfg.Twitch[`bocchi`].Meme, `^\S*$`)
 	eqcase(t, "Twitch[`bocchi`].Privileges[0].Name", cfg.Twitch[`bocchi`].Privileges[0].Name, `zephyrtronium`)
 	eqcase(t, "Twitch[`bocchi`].Privileges[0].Level", cfg.Twitch[`bocchi`].Privileges[0].Level, `moderator`)
 	eqcase(t, "Twitch[`bocchi`].Emotes[`btw`]", cfg.Twitch[`bocchi`].Emotes[`btw make sure to stretch, hydrate, and take care of yourself <3`], 1)

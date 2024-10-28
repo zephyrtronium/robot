@@ -18,8 +18,10 @@ type Channel struct {
 	// Learn and Send are the channel tags.
 	Learn, Send string
 	// Block is a regex that matches messages which should not be used for
-	// learning.
+	// learning or copypasta.
 	Block *regexp.Regexp
+	// Meme is a regex that matches messages which bypass Block only for copypasta.
+	Meme *regexp.Regexp
 	// Responses is the probability that a received message will trigger a
 	// random response.
 	Responses float64

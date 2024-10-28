@@ -262,26 +262,34 @@ func (robo *Robot) InitTwitchUsers(ctx context.Context, owner *Privilege, global
 	return nil
 }
 
+func mergere(global, ch string) (*regexp.Regexp, error) {
+	var re string
+	switch {
+	case global != "" && ch != "":
+		re = "(" + global + ")|(" + ch + ")"
+	case global != "":
+		re = global
+	case ch != "":
+		re = ch
+	default:
+		re = "$^"
+	}
+	return regexp.Compile(re)
+}
+
 // SetTwitchChannels initializes Twitch channel configuration.
 // It must be called after SetTMI.
 func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channels map[string]*ChannelCfg) error {
 	// TODO(zeph): we can convert this to a SetChannels, where it just adds the
 	// channels for any given service
 	for nm, ch := range channels {
-		var re string
-		switch {
-		case global.Block != "" && ch.Block != "":
-			re = "(" + global.Block + ")|(" + ch.Block + ")"
-		case global.Block != "":
-			re = global.Block
-		case ch.Block != "":
-			re = ch.Block
-		default:
-			re = "$^"
-		}
-		blk, err := regexp.Compile(re)
+		blk, err := mergere(global.Block, ch.Block)
 		if err != nil {
 			return fmt.Errorf("bad global or channel block expression for twitch.%s: %w", nm, err)
+		}
+		meme, err := mergere(global.Meme, ch.Meme)
+		if err != nil {
+			return fmt.Errorf("bad global or channel meme expression for twitch.%s: %w", nm, err)
 		}
 		emotes := pick.New(pick.FromMap(mergemaps(global.Emotes, ch.Emotes)))
 		effects := pick.New(pick.FromMap(mergemaps(global.Effects, ch.Effects)))
@@ -308,6 +316,7 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				Learn:     ch.Learn,
 				Send:      ch.Send,
 				Block:     blk,
+				Meme:      meme,
 				Responses: ch.Responses,
 				Rate:      rate.NewLimiter(rate.Every(fseconds(ch.Rate.Every)), ch.Rate.Num),
 				Ignore:    ign,
@@ -493,6 +502,9 @@ type ChannelCfg struct {
 	Rate Rate `toml:"rate"`
 	// Copypasta is the configuration for copypasta.
 	Copypasta Copypasta `toml:"copypasta"`
+	// Meme is a regular expression of messages to allow to be copypasta even
+	// if matched by this channel's or the global Block.
+	Meme string `toml:"meme"`
 	// Emotes is the emotes and their weights for the channel.
 	Emotes map[string]int `toml:"emotes"`
 	// Effects is the effects and their weights for the channel.
@@ -505,6 +517,9 @@ type ChannelCfg struct {
 type Global struct {
 	// Block is a regular expression of messages to ignore everywhere.
 	Block string `toml:"block"`
+	// Meme is a regular expression of messages to allow to be copypasta even
+	// if matched by Block.
+	Meme string `toml:"meme"`
 	// Emotes is the emotes and their weights to use everywhere.
 	Emotes map[string]int `toml:"emotes"`
 	// Effects is the effects and their weights to use everywhere.

@@ -43,9 +43,11 @@ listen = ':4959'
 
 # global includes chat settings that apply to all channels.
 [global]
-# block is a regex that blocks messages from being learned in any channel.
+# block is a regex that blocks messages from being learned or copypastad in any channel.
 # Unlike most string options, it is not expanded with environment variables.
 block = '(?i)bad\s+stuff[^$x]'
+# meme is a regex that overrides block for copypasta only.
+meme = '^\S*$'
 
 # global.emotes is a table of emotes to use in every channel along with their
 # relative weights.
@@ -100,8 +102,9 @@ learn = 'bocchi'
 send = 'bocchi'
 # block is a regex that blocks messages from being learned in this channel. Any
 # message containing text matching this or the global block regex is not used
-# for learning. Unlike most string options, it is not expanded with environment
-# variables.
+# for learning. block also prevents a message from contributing to copypasta
+# unless the message additionally matches meme, below.
+# Unlike most string options, it is not expanded with environment variables.
 block = '(?i)cucumber[^$x]'
 # responses is the probability of generating a random message when a
 # non-command message is received.
@@ -110,6 +113,8 @@ responses = 0.02
 rate = { every = 10.1, num = 2 }
 # copypasta is the configuration of copypastaing.
 copypasta = { need = 2, within = 30 }
+# meme overrides block for copypasta only.
+meme = '^\S*$'
 # Access levels for users.
 # Each entry must have a name or ID and a level. If both a name and ID are
 # given, the name is ignored.

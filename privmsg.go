@@ -39,6 +39,10 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 			log.InfoContext(ctx, "message from ignored user")
 			return
 		}
+		if ch.Block.MatchString(m.Text) && !ch.Meme.MatchString(m.Text) {
+			log.InfoContext(ctx, "blocked message", slog.String("text", m.Text), slog.Bool("meme", false))
+			return
+		}
 		if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
 			robo.command(ctx, log, ch, m, from, cmd)
 			return
@@ -239,7 +243,7 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		return
 	}
 	if ch.Block.MatchString(msg.Text) {
-		log.InfoContext(ctx, "blocked message", slog.String("text", msg.Text))
+		log.InfoContext(ctx, "blocked message", slog.String("text", msg.Text), slog.Bool("meme", true))
 		return
 	}
 	if ch.Learn == "" {
