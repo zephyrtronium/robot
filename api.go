@@ -36,6 +36,12 @@ var (
 		Name:      "learned",
 		Help:      "Number of messages learned.",
 	})
+	forgortCount = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "robot",
+		Subsystem: "brain",
+		Name:      "forgot",
+		Help:      "Number of individual messages deleted. Does not include messages deleted by user or time.",
+	})
 )
 
 func api(ctx context.Context, listen string, mux *http.ServeMux) error {
@@ -51,6 +57,7 @@ func api(ctx context.Context, listen string, mux *http.ServeMux) error {
 	reg.MustRegister(tmiMsgsCount)
 	reg.MustRegister(tmiCommandsCount)
 	reg.MustRegister(learnedCount)
+	reg.MustRegister(forgortCount)
 	opts := promhttp.HandlerOpts{
 		EnableOpenMetrics: true,
 	}

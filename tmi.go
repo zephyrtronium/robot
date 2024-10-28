@@ -9,6 +9,7 @@ import (
 	"gitlab.com/zephyrtronium/tmi"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -110,6 +111,7 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 					)
 					continue
 				}
+				forgortCount.Inc()
 				if err := robo.brain.ForgetMessage(ctx, tag, id); err != nil {
 					slog.ErrorContext(ctx, "failed to forget from recent trace",
 						slog.Any("err", err),
@@ -141,28 +143,21 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 }
 
 func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi.Message) {
-	if len(msg.Params) == 0 {
-		return
-	}
-	ch, _ := robo.channels.Load(msg.To())
-	if ch == nil {
-		return
-	}
-	t, _ := msg.Tag("target-msg-id")
-	u, _ := msg.Tag("login")
 	work := func(ctx context.Context) {
+		if len(msg.Params) == 0 {
+			return
+		}
+		ch, _ := robo.channels.Load(msg.To())
+		if ch == nil {
+			return
+		}
+		t, _ := msg.Tag("target-msg-id")
+		u, _ := msg.Tag("login")
+		log := slog.With(slog.String("trace", t), slog.String("in", msg.To()))
 		if u != robo.tmi.name {
 			// Forget a message from someone else.
-			slog.InfoContext(ctx, "forget message", slog.String("channel", msg.To()), slog.String("id", t))
-			err := robo.brain.ForgetMessage(ctx, ch.Learn, t)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to forget message",
-					slog.Any("err", err),
-					slog.String("channel", msg.To()),
-					slog.String("tag", ch.Learn),
-					slog.String("id", t),
-				)
-			}
+			log.InfoContext(ctx, "forget message", slog.String("tag", ch.Learn), slog.String("id", t))
+			forget(ctx, log, robo.brain, ch.Learn, t)
 			return
 		}
 		// Forget a message from the robo.
@@ -173,31 +168,30 @@ func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi
 		// because we are unlearning something that we sent.
 		trace, tm, err := robo.spoken.Trace(ctx, ch.Send, msg.Trailing)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to get message trace",
+			log.ErrorContext(ctx, "failed to get message trace",
 				slog.Any("err", err),
-				slog.String("channel", msg.To()),
 				slog.String("tag", ch.Send),
+				slog.String("text", msg.Trailing),
 				slog.String("id", t),
 			)
 			return
 		}
-		slog.InfoContext(ctx, "forget trace",
-			slog.String("channel", msg.To()),
-			slog.String("tag", ch.Send),
-			slog.Any("learned", tm),
-			slog.Any("trace", trace),
-		)
-		for _, id := range trace {
-			err := robo.brain.ForgetMessage(ctx, ch.Send, id)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to forget from trace",
-					slog.Any("err", err),
-					slog.String("channel", msg.To()),
-					slog.String("tag", ch.Send),
-					slog.String("id", t),
-				)
-			}
-		}
+		log.InfoContext(ctx, "forget trace", slog.String("tag", ch.Send), slog.Any("spoken", tm), slog.Any("trace", trace))
+		forget(ctx, log, robo.brain, ch.Send, trace...)
 	}
 	robo.enqueue(ctx, group, work)
+}
+
+func forget(ctx context.Context, log *slog.Logger, brain brain.Brain, tag string, trace ...string) {
+	forgortCount.Add(float64(len(trace)))
+	for _, id := range trace {
+		err := brain.ForgetMessage(ctx, tag, id)
+		if err != nil {
+			log.ErrorContext(ctx, "failed to forget message",
+				slog.Any("err", err),
+				slog.String("tag", tag),
+				slog.String("id", id),
+			)
+		}
+	}
 }
