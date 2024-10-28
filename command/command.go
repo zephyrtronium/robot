@@ -19,6 +19,8 @@ type Robot struct {
 	Brain    brain.Brain
 	Privacy  *privacy.List
 	Spoken   *spoken.History
+	Owner    string
+	Contact  string
 }
 
 // Invocation is a command invocation. An Invocation and its fields must not

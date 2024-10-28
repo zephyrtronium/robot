@@ -2,6 +2,7 @@ package command
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"regexp"
@@ -136,4 +137,11 @@ func Who(ctx context.Context, robo *Robot, call *Invocation) {
 	const whoMessage = `I'm a Markov chain bot! I learn from things people say in chat, then spew vaguely intelligible memes back. More info at: https://github.com/zephyrtronium/robot#how-robot-works`
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	call.Channel.Message(ctx, call.Message.ID, whoMessage+" "+e)
+}
+
+// Contact gives information on how to contact the bot owner.
+func Contact(ctx context.Context, robo *Robot, call *Invocation) {
+	s := fmt.Sprintf("My operator is %[1]s. %[2]s is the best way to contact %[1]s.", robo.Owner, robo.Contact)
+	e := call.Channel.Emotes.Pick(rand.Uint32())
+	call.Channel.Message(ctx, call.Message.ID, s+" "+e)
 }

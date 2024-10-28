@@ -15,6 +15,9 @@ secret = '$CREDENTIALS_DIRECTORY/key'
 name = 'zephyrtronium'
 # contact is a description of how to contact the owner.
 contact = '/w zephyrtronium'
+# name and contact are used together to respond to commands like "who manages you?"
+# in a message that looks like
+# "My operator is {name}. {contact} is the best way to contact {name}."
 
 # db is a table of databases used by the bot.
 # Exactly one of sqlbrain and kvbrain must be defined.

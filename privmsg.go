@@ -179,6 +179,8 @@ func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Ch
 		Brain:    robo.brain,
 		Privacy:  robo.privacy,
 		Spoken:   robo.spoken,
+		Owner:    robo.owner,
+		Contact:  robo.ownerContact,
 	}
 	inv := command.Invocation{
 		Channel: ch,
@@ -417,6 +419,11 @@ var twitchAny = []twitchCommand{
 		parse: regexp.MustCompile(`(?i)^[¿¡]*\s*(?:who\s+a?re?\s+y?o?u|how\s+do\s+y?o?u\s+w[oe]?rk)`),
 		fn:    command.Who,
 		name:  "who",
+	},
+	{
+		parse: regexp.MustCompile(`(?i)^[¿¡.]*\s*(?:who'?s?e?\s+(?:is\s+)?(?:your\s+)?|(?:let?\s*m?me\s+|i\s+want\s+(?:to\s+))?(?:(?:speak|talk|complain)\s+(?:to|with)\s*)?your\s+)(?:manage[rs]?|op(?:erat[eo][rs]?)?|runs?|admin|administrator|administrates?|owns?|owner)`),
+		fn:    command.Contact,
+		name:  "contact",
 	},
 	{
 		// NOTE(zeph): This command MUST be last, because it swallows all invocations.
