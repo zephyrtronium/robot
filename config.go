@@ -600,6 +600,7 @@ func expandcfg(cfg *Config, expand func(s string) string) {
 		&cfg.DB.KVFlag,
 		&cfg.DB.Privacy,
 		&cfg.DB.Spoken,
+		&cfg.HTTP.Listen,
 		&cfg.TMI.CID,
 		&cfg.TMI.SecretFile,
 		&cfg.TMI.TokenFile,
