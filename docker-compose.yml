@@ -1,0 +1,12 @@
+# Prerequisites for using dockerfile can be seen here https://github.com/zephyrtronium/robot/issues/76
+# docker build --build-arg CONFIG=yourConfig.toml -t robot .
+# docker-compose up -d
+
+version: "3.8" # Specify the version of the Docker Compose file format
+
+services:
+  robot: # Name of the service (this will be the same as the container name)
+    image: robot # The image to use
+    environment: # Environment variables for the container
+      - CONFIG=yourConfig.toml # Set the CONFIG variable
+    restart: always # Optional: specify restart policy
