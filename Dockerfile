@@ -1,21 +1,38 @@
 # Prerequisites for using dockerfile can be seen here https://github.com/zephyrtronium/robot/issues/76
-# docker build --build-arg CONFIG=yourConfig.toml -t robot .
 
 # Main image
-FROM golang:1.23
+FROM golang:1.23-alpine AS build
 
-# Define config as a build argument and make it available as an environment variable
+# Define config
 ARG CONFIG
-ENV CONFIG=${CONFIG}
 
-# Set the Working Directory inside the container
-WORKDIR /robot
-
-# Copy the source from the current directory to the Working Directory inside the container
+# Copy repo and populate Go resources
 COPY . .
+RUN go mod download
 
-# Build the Go app
-RUN go install github.com/zephyrtronium/robot
+# Build Robot
+RUN --mount=type=cache,target=/root/.cache/go-build \
+  --mount=type=cache,target=/go/pkg \
+  CGO_ENABLED=0 \
+  go build -o /build/robot github.com/zephyrtronium/robot
 
-# Start up robot
-ENTRYPOINT ["sh", "-c", "robot -config ${CONFIG}"]
+# Prepare minimised image
+FROM alpine
+
+# Set config
+ARG CONFIG
+ENV CONFIG=${CONFIG:-robot.toml}
+
+# Copy Robot binary and required resources
+COPY --from=build /build/robot /bin/robot
+COPY robot_key /
+COPY secret /
+
+# Copy config file as robot.toml
+COPY ${CONFIG} /robot.toml
+
+# Run Robot
+ENTRYPOINT ["/bin/robot"]
+
+# Provide Robot with config
+CMD ["-config", "/robot.toml"]
