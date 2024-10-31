@@ -10,6 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/metrics"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -111,7 +112,7 @@ func (robo *Robot) clearchat(ctx context.Context, group *errgroup.Group, msg *tm
 					)
 					continue
 				}
-				forgortCount.Inc()
+				robo.Metrics.ForgotCount.Observe(1)
 				if err := robo.brain.ForgetMessage(ctx, tag, id); err != nil {
 					slog.ErrorContext(ctx, "failed to forget from recent trace",
 						slog.Any("err", err),
@@ -157,7 +158,7 @@ func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi
 		if u != robo.tmi.name {
 			// Forget a message from someone else.
 			log.InfoContext(ctx, "forget message", slog.String("tag", ch.Learn), slog.String("id", t))
-			forget(ctx, log, robo.brain, ch.Learn, t)
+			forget(ctx, log, robo.brain, ch.Learn, robo.Metrics.ForgotCount, t)
 			return
 		}
 		// Forget a message from the robo.
@@ -177,13 +178,13 @@ func (robo *Robot) clearmsg(ctx context.Context, group *errgroup.Group, msg *tmi
 			return
 		}
 		log.InfoContext(ctx, "forget trace", slog.String("tag", ch.Send), slog.Any("spoken", tm), slog.Any("trace", trace))
-		forget(ctx, log, robo.brain, ch.Send, trace...)
+		forget(ctx, log, robo.brain, ch.Send, robo.Metrics.ForgotCount, trace...)
 	}
 	robo.enqueue(ctx, group, work)
 }
 
-func forget(ctx context.Context, log *slog.Logger, brain brain.Brain, tag string, trace ...string) {
-	forgortCount.Add(float64(len(trace)))
+func forget(ctx context.Context, log *slog.Logger, brain brain.Brain, tag string, forgetCount metrics.Observer, trace ...string) {
+	forgetCount.Observe(1)
 	for _, id := range trace {
 		err := brain.ForgetMessage(ctx, tag, id)
 		if err != nil {
