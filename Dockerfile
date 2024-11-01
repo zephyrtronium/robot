@@ -1,13 +1,12 @@
 # Prerequisites for using dockerfile can be seen here https://github.com/zephyrtronium/robot/issues/76
-# docker build --build-arg CONFIG=yourConfig.toml --build-arg TWITCHSECRET=yourSecret --build-arg ROBOTKEY=yourKey -t robot .
+# docker build -t robot 
+# CONFIGDIR can be fed as an environment variable to set config directory
 
 # Main image
 FROM golang:1.23-alpine AS build
 
-# Define build arguments
-ARG CONFIG \
-  TWITCHSECRET \
-  ROBOTKEY
+# Reserve build argument
+ARG CONFIGDIR
 
 # Populate Go resources
 COPY go.mod go.sum ./
@@ -25,24 +24,12 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 # Prepare minimised image
 FROM alpine
 
-# Set resources
-ARG CONFIG \
-  TWITCHSECRET \
-  ROBOTKEY
-ENV CONFIG=${CONFIG:-robot.toml} \
-  TWITCHSECRET=${TWITCHSECRET:-twitch_secret} \
-  ROBOTKEY=${ROBOTKEY:-robot_key}
+# Set directory where config is read from, defaults to root in container
+ARG CONFIGDIR
+ENV CONFIGDIR=${CONFIGDIR:-/robot.toml}
 
-# Copy Robot binary and required resources
+# Copy Robot binary
 COPY --from=build /build/robot /bin/robot
-COPY ${TWITCHSECRET} /
-COPY ${ROBOTKEY} /
 
-# Copy config file as robot.toml
-COPY ${CONFIG} /robot.toml
-
-# Run Robot
-ENTRYPOINT ["/bin/robot"]
-
-# Provide Robot with config
-CMD ["-config", "/robot.toml"]
+# Run robot and read config
+CMD ["sh", "-c", "/bin/robot -config $CONFIGDIR"]
