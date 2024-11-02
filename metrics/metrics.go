@@ -28,5 +28,6 @@ func (m Metrics) Collectors() []prometheus.Collector {
 		m.TMICommandCount,
 		m.TMIMsgsCount,
 		m.LearnLatency,
+		m.UsedMessagesForGeneration,
 	}
 }
