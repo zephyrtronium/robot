@@ -61,8 +61,9 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 	}
 	// block the generated message from being later recognized as a meme.
 	call.Channel.Memery.Block(call.Message.Time(), s)
+	robo.Metrics.SpeakLatency.Observe(time.Since(start).Seconds(), call.Channel.Send, fmt.Sprintf("%t", len(call.Args["prompt"]) == 0))
+	robo.Metrics.UsedMessagesForGeneration.Observe(float64(len(trace)))
 	robo.Log.InfoContext(ctx, "speak", "in", call.Channel.Name, "text", m, "emote", e)
-	robo.Metrics.SpeakLatency.Observe(time.Since(start).Seconds(), call.Channel.Name)
 	return m + " " + e
 }
 
