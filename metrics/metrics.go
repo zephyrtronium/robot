@@ -11,12 +11,13 @@ type Observer interface {
 }
 
 type Metrics struct {
-	TMIMsgsCount    Observer
-	TMICommandCount Observer
-	LearnedCount    Observer
-	ForgotCount     Observer
-	SpeakLatency    Observer
-	LearnLatency    Observer
+	TMIMsgsCount              Observer
+	TMICommandCount           Observer
+	LearnedCount              Observer
+	ForgotCount               Observer
+	SpeakLatency              Observer
+	LearnLatency              Observer
+	UsedMessagesForGeneration Observer
 }
 
 func (m Metrics) Collectors() []prometheus.Collector {
@@ -28,17 +29,4 @@ func (m Metrics) Collectors() []prometheus.Collector {
 		m.TMIMsgsCount,
 		m.LearnLatency,
 	}
-}
-
-// for testing purposes.
-type StubMetric struct{}
-
-func (s *StubMetric) Observe(val float64, tags ...string) { return }
-
-func (s *StubMetric) Describe(c chan<- *prometheus.Desc) {
-	c <- prometheus.NewDesc("stub metric", "", nil, nil)
-}
-
-func (s *StubMetric) Collect(c chan<- prometheus.Metric) {
-	c <- prometheus.NewCounter(prometheus.CounterOpts{})
 }

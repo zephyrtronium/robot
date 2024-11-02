@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/sync/errgroup"
 	"zombiezen.com/go/sqlite/sqlitex"
@@ -323,7 +322,7 @@ func loggerFromFlags(cmd *cli.Command) *slog.Logger {
 func newMetrics() *metrics.Metrics {
 	return &metrics.Metrics{
 		TMIMsgsCount: metrics.NewPromCounter(
-			promauto.NewCounter(prometheus.CounterOpts{
+			prometheus.NewCounter(prometheus.CounterOpts{
 				Namespace: "robot",
 				Subsystem: "tmi",
 				Name:      "messages",
@@ -331,7 +330,7 @@ func newMetrics() *metrics.Metrics {
 			}),
 		),
 		TMICommandCount: metrics.NewPromCounter(
-			promauto.NewCounter(prometheus.CounterOpts{
+			prometheus.NewCounter(prometheus.CounterOpts{
 				Namespace: "robot",
 				Subsystem: "tmi",
 				Name:      "commands",
@@ -339,7 +338,7 @@ func newMetrics() *metrics.Metrics {
 			}),
 		),
 		LearnedCount: metrics.NewPromCounter(
-			promauto.NewCounter(prometheus.CounterOpts{
+			prometheus.NewCounter(prometheus.CounterOpts{
 				Namespace: "robot",
 				Subsystem: "brain",
 				Name:      "learned",
@@ -347,7 +346,7 @@ func newMetrics() *metrics.Metrics {
 			}),
 		),
 		ForgotCount: metrics.NewPromCounter(
-			promauto.NewCounter(prometheus.CounterOpts{
+			prometheus.NewCounter(prometheus.CounterOpts{
 				Namespace: "robot",
 				Subsystem: "brain",
 				Name:      "forgot",
@@ -355,18 +354,18 @@ func newMetrics() *metrics.Metrics {
 			}),
 		),
 		SpeakLatency: metrics.NewPromObserverVec(
-			promauto.NewHistogramVec(prometheus.HistogramOpts{
+			prometheus.NewHistogramVec(prometheus.HistogramOpts{
 				Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
 				Namespace: "robot",
 				Subsystem: "commands",
 				Name:      "speak-latency",
 				Help:      "How long it takes for robot to speak once prompted in seconds",
-			}, []string{"channel"},
+			}, []string{"channel", "empty-prompt"},
 			),
 		),
 		LearnLatency: metrics.NewPromObserverVec(
-			promauto.NewHistogramVec(prometheus.HistogramOpts{
-				Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
+			prometheus.NewHistogramVec(prometheus.HistogramOpts{
+				Buckets:   []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 				Namespace: "robot",
 				Subsystem: "brain",
 				Name:      "learn-latency",

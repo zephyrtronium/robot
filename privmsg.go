@@ -256,14 +256,14 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		log.DebugContext(ctx, "no learn tag")
 		return
 	}
-	start := time.Now()
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
+	start := time.Now()
 	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
 		log.ErrorContext(ctx, "failed to learn", slog.Any("err", err))
 		return
 	}
+	robo.Metrics.LearnLatency.Observe(time.Since(start).Seconds(), ch.Learn)
 	robo.Metrics.LearnedCount.Observe(1)
-	robo.Metrics.LearnLatency.Observe(time.Since(start).Seconds(), ch.Name)
 }
 
 // sendTMI sends a message to TMI after waiting for the global rate limit.
