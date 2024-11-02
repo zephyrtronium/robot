@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/sync/errgroup"
 	"zombiezen.com/go/sqlite/sqlitex"
@@ -19,6 +20,7 @@ import (
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/kvbrain"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
+	"github.com/zephyrtronium/robot/metrics"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -135,7 +137,7 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 
 	if cfg.HTTP.Listen != "" {
 		// TODO(zeph): this should be in the errgroup inside Run
-		go api(ctx, cfg.HTTP.Listen, new(http.ServeMux))
+		go api(ctx, cfg.HTTP.Listen, new(http.ServeMux), robo.Metrics.Collectors())
 	}
 
 	return robo.Run(ctx)
@@ -314,4 +316,84 @@ func loggerFromFlags(cmd *cli.Command) *slog.Logger {
 		h = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: l})
 	}
 	return slog.New(h)
+}
+
+// metrics configuration
+func newMetrics() *metrics.Metrics {
+	return &metrics.Metrics{
+		TMIMsgsCount: metrics.NewPromCounter(
+			prometheus.NewCounter(
+				prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "tmi",
+					Name:      "messages",
+					Help:      "Number of PRIVMSGs received from TMI.",
+				},
+			),
+		),
+		TMICommandCount: metrics.NewPromCounter(
+			prometheus.NewCounter(
+				prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "tmi",
+					Name:      "commands",
+					Help:      "Number of command invocations received in Twitch chat.",
+				},
+			),
+		),
+		LearnedCount: metrics.NewPromCounter(
+			prometheus.NewCounter(
+				prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "brain",
+					Name:      "learned",
+					Help:      "Number of messages learned.",
+				},
+			),
+		),
+		ForgotCount: metrics.NewPromCounter(
+			prometheus.NewCounter(
+				prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "brain",
+					Name:      "forgot",
+					Help:      "Number of individual messages deleted. Does not include messages deleted by user or time.",
+				},
+			),
+		),
+		SpeakLatency: metrics.NewPromObserverVec(
+			prometheus.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
+					Namespace: "robot",
+					Subsystem: "commands",
+					Name:      "speak-latency",
+					Help:      "How long it takes for robot to speak once prompted in seconds",
+				},
+				[]string{"channel", "empty-prompt"},
+			),
+		),
+		LearnLatency: metrics.NewPromObserverVec(
+			prometheus.NewHistogramVec(
+				prometheus.HistogramOpts{
+					Buckets:   []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+					Namespace: "robot",
+					Subsystem: "brain",
+					Name:      "learn-latency",
+					Help:      "How long it takes robot to learn a non discarded message in seconds",
+				},
+				[]string{"channel"},
+			),
+		),
+		UsedMessagesForGeneration: metrics.NewPromHistogram(
+			prometheus.NewHistogram(
+				prometheus.HistogramOpts{
+					Namespace: "robot",
+					Subsystem: "commands",
+					Name:      "used-messages",
+					Help:      "How many messages were used while generating a new message",
+				},
+			),
+		),
+	}
 }

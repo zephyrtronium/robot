@@ -23,7 +23,7 @@ import (
 
 // tmiMessage processes a PRIVMSG from TMI.
 func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, msg *tmi.Message) {
-	tmiMsgsCount.Inc()
+	robo.Metrics.TMIMsgsCount.Observe(1)
 	// Run in a worker so that we don't block the message loop.
 	work := func(ctx context.Context) {
 		ch, _ := robo.channels.Load(msg.To())
@@ -146,7 +146,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, group *errgroup.Group, send c
 }
 
 func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Channel, m *message.Received, from, cmd string) {
-	tmiCommandsCount.Inc()
+	robo.Metrics.TMICommandCount.Observe(1)
 	var c *twitchCommand
 	var args map[string]string
 	level := "any"
@@ -184,6 +184,7 @@ func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Ch
 		Spoken:   robo.spoken,
 		Owner:    robo.owner,
 		Contact:  robo.ownerContact,
+		Metrics:  robo.Metrics,
 	}
 	inv := command.Invocation{
 		Channel: ch,
@@ -256,11 +257,13 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		return
 	}
 	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
+	start := time.Now()
 	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), brain.Tokens(nil, msg.Text)); err != nil {
 		log.ErrorContext(ctx, "failed to learn", slog.Any("err", err))
 		return
 	}
-	learnedCount.Inc()
+	robo.Metrics.LearnLatency.Observe(time.Since(start).Seconds(), ch.Learn)
+	robo.Metrics.LearnedCount.Observe(1)
 }
 
 // sendTMI sends a message to TMI after waiting for the global rate limit.

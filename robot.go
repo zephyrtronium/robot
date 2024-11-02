@@ -16,6 +16,7 @@ import (
 	"github.com/zephyrtronium/robot/auth"
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
+	"github.com/zephyrtronium/robot/metrics"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/syncmap"
@@ -46,6 +47,8 @@ type Robot struct {
 	tmi *client[*tmi.Message, *tmi.Message]
 	// twitch is the Twitch API client.
 	twitch twitch.Client
+	// Metrics are a collection of custom domain specific Metrics.
+	Metrics *metrics.Metrics
 }
 
 // client is the settings for OAuth2 and related elements.
@@ -75,6 +78,7 @@ func New(usersKey []byte, poolSize int) *Robot {
 		channels: syncmap.New[string, *channel.Channel](),
 		works:    make(chan chan func(context.Context), poolSize),
 		hashes:   func() userhash.Hasher { return userhash.New(usersKey) },
+		Metrics:  newMetrics(),
 	}
 }
 

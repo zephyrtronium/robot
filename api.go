@@ -12,39 +12,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Userspace metrics.
-var (
-	tmiMsgsCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: "robot",
-		Subsystem: "tmi",
-		Name:      "messages",
-		Help:      "Number of PRIVMSGs received from TMI.",
-	})
-	tmiCommandsCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: "robot",
-		Subsystem: "tmi",
-		Name:      "commands",
-		Help:      "Number of command invocations received in Twitch chat.",
-	})
-	learnedCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: "robot",
-		Subsystem: "brain",
-		Name:      "learned",
-		Help:      "Number of messages learned.",
-	})
-	forgortCount = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: "robot",
-		Subsystem: "brain",
-		Name:      "forgot",
-		Help:      "Number of individual messages deleted. Does not include messages deleted by user or time.",
-	})
-)
-
-func api(ctx context.Context, listen string, mux *http.ServeMux) error {
+func api(ctx context.Context, listen string, mux *http.ServeMux, metrics []prometheus.Collector) error {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(collectors.NewGoCollector(
 		collectors.WithGoCollectorMemStatsMetricsDisabled(),
@@ -54,10 +25,7 @@ func api(ctx context.Context, listen string, mux *http.ServeMux) error {
 			},
 		),
 	))
-	reg.MustRegister(tmiMsgsCount)
-	reg.MustRegister(tmiCommandsCount)
-	reg.MustRegister(learnedCount)
-	reg.MustRegister(forgortCount)
+	reg.MustRegister(metrics...)
 	opts := promhttp.HandlerOpts{
 		EnableOpenMetrics: true,
 	}
