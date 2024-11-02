@@ -7,6 +7,7 @@ import (
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/message"
+	"github.com/zephyrtronium/robot/metrics"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/syncmap"
@@ -21,6 +22,7 @@ type Robot struct {
 	Spoken   *spoken.History
 	Owner    string
 	Contact  string
+	Metrics  *metrics.Metrics
 }
 
 // Invocation is a command invocation. An Invocation and its fields must not

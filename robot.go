@@ -13,9 +13,12 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/zephyrtronium/robot/auth"
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
+	"github.com/zephyrtronium/robot/metrics"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/syncmap"
@@ -46,6 +49,8 @@ type Robot struct {
 	tmi *client[*tmi.Message, *tmi.Message]
 	// twitch is the Twitch API client.
 	twitch twitch.Client
+	// Metrics are a collection of custom domain specific Metrics.
+	Metrics *metrics.Metrics
 }
 
 // client is the settings for OAuth2 and related elements.
@@ -75,6 +80,60 @@ func New(usersKey []byte, poolSize int) *Robot {
 		channels: syncmap.New[string, *channel.Channel](),
 		works:    make(chan chan func(context.Context), poolSize),
 		hashes:   func() userhash.Hasher { return userhash.New(usersKey) },
+		Metrics: &metrics.Metrics{
+			TMIMsgsCount: metrics.NewPromCounter(
+				promauto.NewCounter(prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "tmi",
+					Name:      "messages",
+					Help:      "Number of PRIVMSGs received from TMI.",
+				}),
+			),
+			TMICommandCount: metrics.NewPromCounter(
+				promauto.NewCounter(prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "tmi",
+					Name:      "commands",
+					Help:      "Number of command invocations received in Twitch chat.",
+				}),
+			),
+			LearnedCount: metrics.NewPromCounter(
+				promauto.NewCounter(prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "brain",
+					Name:      "learned",
+					Help:      "Number of messages learned.",
+				}),
+			),
+			ForgotCount: metrics.NewPromCounter(
+				promauto.NewCounter(prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "brain",
+					Name:      "forgot",
+					Help:      "Number of individual messages deleted. Does not include messages deleted by user or time.",
+				}),
+			),
+			SpeakLatency: metrics.NewPromObserverVec(
+				promauto.NewHistogramVec(prometheus.HistogramOpts{
+					Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
+					Namespace: "robot",
+					Subsystem: "commands",
+					Name:      "speak-latency",
+					Help:      "How long it takes for robot to speak once prompted in seconds",
+				}, []string{"send-tag"},
+				),
+			),
+			LearnLatency: metrics.NewPromObserverVec(
+				promauto.NewHistogramVec(prometheus.HistogramOpts{
+					Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
+					Namespace: "robot",
+					Subsystem: "brain",
+					Name:      "learn-latency",
+					Help:      "How long it takes robot to learn a non discarded message in seconds",
+				}, []string{"channel"},
+				),
+			),
+		},
 	}
 }
 
