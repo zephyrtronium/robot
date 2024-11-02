@@ -1,0 +1,6 @@
+.github/
+.gitignore
+COPYING
+Dockerfile
+example.toml
+README.md
