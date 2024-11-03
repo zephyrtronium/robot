@@ -370,7 +370,7 @@ func newMetrics() *metrics.Metrics {
 					Name:      "speak_latency",
 					Help:      "How long it takes for robot to speak once prompted in seconds",
 				},
-				[]string{"channel", "empty-prompt"},
+				[]string{"tag", "empty_prompt"},
 			),
 		),
 		LearnLatency: metrics.NewPromObserverVec(
@@ -382,7 +382,7 @@ func newMetrics() *metrics.Metrics {
 					Name:      "learn_latency",
 					Help:      "How long it takes robot to learn a non discarded message in seconds",
 				},
-				[]string{"channel"},
+				[]string{"tag"},
 			),
 		),
 		UsedMessagesForGeneration: metrics.NewPromHistogram(
