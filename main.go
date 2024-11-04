@@ -376,7 +376,7 @@ func newMetrics() *metrics.Metrics {
 		LearnLatency: metrics.NewPromObserverVec(
 			prometheus.NewHistogramVec(
 				prometheus.HistogramOpts{
-					Buckets:   []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+					Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
 					Namespace: "robot",
 					Subsystem: "brain",
 					Name:      "learn_latency",
@@ -388,6 +388,7 @@ func newMetrics() *metrics.Metrics {
 		UsedMessagesForGeneration: metrics.NewPromHistogram(
 			prometheus.NewHistogram(
 				prometheus.HistogramOpts{
+					Buckets:   []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 					Namespace: "robot",
 					Subsystem: "commands",
 					Name:      "used_messages",
