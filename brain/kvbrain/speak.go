@@ -57,10 +57,9 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 	// These definitions are outside the loop to ensure we don't bias toward
 	// smaller contexts.
 	var (
-		key    []byte
-		skip   brain.Skip
-		picked int
-		n      uint64
+		key  []byte
+		skip brain.Skip
+		n    uint64
 	)
 	b = appendPrefix(b, prompt)
 	if len(prompt) == 0 {
@@ -69,6 +68,7 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 		b = append(b, '\xff')
 	}
 	for {
+		var seen uint64
 		err := br.knowledge.View(func(txn *badger.Txn) error {
 			it := txn.NewIterator(opts)
 			defer it.Close()
@@ -83,13 +83,19 @@ func (br *Brain) next(b []byte, prompt []string, opts badger.IteratorOptions) ([
 				}
 				it.Next()
 				n--
+				seen++
 			}
 			return nil
 		})
 		if err != nil {
 			return nil, "", len(prompt), fmt.Errorf("couldn't read knowledge: %w", err)
 		}
-		if picked < 3 && len(prompt) > 3 {
+		// Try to lose context.
+		// We want to do so when we have a long context and almost no options,
+		// or at random with even a short context.
+		// Note that in the latter case we use a 1/2 chance; it seems high, but
+		// n.b. the caller will recover the last token that we discard.
+		if len(prompt) > 4 && seen <= 2 || len(prompt) > 2 && rand.Uint32()&1 == 0 {
 			// We haven't seen enough options, and we have context we could
 			// lose. Do so and try again from the beginning.
 			prompt = prompt[:len(prompt)-1]

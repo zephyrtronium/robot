@@ -59,8 +59,8 @@ func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, str
 	w := make([]byte, 0, 32)
 	var d []byte
 	var skip brain.Skip
-	picked := 0
 	for {
+		var seen uint64
 		b = prefix(b[:0], prompt)
 		b, d = searchbounds(b)
 		st.SetBytes(":lower", b)
@@ -80,7 +80,6 @@ func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, str
 				w = make([]byte, n)
 			}
 			w = w[:st.ColumnBytes(1, w[:n])]
-			picked++
 			for range skip.N(rand.Uint64(), rand.Uint64()) {
 				ok, err := st.Step()
 				if err != nil {
@@ -89,11 +88,15 @@ func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, str
 				if !ok {
 					break sel
 				}
+				seen++
 			}
 		}
-		if picked < 3 && len(prompt) > 3 {
-			// We haven't seen enough options, and we have context we could
-			// lose. Do so and try again from the beginning.
+		// Try to lose context.
+		// We want to do so when we have a long context and almost no options,
+		// or at random with even a short context.
+		// Note that in the latter case we use a 1/2 chance; it seems high, but
+		// n.b. the caller will recover the last token that we discard.
+		if len(prompt) > 4 && seen <= 2 || len(prompt) > 2 && rand.Uint32()&1 == 0 {
 			prompt = prompt[:len(prompt)-1]
 			if err := st.Reset(); err != nil {
 				return b[:0], "", len(prompt), fmt.Errorf("couldn't reset term selection: %w", err)
