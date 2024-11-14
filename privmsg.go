@@ -249,7 +249,7 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		return
 	}
 	if ch.Block.MatchString(msg.Text) {
-		log.InfoContext(ctx, "blocked message", slog.String("text", msg.Text), slog.Bool("meme", true))
+		log.DebugContext(ctx, "blocked message", slog.String("text", msg.Text), slog.Bool("meme", true))
 		return
 	}
 	if ch.Learn == "" {
