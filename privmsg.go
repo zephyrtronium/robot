@@ -269,14 +269,34 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 // sendTMI sends a message to TMI after waiting for the global rate limit.
 // The caller should verify that it is safe to send the message.
 func (robo *Robot) sendTMI(ctx context.Context, send chan<- *tmi.Message, msg message.Sent) {
-	if err := robo.tmi.rate.Wait(ctx); err != nil {
+	// TODO(zeph): this should take the logger to use so that we can trace
+	t := time.Now()
+	r := robo.tmi.rate.ReserveN(t, 1)
+	d := r.DelayFrom(t)
+	switch {
+	case !r.OK():
+		slog.ErrorContext(ctx, "infinite wait to send to TMI")
 		return
+	case d <= 0: // do nothing
+	default:
+		tm := time.NewTimer(d)
+		slog.InfoContext(ctx, "wait to send to TMI",
+			slog.Any("sleep", d),
+			slog.String("in", msg.To),
+			slog.String("text", msg.Text),
+		)
+		select {
+		case <-ctx.Done():
+			return
+		case <-tm.C:
+		}
 	}
 	resp := message.ToTMI(msg)
 	select {
 	case <-ctx.Done():
 		return
 	case send <- resp:
+		slog.InfoContext(ctx, "sent to TMI", slog.String("in", msg.To), slog.String("text", msg.Text))
 	}
 }
 
