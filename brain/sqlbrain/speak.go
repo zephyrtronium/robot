@@ -57,8 +57,11 @@ func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, str
 	}
 	st.SetText(":tag", tag)
 	w := make([]byte, 0, 32)
-	var d []byte
-	var skip brain.Skip
+	var (
+		d    []byte
+		skip brain.Skip
+		t    uint64
+	)
 	for {
 		var seen uint64
 		b = prefix(b[:0], prompt)
@@ -67,6 +70,17 @@ func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, str
 		st.SetBytes(":upper", d)
 	sel:
 		for {
+			for t > 0 {
+				ok, err := st.Step()
+				if err != nil {
+					return b[:0], "", len(prompt), fmt.Errorf("couldn't step term selection: %w", err)
+				}
+				if !ok {
+					break sel
+				}
+				seen++
+				t--
+			}
 			ok, err := st.Step()
 			if err != nil {
 				return b[:0], "", len(prompt), fmt.Errorf("couldn't step term selection: %w", err)
@@ -80,16 +94,7 @@ func next(conn *sqlite.Conn, tag string, b []byte, prompt []string) ([]byte, str
 				w = make([]byte, n)
 			}
 			w = w[:st.ColumnBytes(1, w[:n])]
-			for range skip.N(rand.Uint64(), rand.Uint64()) {
-				ok, err := st.Step()
-				if err != nil {
-					return b[:0], "", len(prompt), fmt.Errorf("couldn't step term selection: %w", err)
-				}
-				if !ok {
-					break sel
-				}
-				seen++
-			}
+			t = skip.N(rand.Uint64(), rand.Uint64())
 		}
 		// Try to lose context.
 		// We want to do so when we have a long context and almost no options,
