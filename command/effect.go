@@ -7,7 +7,7 @@ import (
 )
 
 // Effect applies an effect to a message.
-// The currently available effects include "OwO", "AAAAA", "o", and "".
+// The currently available effects include "OwO", "AAAAA", "o", "hte", and "".
 // Names are not case sensitive.
 func Effect(log *slog.Logger, name, msg string) string {
 	var r string
@@ -20,6 +20,8 @@ func Effect(log *slog.Logger, name, msg string) string {
 		r = lenlimit(aaaaaize(msg), 40)
 	case strings.EqualFold(name, "o"):
 		r = oize(msg)
+	case strings.EqualFold(name, "hte"):
+		r = hteize(msg)
 	default:
 		log.Error("no such effect", slog.String("name", name), slog.String("msg", msg))
 		return msg
@@ -68,3 +70,26 @@ var oRep = strings.NewReplacer(
 	"a", "o", "e", "o", "i", "o", "u", "o",
 	"A", "O", "E", "O", "I", "O", "U", "O",
 )
+
+func hteize(msg string) string {
+	// We do a slightly higher effort replace-by-word for this effect because
+	// a naïve replacer would replace components of words we want to preserve.
+	f := strings.Fields(msg)
+	for i, w := range f {
+		switch w {
+		case "the", "The":
+			f[i] = "hte"
+		case "THE":
+			f[i] = "HTE"
+		case "a":
+			f[i] = "an"
+		case "A":
+			// skip this one
+		case "an", "An":
+			f[i] = "a"
+		case "AN":
+			f[i] = "A"
+		}
+	}
+	return strings.Join(f, " ")
+}
