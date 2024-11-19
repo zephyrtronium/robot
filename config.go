@@ -43,7 +43,13 @@ func Load(ctx context.Context, r io.Reader) (*Config, *toml.MetaData, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't decode config: %w", err)
 	}
-	expandcfg(&cfg, os.Getenv)
+	expandcfg(&cfg, func(s string) string {
+		v, ok := os.LookupEnv(s)
+		if !ok {
+			slog.ErrorContext(ctx, "config refers to missing environment variable", slog.String("variable", s))
+		}
+		return v
+	})
 	return &cfg, &md, nil
 }
 
