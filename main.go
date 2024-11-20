@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -135,12 +134,7 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	if cfg.HTTP.Listen != "" {
-		// TODO(zeph): this should be in the errgroup inside Run
-		go api(ctx, cfg.HTTP.Listen, new(http.ServeMux), robo.Metrics.Collectors())
-	}
-
-	return robo.Run(ctx)
+	return robo.Run(ctx, cfg.HTTP.Listen)
 }
 
 func cliSpeak(ctx context.Context, cmd *cli.Command) error {

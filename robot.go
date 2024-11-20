@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -82,11 +83,14 @@ func New(usersKey []byte, poolSize int) *Robot {
 	}
 }
 
-func (robo *Robot) Run(ctx context.Context) error {
+func (robo *Robot) Run(ctx context.Context, listen string) error {
 	group, ctx := errgroup.WithContext(ctx)
 	// TODO(zeph): stdin?
 	if robo.tmi != nil {
 		group.Go(func() error { return robo.runTwitch(ctx, group) })
+	}
+	if listen != "" {
+		group.Go(func() error { return api(ctx, listen, new(http.ServeMux), robo.Metrics.Collectors()) })
 	}
 	err := group.Wait()
 	if err == context.Canceled {
