@@ -161,10 +161,15 @@ func hteize(msg string) string {
 			f[i] = "TI"
 		default:
 			k := strings.IndexAny(w, ".?!")
-			// Note we check for k > 1, not k >= 0, because we don't want to
-			// do this when the character is at the start.
-			if k > 1 {
+			switch {
+			// Note we check for k > 0, not k >= 0, because we don't want to
+			// do this when the punctuation character is at the start.
+			case k > 0:
 				f[i] = f[i][:k] + " " + f[i][k:]
+			case strings.HasSuffix(w, "ing"):
+				f[i] = w[:len(w)-2] + "gn"
+			case strings.HasSuffix(w, "ING"):
+				f[i] = w[:len(w)-2] + "GN"
 			}
 		}
 	}
