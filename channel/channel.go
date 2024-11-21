@@ -6,8 +6,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"gitlab.com/zephyrtronium/pick"
 	"golang.org/x/time/rate"
+
+	"github.com/zephyrtronium/robot/message"
+	"gitlab.com/zephyrtronium/pick"
 )
 
 type Channel struct {
@@ -35,7 +37,7 @@ type Channel struct {
 	// History is a list of recent messages seen in the channel.
 	// Note that messages which are forgotten due to moderation are not removed
 	// from this list in general.
-	History *History
+	History History[*message.Received[string]]
 	// Memery is the meme detector for the channel.
 	Memery *MemeDetector
 	// Emotes is the distribution of emotes.

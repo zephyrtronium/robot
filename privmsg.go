@@ -44,7 +44,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		robo.command(ctx, log, ch, m, from, cmd)
 		return
 	}
-	ch.History.Add(m.Time(), m.ID, m.Sender, m.Text)
+	ch.History.Add(m.Time(), m)
 	// If the message is a reply to e.g. Bocchi, TMI adds @Bocchi to the
 	// start of the message text.
 	// That's helpful for commands, which we've already processed, but

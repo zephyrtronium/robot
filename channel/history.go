@@ -4,47 +4,43 @@ import (
 	"iter"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
-// History is a message history.
-type History struct {
-	oldest, newest atomic.Pointer[histnode]
+// History is a history of recent messages.
+// Entries automatically expire after fifteen minutes.
+type History[M any] struct {
+	oldest, newest atomic.Pointer[histnode[M]]
 }
 
-type histnode struct {
-	newer atomic.Pointer[histnode]
-
-	id   string
-	who  string
-	text string
-	exp  int64
+type histnode[M any] struct {
+	newer atomic.Pointer[histnode[M]]
+	msg   M
+	exp   int64
 }
 
-// sentinel is a special node indicating that the next link is being modified.
-var sentinel = new(histnode)
+var sentinel = unsafe.Pointer(new(byte))
 
-func (h *History) Add(now time.Time, id, who, text string) {
+func (h *History[M]) Add(now time.Time, msg M) {
 	h.dropOld(now.UnixNano())
-	l := &histnode{
-		id:   id,
-		who:  who,
-		text: text,
-		exp:  now.Add(15 * time.Minute).UnixNano(),
+	l := &histnode[M]{
+		msg: msg,
+		exp: now.Add(15 * time.Minute).UnixNano(),
 	}
 	for {
-		if h.oldest.CompareAndSwap(nil, sentinel) {
+		if h.oldest.CompareAndSwap(nil, (*histnode[M])(sentinel)) {
 			// List was empty.
 			h.newest.Store(l)
 			h.oldest.Store(l)
 			return
 		}
-		f := h.newest.Swap(sentinel)
-		for f == sentinel {
-			f = h.newest.Swap(sentinel)
+		f := h.newest.Swap((*histnode[M])(sentinel))
+		for f == (*histnode[M])(sentinel) {
+			f = h.newest.Swap((*histnode[M])(sentinel))
 		}
 		if f == nil {
 			// The list became empty while we were spinning. Retry.
-			h.newest.CompareAndSwap(sentinel, nil)
+			h.newest.CompareAndSwap((*histnode[M])(sentinel), nil)
 			continue
 		}
 		f.newer.Store(l)
@@ -53,12 +49,12 @@ func (h *History) Add(now time.Time, id, who, text string) {
 	}
 }
 
-func (h *History) dropOld(exp int64) {
+func (h *History[M]) dropOld(exp int64) {
 	for {
-		cur := h.oldest.Swap(sentinel)
-		for cur == sentinel {
+		cur := h.oldest.Swap((*histnode[M])(sentinel))
+		for cur == (*histnode[M])(sentinel) {
 			// Another goroutine is doing the same thing. Wait for them.
-			cur = h.oldest.Swap(sentinel)
+			cur = h.oldest.Swap((*histnode[M])(sentinel))
 		}
 		if cur == nil {
 			// Cleared the list.
@@ -79,29 +75,20 @@ func (h *History) dropOld(exp int64) {
 	}
 }
 
-// HistoryMessage is the minimized representation of a message recorded in a
-// channel's history.
-type HistoryMessage struct {
-	ID     string
-	Sender string
-	Text   string
-}
-
 // All yields the messages in the history, approximately in order from
 // oldest to newest.
-func (h *History) All() iter.Seq[HistoryMessage] {
-	return func(yield func(HistoryMessage) bool) {
+func (h *History[M]) All() iter.Seq[M] {
+	return func(yield func(M) bool) {
 		p := &h.oldest
 		for {
 			cur := p.Load()
-			for cur == sentinel {
+			for cur == (*histnode[M])(sentinel) {
 				cur = p.Load()
 			}
 			if cur == nil {
 				return
 			}
-			v := HistoryMessage{ID: cur.id, Sender: cur.who, Text: cur.text}
-			if !yield(v) {
+			if !yield(cur.msg) {
 				return
 			}
 			p = &cur.newer
