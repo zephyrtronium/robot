@@ -48,15 +48,19 @@ type Sent struct {
 	Text string
 }
 
+func (m Sent) AsReply(reply string) Sent {
+	m.Reply = reply
+	return m
+}
+
 // formatString is a type to prevent misuse of format strings passed to [Format].
 type formatString string
 
 // Format constructs a message to send from a format string literal and
 // formatting arguments.
-func Format(reply, to string, f formatString, args ...any) Sent {
+func Format(to string, f formatString, args ...any) Sent {
 	return Sent{
-		Reply: reply,
-		To:    to,
-		Text:  strings.TrimSpace(fmt.Sprintf(string(f), args...)),
+		To:   to,
+		Text: strings.TrimSpace(fmt.Sprintf(string(f), args...)),
 	}
 }
