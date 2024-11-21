@@ -39,20 +39,6 @@ var (
 // Hash is an obfuscated hash identifying a user in a location.
 type Hash [Size]byte
 
-// Scan implements sql.Scanner.
-func (h *Hash) Scan(src any) error {
-	switch src := src.(type) {
-	case []byte:
-		n := copy(h[:], src)
-		if n != Size {
-			return ErrShortHash
-		}
-	default:
-		return ErrHashType
-	}
-	return nil
-}
-
 // A Hasher creates Hash values.
 type Hasher struct {
 	// mac is the HMAC hasher.
