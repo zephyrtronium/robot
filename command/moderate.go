@@ -2,9 +2,10 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
+
+	"github.com/zephyrtronium/robot/message"
 )
 
 func Forget(ctx context.Context, robo *Robot, call *Invocation) {
@@ -32,10 +33,10 @@ func Forget(ctx context.Context, robo *Robot, call *Invocation) {
 	}
 	switch n {
 	case 0:
-		call.Channel.Message(ctx, call.Message.ID, fmt.Sprintf("No messages contained %q.", term))
+		call.Channel.Message(ctx, message.Format("", "No messages contained %q.", term).AsReply(call.Message.ID))
 	case 1:
-		call.Channel.Message(ctx, call.Message.ID, "Forgot 1 message.")
+		call.Channel.Message(ctx, message.Format("", "Forgot 1 message."))
 	default:
-		call.Channel.Message(ctx, call.Message.ID, fmt.Sprintf("Forgot %d messages.", n))
+		call.Channel.Message(ctx, message.Format("", "Forgot %d messages.", n).AsReply(call.Message.ID))
 	}
 }

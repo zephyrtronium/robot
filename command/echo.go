@@ -3,6 +3,8 @@ package command
 import (
 	"context"
 	"log/slog"
+
+	"github.com/zephyrtronium/robot/message"
 )
 
 // EchoIn sends a plain text message to any channel.
@@ -15,11 +17,11 @@ func EchoIn(ctx context.Context, robo *Robot, call *Invocation) {
 		robo.Log.WarnContext(ctx, "echo into unknown channel", slog.String("target", t))
 		return
 	}
-	ch.Message(ctx, "", call.Args["msg"])
+	ch.Message(ctx, message.Sent{Text: call.Args["msg"]})
 }
 
 // Echo sends a plain text message to the channel in which it is invoked.
 //   - msg: Message to send.
 func Echo(ctx context.Context, robo *Robot, call *Invocation) {
-	call.Channel.Message(ctx, "", call.Args["msg"])
+	call.Channel.Message(ctx, message.Sent{Text: call.Args["msg"]})
 }

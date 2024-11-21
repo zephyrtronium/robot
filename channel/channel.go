@@ -6,17 +6,17 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"gitlab.com/zephyrtronium/pick"
 	"golang.org/x/time/rate"
 
 	"github.com/zephyrtronium/robot/message"
-	"gitlab.com/zephyrtronium/pick"
 )
 
 type Channel struct {
 	// Name is the name of the channel.
 	Name string
 	// Message sends a message to the channel with an optional reply message ID.
-	Message func(ctx context.Context, reply, text string)
+	Message func(ctx context.Context, msg message.Sent)
 	// Learn and Send are the channel tags.
 	Learn, Send string
 	// Block is a regex that matches messages which should not be used for

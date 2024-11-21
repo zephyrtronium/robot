@@ -2,13 +2,14 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/message"
 )
 
 func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string) string {
@@ -61,7 +62,7 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 	}
 	// block the generated message from being later recognized as a meme.
 	call.Channel.Memery.Block(call.Message.Time(), s)
-	robo.Metrics.SpeakLatency.Observe(time.Since(start).Seconds(), call.Channel.Send, fmt.Sprintf("%t", len(call.Args["prompt"]) == 0))
+	robo.Metrics.SpeakLatency.Observe(time.Since(start).Seconds(), call.Channel.Send, strconv.FormatBool(len(call.Args["prompt"]) == 0))
 	robo.Metrics.UsedMessagesForGeneration.Observe(float64(len(trace)))
 	robo.Log.InfoContext(ctx, "speak", "in", call.Channel.Name, "text", m, "emote", e)
 	return m + " " + e
@@ -77,7 +78,7 @@ func Speak(ctx context.Context, robo *Robot, call *Invocation) {
 		return
 	}
 	u = lenlimit(u, 450)
-	call.Channel.Message(ctx, "", u)
+	call.Channel.Message(ctx, message.Sent{Text: u})
 }
 
 // OwO genyewates an uwu message.
@@ -88,7 +89,7 @@ func OwO(ctx context.Context, robo *Robot, call *Invocation) {
 		return
 	}
 	u = lenlimit(owoize(u), 450)
-	call.Channel.Message(ctx, "", u)
+	call.Channel.Message(ctx, message.Sent{Text: u})
 }
 
 // AAAAA AAAAAAAAA A AAAAAAA.
@@ -103,7 +104,7 @@ func AAAAA(ctx context.Context, robo *Robot, call *Invocation) {
 		return
 	}
 	u = lenlimit(aaaaaize(u), 40)
-	call.Channel.Message(ctx, "", u)
+	call.Channel.Message(ctx, message.Sent{Text: u})
 }
 
 // Rawr says rawr.
@@ -123,7 +124,7 @@ func Rawr(ctx context.Context, robo *Robot, call *Invocation) {
 		r.CancelAt(t)
 		return
 	}
-	call.Channel.Message(ctx, call.Message.ID, "rawr "+e)
+	call.Channel.Message(ctx, message.Format("", "rawr %s", e).AsReply(call.Message.ID))
 }
 
 // Source gives a link to the source code.
@@ -131,19 +132,18 @@ func Source(ctx context.Context, robo *Robot, call *Invocation) {
 	const srcMessage = `My source code is at https://github.com/zephyrtronium/robot – ` +
 		`I'm written in Go, and I'm free, open-source software licensed ` +
 		`under the GNU General Public License, Version 3.`
-	call.Channel.Message(ctx, call.Message.ID, srcMessage)
+	call.Channel.Message(ctx, message.Sent{Reply: call.Message.ID, Text: srcMessage})
 }
 
 // Who describes Robot.
 func Who(ctx context.Context, robo *Robot, call *Invocation) {
-	const whoMessage = `I'm a Markov chain bot! I learn from things people say in chat, then spew vaguely intelligible memes back. More info at: https://github.com/zephyrtronium/robot#how-robot-works`
+	const whoMessage = `I'm a Markov chain bot! I learn from things people say in chat, then spew vaguely intelligible memes back. More info at: https://github.com/zephyrtronium/robot#how-robot-works %s`
 	e := call.Channel.Emotes.Pick(rand.Uint32())
-	call.Channel.Message(ctx, call.Message.ID, whoMessage+" "+e)
+	call.Channel.Message(ctx, message.Format("", whoMessage, e).AsReply(call.Message.ID))
 }
 
 // Contact gives information on how to contact the bot owner.
 func Contact(ctx context.Context, robo *Robot, call *Invocation) {
-	s := fmt.Sprintf("My operator is %[1]s. %[2]s is the best way to contact %[1]s.", robo.Owner, robo.Contact)
 	e := call.Channel.Emotes.Pick(rand.Uint32())
-	call.Channel.Message(ctx, call.Message.ID, s+" "+e)
+	call.Channel.Message(ctx, message.Format("", "My operator is %[1]s. %[2]s is the best way to contact %[1]s. %[3]s", robo.Owner, robo.Contact, e).AsReply(call.Message.ID))
 }
