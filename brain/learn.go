@@ -36,7 +36,9 @@ type Learner interface {
 var tuplesPool tpool.Pool[[]Tuple]
 
 // Learn records tokens into a Learner.
-func Learn(ctx context.Context, l Learner, tag, id string, user userhash.Hash, t time.Time, toks []string) error {
+func Learn(ctx context.Context, l Learner, tag, id string, user userhash.Hash, t time.Time, text string) error {
+	toks := Tokens(tokensPool.Get(), text)
+	defer func() { tokensPool.Put(toks[:0]) }()
 	if len(toks) == 0 {
 		return nil
 	}

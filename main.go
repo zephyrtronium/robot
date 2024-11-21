@@ -227,7 +227,6 @@ func cliAncient(ctx context.Context, cmd *cli.Command) error {
 	}
 	slog.InfoContext(ctx, "importing", slog.String("file", file), slog.Int("order", order))
 	var n int64
-	var toks []string
 	t := time.NewTicker(time.Second)
 	defer t.Stop()
 	for msg, err := range ancientMessages(conn, order) {
@@ -237,9 +236,8 @@ func cliAncient(ctx context.Context, cmd *cli.Command) error {
 			return err
 		}
 		id := fmt.Sprintf("import:%s:%d", file, n)
-		toks = brain.Tokens(toks[:0], msg.text)
 		slog.DebugContext(ctx, "learn", slog.String("tag", msg.tag), slog.String("text", msg.text))
-		if err := brain.Learn(ctx, br, msg.tag, id, userhash.Hash{}, time.Now(), toks); err != nil {
+		if err := brain.Learn(ctx, br, msg.tag, id, userhash.Hash{}, time.Now(), msg.text); err != nil {
 			slog.ErrorContext(ctx, "error learning message", slog.Any("err", err))
 			return err
 		}

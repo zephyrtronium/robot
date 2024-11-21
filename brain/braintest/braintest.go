@@ -3,12 +3,12 @@ package braintest
 
 import (
 	"context"
-	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
@@ -22,88 +22,82 @@ func Test(ctx context.Context, t *testing.T, new func(context.Context) brain.Bra
 	t.Run("combinatoric", testCombinatoric(ctx, new(ctx)))
 }
 
-func these(s ...string) func() []string {
-	return func() []string {
-		return slices.Clone(s)
-	}
-}
-
 var messages = [...]struct {
-	ID     string
-	User   userhash.Hash
-	Tag    string
-	Time   time.Time
-	Tokens func() []string
+	ID   string
+	User userhash.Hash
+	Tag  string
+	Time time.Time
+	Text string
 }{
 	{
-		ID:     "1",
-		User:   userhash.Hash{2},
-		Tag:    "kessoku",
-		Time:   time.Unix(0, 0),
-		Tokens: these("member ", "bocchi "),
+		ID:   "1",
+		User: userhash.Hash{2},
+		Tag:  "kessoku",
+		Time: time.Unix(0, 0),
+		Text: "member bocchi",
 	},
 	{
-		ID:     "2",
-		User:   userhash.Hash{2},
-		Tag:    "kessoku",
-		Time:   time.Unix(1, 0),
-		Tokens: these("member ", "ryou "),
+		ID:   "2",
+		User: userhash.Hash{2},
+		Tag:  "kessoku",
+		Time: time.Unix(1, 0),
+		Text: "member ryou",
 	},
 	{
-		ID:     "3",
-		User:   userhash.Hash{3},
-		Tag:    "kessoku",
-		Time:   time.Unix(2, 0),
-		Tokens: these("member ", "nijika "),
+		ID:   "3",
+		User: userhash.Hash{3},
+		Tag:  "kessoku",
+		Time: time.Unix(2, 0),
+		Text: "member nijika",
 	},
 	{
-		ID:     "4",
-		User:   userhash.Hash{3},
-		Tag:    "kessoku",
-		Time:   time.Unix(3, 0),
-		Tokens: these("member ", "kita "),
+		ID:   "4",
+		User: userhash.Hash{3},
+		Tag:  "kessoku",
+		Time: time.Unix(3, 0),
+		Text: "member kita",
 	},
 	{
-		ID:     "5",
-		User:   userhash.Hash{2},
-		Tag:    "sickhack",
-		Time:   time.Unix(0, 0),
-		Tokens: these("member ", "bocchi "),
+		ID:   "5",
+		User: userhash.Hash{2},
+		Tag:  "sickhack",
+		Time: time.Unix(0, 0),
+		Text: "member bocchi",
 	},
 	{
-		ID:     "6",
-		User:   userhash.Hash{2},
-		Tag:    "sickhack",
-		Time:   time.Unix(1, 0),
-		Tokens: these("member ", "ryou "),
+		ID:   "6",
+		User: userhash.Hash{2},
+		Tag:  "sickhack",
+		Time: time.Unix(1, 0),
+		Text: "member ryou",
 	},
 	{
-		ID:     "7",
-		User:   userhash.Hash{3},
-		Tag:    "sickhack",
-		Time:   time.Unix(2, 0),
-		Tokens: these("member ", "nijika "),
+		ID:   "7",
+		User: userhash.Hash{3},
+		Tag:  "sickhack",
+		Time: time.Unix(2, 0),
+		Text: "member nijika",
 	},
 	{
-		ID:     "8",
-		User:   userhash.Hash{3},
-		Tag:    "sickhack",
-		Time:   time.Unix(3, 0),
-		Tokens: these("member ", "kita "),
+		ID:   "8",
+		User: userhash.Hash{3},
+		Tag:  "sickhack",
+		Time: time.Unix(3, 0),
+		Text: "member kita",
 	},
 	{
-		ID:     "9",
-		User:   userhash.Hash{4},
-		Tag:    "sickhack",
-		Time:   time.Unix(43, 0),
-		Tokens: these("manager ", "seika "),
+		ID:   "9",
+		User: userhash.Hash{4},
+		Tag:  "sickhack",
+		Time: time.Unix(43, 0),
+		Text: "manager seika",
 	},
 }
 
 func learn(ctx context.Context, t *testing.T, br brain.Learner) {
 	t.Helper()
 	for _, m := range messages {
-		if err := brain.Learn(ctx, br, m.Tag, m.ID, m.User, m.Time, m.Tokens()); err != nil {
+		if err := brain.Learn(ctx, br, m.Tag, m.ID, m.User, m.Time, m.Text); err != nil {
 			t.Fatalf("couldn't learn message %v: %v", m.ID, err)
 		}
 	}
@@ -248,7 +242,7 @@ func testCombinatoric(ctx context.Context, br brain.Brain) func(t *testing.T) {
 								toks := toks
 								for len(toks) > 1 {
 									id := randid()
-									err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(0, 0), toks)
+									err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(0, 0), strings.Join(toks, " "))
 									if err != nil {
 										t.Fatalf("couldn't learn init: %v", err)
 									}

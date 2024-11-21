@@ -28,35 +28,35 @@ func TestLearn(t *testing.T) {
 	s := func(x ...string) []string { return x }
 	cases := []struct {
 		name string
-		msg  []string
+		msg  string
 		want []brain.Tuple
 	}{
 		{
 			name: "single",
-			msg:  s("word"),
+			msg:  "word",
 			want: []brain.Tuple{
-				{Prefix: s("word"), Suffix: ""},
-				{Prefix: nil, Suffix: "word"},
+				{Prefix: s("word "), Suffix: ""},
+				{Prefix: nil, Suffix: "word "},
 			},
 		},
 		{
 			name: "many",
-			msg:  s("many", "words", "in", "this", "message"),
+			msg:  "many words in this message",
 			want: []brain.Tuple{
-				{Prefix: s("message", "this", "in", "words", "many"), Suffix: ""},
-				{Prefix: s("this", "in", "words", "many"), Suffix: "message"},
-				{Prefix: s("in", "words", "many"), Suffix: "this"},
-				{Prefix: s("words", "many"), Suffix: "in"},
-				{Prefix: s("many"), Suffix: "words"},
-				{Prefix: nil, Suffix: "many"},
+				{Prefix: s("message ", "this ", "in ", "words ", "many "), Suffix: ""},
+				{Prefix: s("this ", "in ", "words ", "many "), Suffix: "message "},
+				{Prefix: s("in ", "words ", "many "), Suffix: "this "},
+				{Prefix: s("words ", "many "), Suffix: "in "},
+				{Prefix: s("many "), Suffix: "words "},
+				{Prefix: nil, Suffix: "many "},
 			},
 		},
 		{
 			name: "entropy",
-			msg:  s("A"),
+			msg:  "A",
 			want: []brain.Tuple{
-				{Prefix: s("a"), Suffix: ""},
-				{Prefix: nil, Suffix: "A"},
+				{Prefix: s("a "), Suffix: ""},
+				{Prefix: nil, Suffix: "A "},
 			},
 		},
 	}
