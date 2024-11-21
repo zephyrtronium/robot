@@ -18,8 +18,7 @@ import (
 // If a brain cannot be created without error, new should call t.Fatal.
 func Test(ctx context.Context, t *testing.T, new func(context.Context) brain.Brain) {
 	t.Run("speak", testSpeak(ctx, new(ctx)))
-	t.Run("forgetMessage", testForgetMessage(ctx, new(ctx)))
-	t.Run("forgetDuring", testForgetDuring(ctx, new(ctx)))
+	t.Run("forgetMessage", testForget(ctx, new(ctx)))
 	t.Run("combinatoric", testCombinatoric(ctx, new(ctx)))
 }
 
@@ -182,11 +181,11 @@ func testSpeak(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	}
 }
 
-// testForgetMessage tests that a brain can forget messages by ID.
-func testForgetMessage(ctx context.Context, br brain.Brain) func(t *testing.T) {
+// testForget tests that a brain can forget messages by ID.
+func testForget(ctx context.Context, br brain.Brain) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
-		if err := br.ForgetMessage(ctx, "kessoku", messages[0].ID); err != nil {
+		if err := br.Forget(ctx, "kessoku", messages[0].ID); err != nil {
 			t.Errorf("failed to forget first message: %v", err)
 		}
 		got := speak(ctx, t, br, "kessoku", "", 2048)
@@ -232,51 +231,6 @@ func testForgetMessage(ctx context.Context, br brain.Brain) func(t *testing.T) {
 		}
 	}
 }
-
-// testForgetDuring tests that a brain can forget messages in a time range.
-func testForgetDuring(ctx context.Context, br brain.Brain) func(t *testing.T) {
-	return func(t *testing.T) {
-		learn(ctx, t, br)
-		if err := br.ForgetDuring(ctx, "kessoku", time.Unix(1, 0).Add(-time.Millisecond), time.Unix(2, 0).Add(time.Millisecond)); err != nil {
-			t.Errorf("failed to forget: %v", err)
-		}
-		got := speak(ctx, t, br, "kessoku", "", 2048)
-		want := map[string]struct{}{
-			"1#member bocchi":   {},
-			"1 4#member bocchi": {},
-			"1 4#member kita":   {},
-			"4#member kita":     {},
-		}
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("wrong messages after forgetting (+got/-want):\n%s", diff)
-		}
-		got = speak(ctx, t, br, "sickhack", "", 2048)
-		want = map[string]struct{}{
-			"5#member bocchi":   {},
-			"5 6#member bocchi": {},
-			"5 7#member bocchi": {},
-			"5 8#member bocchi": {},
-			"5 6#member ryou":   {},
-			"6#member ryou":     {},
-			"6 7#member ryou":   {},
-			"6 8#member ryou":   {},
-			"5 7#member nijika": {},
-			"6 7#member nijika": {},
-			"7#member nijika":   {},
-			"7 8#member nijika": {},
-			"5 8#member kita":   {},
-			"6 8#member kita":   {},
-			"7 8#member kita":   {},
-			"8#member kita":     {},
-			"9#manager seika":   {},
-		}
-		if diff := cmp.Diff(want, got); diff != "" {
-			t.Errorf("wrong spoken messages for sickhack (+got/-want):\n%s", diff)
-		}
-	}
-}
-
-// TODO(zeph): testForgetUser
 
 // testCombinatoric tests that chains can generate even with substantial
 // overlap in learned material.

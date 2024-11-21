@@ -66,52 +66,10 @@ func (m *membrain) forgetIDLocked(tag, id string) {
 	}
 }
 
-func (m *membrain) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, tup := range tuples {
-		p := strings.Join(tup.Prefix, "\xff")
-		u := m.tups[tag][p]
-		k := slices.IndexFunc(u, func(v [2]string) bool { return v[1] == tup.Suffix })
-		if k < 0 {
-			continue
-		}
-		u[k], u[len(u)-1] = u[len(u)-1], u[k]
-		m.tups[tag][p] = u[:len(u)-1]
-	}
-	return nil
-}
-
-func (m *membrain) ForgetMessage(ctx context.Context, tag, id string) error {
+func (m *membrain) Forget(ctx context.Context, tag, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.forgetIDLocked(tag, id)
-	return nil
-}
-
-func (m *membrain) ForgetDuring(ctx context.Context, tag string, since, before time.Time) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	s, b := since.UnixNano(), before.UnixNano()
-	for tm, u := range m.tms[tag] {
-		if tm < s || tm > b {
-			continue
-		}
-		for _, v := range u {
-			m.forgetIDLocked(tag, v)
-		}
-		delete(m.tms[tag], tm) // yea i modify the map during iteration, yea i'm cool
-	}
-	return nil
-}
-
-func (m *membrain) ForgetUser(ctx context.Context, user *userhash.Hash) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, v := range m.users[*user] {
-		m.forgetIDLocked(v[0], v[1])
-	}
-	delete(m.users, *user)
 	return nil
 }
 

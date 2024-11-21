@@ -20,7 +20,8 @@ func Forget(ctx context.Context, robo *Robot, call *Invocation) {
 			slog.String("tag", call.Channel.Learn),
 			slog.String("id", m.ID),
 		)
-		err := robo.Brain.ForgetMessage(ctx, call.Channel.Learn, m.ID)
+		robo.Metrics.ForgotCount.Observe(1)
+		err := robo.Brain.Forget(ctx, call.Channel.Learn, m.ID)
 		if err != nil {
 			robo.Log.ErrorContext(ctx, "failed to forget",
 				slog.Any("err", err),

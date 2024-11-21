@@ -67,7 +67,7 @@ func TestPastRecord(t *testing.T) {
 	}
 }
 
-func TestPastFindID(t *testing.T) {
+func TestPastFind(t *testing.T) {
 	uu := "1"
 	p := past{
 		k:    127,
@@ -84,82 +84,6 @@ func TestPastFindID(t *testing.T) {
 	}
 }
 
-func TestPastFindDuring(t *testing.T) {
-	p := past{
-		k: 127,
-		key: [256][][]byte{
-			0: {[]byte("bocchi")},
-			1: {[]byte("ryou")},
-			2: {[]byte("nijika")},
-			3: {[]byte("kita")},
-		},
-		id: [256]string{
-			0: "2",
-			1: "3",
-			2: "4",
-			3: "1",
-		},
-		user: [256]userhash.Hash{
-			0: {3},
-			1: {4},
-			2: {5},
-			3: {2},
-		},
-		time: [256]int64{
-			0: 4,
-			1: 5,
-			2: 6,
-			3: 3,
-		},
-	}
-	want := [][]byte{
-		[]byte("bocchi"),
-		[]byte("ryou"),
-	}
-	got := p.findDuring(4, 5)
-	if !slices.EqualFunc(got, want, bytes.Equal) {
-		t.Errorf("wrong result: want %q, got %q", want, got)
-	}
-}
-
-func TestPastFindUser(t *testing.T) {
-	p := past{
-		k: 127,
-		key: [256][][]byte{
-			127: {[]byte("bocchi")},
-			192: {[]byte("ryou")},
-			200: {[]byte("nijika")},
-			255: {[]byte("kita")},
-		},
-		id: [256]string{
-			127: "2",
-			192: "3",
-			200: "4",
-			255: "1",
-		},
-		user: [256]userhash.Hash{
-			127: {8},
-			192: {8},
-			200: {5},
-			255: {5},
-		},
-		time: [256]int64{
-			127: 4,
-			192: 5,
-			200: 6,
-			255: 3,
-		},
-	}
-	want := [][]byte{
-		[]byte("bocchi"),
-		[]byte("ryou"),
-	}
-	got := p.findUser(userhash.Hash{8})
-	if !slices.EqualFunc(got, want, bytes.Equal) {
-		t.Errorf("wrong result: want %q, got %q", want, got)
-	}
-}
-
 func BenchmarkPastRecord(b *testing.B) {
 	var p past
 	uu := "1"
@@ -170,7 +94,7 @@ func BenchmarkPastRecord(b *testing.B) {
 	}
 }
 
-func BenchmarkPastFindID(b *testing.B) {
+func BenchmarkPastFind(b *testing.B) {
 	var p past
 	for i := range len(p.id) {
 		p.record(string(byte(i)), userhash.Hash{byte(i)}, int64(i), [][]byte{{byte(i)}})
@@ -182,34 +106,10 @@ func BenchmarkPastFindID(b *testing.B) {
 	}
 }
 
-func BenchmarkPastFindDuring(b *testing.B) {
-	var p past
-	for i := range len(p.id) {
-		p.record(string(byte(i)), userhash.Hash{byte(i)}, int64(i), [][]byte{{byte(i)}})
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := range b.N {
-		use(p.findDuring(int64(i), int64(i)))
-	}
-}
-
-func BenchmarkPastFindUser(b *testing.B) {
-	var p past
-	for i := range len(p.id) {
-		p.record(string(byte(i)), userhash.Hash{byte(i)}, int64(i), [][]byte{{byte(i)}})
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := range b.N {
-		use(p.findUser(userhash.Hash{byte(i)}))
-	}
-}
-
 //go:noinline
 func use(x [][]byte) {}
 
-func TestForgetMessage(t *testing.T) {
+func TestForget(t *testing.T) {
 	type message struct {
 		id   string
 		user userhash.Hash
@@ -308,222 +208,8 @@ func TestForgetMessage(t *testing.T) {
 					t.Errorf("failed to learn: %v", err)
 				}
 			}
-			if err := br.ForgetMessage(ctx, "kessoku", c.uu); err != nil {
+			if err := br.Forget(ctx, "kessoku", c.uu); err != nil {
 				t.Errorf("couldn't forget: %v", err)
-			}
-			dbcheck(t, db, c.want)
-		})
-	}
-}
-
-func TestForgetDuring(t *testing.T) {
-	type message struct {
-		id   string
-		user userhash.Hash
-		tag  string
-		time time.Time
-		tups []brain.Tuple
-	}
-	cases := []struct {
-		name string
-		msgs []message
-		a, b int64
-		want map[string]string
-	}{
-		{
-			name: "single",
-			msgs: []message{
-				{
-					id:   "1",
-					user: userhash.Hash{2},
-					tag:  "kessoku",
-					time: time.Unix(1, 0),
-					tups: []brain.Tuple{
-						{
-							Prefix: []string{"ryou", "bocchi"},
-							Suffix: "kita",
-						},
-					},
-				},
-			},
-			a:    0,
-			b:    2,
-			want: map[string]string{},
-		},
-		{
-			name: "several",
-			msgs: []message{
-				{
-					id:   "1",
-					user: userhash.Hash{2},
-					tag:  "kessoku",
-					time: time.Unix(1, 0),
-					tups: []brain.Tuple{
-						{
-							Prefix: []string{"ryou", "bocchi"},
-							Suffix: "kita",
-						},
-					},
-				},
-				{
-					id:   "2",
-					user: userhash.Hash{2},
-					tag:  "kessoku",
-					time: time.Unix(1, 0),
-					tups: []brain.Tuple{
-						{
-							Prefix: []string{"ryou", "bocchi"},
-							Suffix: "kita",
-						},
-					},
-				},
-			},
-			a:    0,
-			b:    2,
-			want: map[string]string{},
-		},
-		{
-			name: "none",
-			msgs: []message{
-				{
-					id:   "1",
-					user: userhash.Hash{2},
-					tag:  "kessoku",
-					time: time.Unix(5, 0),
-					tups: []brain.Tuple{
-						{
-							Prefix: []string{"ryou", "bocchi"},
-							Suffix: "kita",
-						},
-					},
-				},
-			},
-			a: 0,
-			b: 2,
-			want: map[string]string{
-				mkey("kessoku", "ryou\xffbocchi\xff\xff", "1"): "kita",
-			},
-		},
-		{
-			name: "tagged",
-			msgs: []message{
-				{
-					id:   "1",
-					user: userhash.Hash{2},
-					tag:  "sickhack",
-					time: time.Unix(1, 0),
-					tups: []brain.Tuple{
-						{
-							Prefix: []string{"ryou", "bocchi"},
-							Suffix: "kita",
-						},
-					},
-				},
-			},
-			a: 0,
-			b: 2,
-			want: map[string]string{
-				mkey("sickhack", "ryou\xffbocchi\xff\xff", "1"): "kita",
-			},
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			ctx := context.Background()
-			db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLogger(nil))
-			if err != nil {
-				t.Fatal(err)
-			}
-			br := New(db)
-			for _, msg := range c.msgs {
-				err := br.Learn(ctx, msg.tag, msg.id, msg.user, msg.time, msg.tups)
-				if err != nil {
-					t.Errorf("failed to learn: %v", err)
-				}
-			}
-			since := time.Unix(c.a, 0)
-			before := time.Unix(c.b, 0)
-			if err := br.ForgetDuring(ctx, "kessoku", since, before); err != nil {
-				t.Errorf("failed to forget between %v and %v: %v", since, before, err)
-			}
-			dbcheck(t, db, c.want)
-		})
-	}
-}
-
-func TestForgetUserSince(t *testing.T) {
-	type message struct {
-		id   string
-		user userhash.Hash
-		tag  string
-		time time.Time
-		tups []brain.Tuple
-	}
-	cases := []struct {
-		name string
-		msgs []message
-		user userhash.Hash
-		want map[string]string
-	}{
-		{
-			name: "match",
-			msgs: []message{
-				{
-					id:   "1",
-					user: userhash.Hash{2},
-					tag:  "kessoku",
-					time: time.Unix(1, 0),
-					tups: []brain.Tuple{
-						{
-							Prefix: []string{"ryou", "bocchi"},
-							Suffix: "kita",
-						},
-					},
-				},
-			},
-			user: userhash.Hash{2},
-			want: map[string]string{},
-		},
-		{
-			name: "different",
-			msgs: []message{
-				{
-					id:   "1",
-					user: userhash.Hash{2},
-					tag:  "kessoku",
-					time: time.Unix(1, 0),
-					tups: []brain.Tuple{
-						{
-							Prefix: []string{"ryou", "bocchi"},
-							Suffix: "kita",
-						},
-					},
-				},
-			},
-			user: userhash.Hash{1},
-			want: map[string]string{
-				mkey("kessoku", "ryou\xffbocchi\xff\xff", "1"): "kita",
-			},
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			t.Parallel()
-			ctx := context.Background()
-			db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLogger(nil))
-			if err != nil {
-				t.Fatal(err)
-			}
-			br := New(db)
-			for _, msg := range c.msgs {
-				err := br.Learn(ctx, msg.tag, msg.id, msg.user, msg.time, msg.tups)
-				if err != nil {
-					t.Errorf("failed to learn: %v", err)
-				}
-			}
-			if err := br.ForgetUser(ctx, &c.user); err != nil {
-				t.Errorf("failed to forget from user %02x: %v", c.user, err)
 			}
 			dbcheck(t, db, c.want)
 		})

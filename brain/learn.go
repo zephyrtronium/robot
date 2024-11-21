@@ -27,13 +27,10 @@ type Learner interface {
 	// Each tuple's prefix has entropy reduction transformations applied.
 	// Tuples in the argument may share storage for prefixes.
 	Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []Tuple) error
-	// ForgetMessage forgets everything learned from a single given message.
-	// If nothing has been learned from the message, it should be ignored.
-	ForgetMessage(ctx context.Context, tag, id string) error
-	// ForgetDuring forgets all messages learned in the given time span.
-	ForgetDuring(ctx context.Context, tag string, since, before time.Time) error
-	// ForgetUser forgets all messages associated with a userhash.
-	ForgetUser(ctx context.Context, user *userhash.Hash) error
+	// Forget forgets everything learned from a single given message.
+	// If nothing has been learned from the message, it should prevent anything
+	// from being learned from a message with that ID.
+	Forget(ctx context.Context, tag, id string) error
 }
 
 var tuplesPool tpool.Pool[[]Tuple]

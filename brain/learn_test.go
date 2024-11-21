@@ -13,29 +13,14 @@ import (
 
 type testLearner struct {
 	learned []brain.Tuple
-	forgot  []brain.Tuple
-	err     error
 }
 
 func (t *testLearner) Learn(ctx context.Context, tag, id string, user userhash.Hash, tm time.Time, tuples []brain.Tuple) error {
 	t.learned = append(t.learned, tuples...)
-	return t.err
-}
-
-func (t *testLearner) Forget(ctx context.Context, tag string, tuples []brain.Tuple) error {
-	t.forgot = tuples
 	return nil
 }
 
-func (t *testLearner) ForgetMessage(ctx context.Context, tag, id string) error {
-	return nil
-}
-
-func (t *testLearner) ForgetDuring(ctx context.Context, tag string, since, before time.Time) error {
-	return nil
-}
-
-func (t *testLearner) ForgetUser(ctx context.Context, user *userhash.Hash) error {
+func (t *testLearner) Forget(ctx context.Context, tag, id string) error {
 	return nil
 }
 

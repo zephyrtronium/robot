@@ -11,7 +11,6 @@ import (
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/metrics"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 func (robo *Robot) tmiLoop(ctx context.Context, group *errgroup.Group, send chan<- *tmi.Message, recv <-chan *tmi.Message) {
@@ -100,9 +99,17 @@ func (robo *Robot) clearchat(ctx context.Context, msg *tmi.Message) {
 		// Delete all recent chat.
 		tag := ch.Learn
 		slog.InfoContext(ctx, "clear all chat", slog.String("channel", msg.To()), slog.String("tag", tag))
-		err := robo.brain.ForgetDuring(ctx, tag, msg.Time().Add(-15*time.Minute), msg.Time())
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to forget from all chat", slog.Any("err", err), slog.String("channel", msg.To()))
+		for m := range ch.History.All() {
+			slog.DebugContext(ctx, "forget all chat", slog.String("channel", msg.To()), slog.String("id", m.ID))
+			robo.Metrics.ForgotCount.Observe(1)
+			err := robo.brain.Forget(ctx, tag, m.ID)
+			if err != nil {
+				slog.ErrorContext(ctx, "failed to forget while clearing all chat",
+					slog.Any("err", err),
+					slog.String("channel", msg.To()),
+					slog.String("id", m.ID),
+				)
+			}
 		}
 	case robo.tmi.userID:
 		// We use the send tag because we are forgetting something we sent.
@@ -117,8 +124,9 @@ func (robo *Robot) clearchat(ctx context.Context, msg *tmi.Message) {
 				)
 				continue
 			}
+			slog.DebugContext(ctx, "forget from recent trace", slog.String("channel", msg.To()), slog.String("id", id))
 			robo.Metrics.ForgotCount.Observe(1)
-			if err := robo.brain.ForgetMessage(ctx, tag, id); err != nil {
+			if err := robo.brain.Forget(ctx, tag, id); err != nil {
 				slog.ErrorContext(ctx, "failed to forget from recent trace",
 					slog.Any("err", err),
 					slog.String("channel", msg.To()),
@@ -129,17 +137,19 @@ func (robo *Robot) clearchat(ctx context.Context, msg *tmi.Message) {
 		}
 	default:
 		// Delete from user.
-		// We use the user's current and previous userhash, since userhashes
-		// are time-based.
-		hr := robo.hashes()
-		h := hr.Hash(new(userhash.Hash), t, msg.To(), msg.Time())
-		if err := robo.brain.ForgetUser(ctx, h); err != nil {
-			slog.ErrorContext(ctx, "failed to forget recent messages from user", slog.Any("err", err), slog.String("channel", msg.To()))
-			// Try the previous userhash anyway.
-		}
-		h = hr.Hash(h, t, msg.To(), msg.Time().Add(-userhash.TimeQuantum))
-		if err := robo.brain.ForgetUser(ctx, h); err != nil {
-			slog.ErrorContext(ctx, "failed to forget older messages from user", slog.Any("err", err), slog.String("channel", msg.To()))
+		for m := range ch.History.All() {
+			if m.Sender != t {
+				continue
+			}
+			slog.DebugContext(ctx, "forget from user", slog.String("channel", msg.To()), slog.String("id", m.ID))
+			robo.Metrics.ForgotCount.Observe(1)
+			if err := robo.brain.Forget(ctx, ch.Learn, m.ID); err != nil {
+				slog.ErrorContext(ctx, "failed to forget from user",
+					slog.Any("err", err),
+					slog.String("channel", msg.To()),
+					slog.String("id", m.ID),
+				)
+			}
 		}
 	}
 }
@@ -184,7 +194,7 @@ func (robo *Robot) clearmsg(ctx context.Context, msg *tmi.Message) {
 func forget(ctx context.Context, log *slog.Logger, forgetCount metrics.Observer, brain brain.Brain, tag string, trace ...string) {
 	forgetCount.Observe(1)
 	for _, id := range trace {
-		err := brain.ForgetMessage(ctx, tag, id)
+		err := brain.Forget(ctx, tag, id)
 		if err != nil {
 			log.ErrorContext(ctx, "failed to forget message",
 				slog.Any("err", err),
