@@ -36,12 +36,12 @@ func TestHasher(t *testing.T) {
 			for _, loc := range locs {
 				for _, when := range times {
 					hr := userhash.New([]byte(key))
-					a := *hr.Hash(new(userhash.Hash), user, loc, when)
+					a := hr.Hash(user, loc, when)
 					if u[a] {
 						t.Errorf("duplicate hash: %s/%s/%s/%v gave %x", key, user, loc, when, a)
 					}
 					u[a] = true
-					b := *hr.Hash(new(userhash.Hash), user, loc, when)
+					b := hr.Hash(user, loc, when)
 					if a != b {
 						t.Errorf("repeated hash changed: %s/%s/%s/%v gave first %x then %x", key, user, loc, when, a, b)
 					}

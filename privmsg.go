@@ -212,9 +212,9 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		log.DebugContext(ctx, "no learn tag")
 		return
 	}
-	user := hasher.Hash(new(userhash.Hash), msg.Sender, msg.To, msg.Time())
+	user := hasher.Hash(msg.Sender, msg.To, msg.Time())
 	start := time.Now()
-	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, *user, msg.Time(), msg.Text); err != nil {
+	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, user, msg.Time(), msg.Text); err != nil {
 		log.ErrorContext(ctx, "failed to learn", slog.Any("err", err))
 		return
 	}

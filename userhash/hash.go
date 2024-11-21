@@ -52,15 +52,16 @@ func New(prk []byte) Hasher {
 	}
 }
 
-// Hash computes a userhash and writes it into dst.
-func (h Hasher) Hash(dst *Hash, uid, where string, when time.Time) *Hash {
+// Hash computes a userhash.
+func (h Hasher) Hash(uid, where string, when time.Time) Hash {
 	h.mac.Reset()
 	t := when.UnixNano() / TimeQuantum.Nanoseconds()
 	b := make([]byte, 8, 8+len(uid)+1+len(where))
+	dst := make([]byte, 0, Size)
 	binary.LittleEndian.PutUint64(b, uint64(t))
 	b = append(b, uid...)
 	b = append(b, 0xaa)
 	b = append(b, where...)
 	h.mac.Write(b)
-	return (*Hash)(h.mac.Sum(dst[:0]))
+	return Hash(h.mac.Sum(dst))
 }
