@@ -7,14 +7,16 @@ import (
 )
 
 // Received is a message received from a service.
-type Received struct {
+type Received[U comparable] struct {
 	// ID is the unique ID of the message.
 	ID string
 	// To is the destination of the message. This may be the identifier of a
 	// room or channel or the name of a user.
 	To string
 	// Sender is a unique identifier for the message sender.
-	Sender string
+	// Whether it remains constant for a given sender depends on the semantics
+	// of the type argument.
+	Sender U
 	// Name is the display name of the message sender.
 	Name string
 	// Text is the text of the message.
@@ -31,7 +33,7 @@ type Received struct {
 	IsElevated bool
 }
 
-func (m *Received) Time() time.Time {
+func (m *Received[U]) Time() time.Time {
 	return time.UnixMilli(m.Timestamp)
 }
 

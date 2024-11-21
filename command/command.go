@@ -30,9 +30,10 @@ type Robot struct {
 type Invocation struct {
 	// Channel is the channel where the invocation occurred.
 	Channel *channel.Channel
-	// Message is the message which triggered the invocation. It is always
-	// non-nil, but not all fields are guaranteed to be populated.
-	Message *message.Received
+	// Message is the message which triggered the invocation with the platform
+	// user ID as the type argument.
+	// It is always non-nil, but not all fields are guaranteed to be populated.
+	Message *message.Received[string]
 	// Args is the parsed arguments to the command.
 	Args map[string]string
 }

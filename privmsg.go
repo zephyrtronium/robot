@@ -140,7 +140,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	robo.sendTMI(ctx, send, out)
 }
 
-func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Channel, m *message.Received, from, cmd string) {
+func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Channel, m *message.Received[string], from, cmd string) {
 	robo.Metrics.TMICommandCount.Observe(1)
 	var c *twitchCommand
 	var args map[string]string
@@ -190,7 +190,7 @@ func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Ch
 }
 
 // learn learns a given message's text if it passes ch's filters.
-func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received) {
+func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received[string]) {
 	if !ch.Enabled.Load() {
 		log.DebugContext(ctx, "not learning in disabled channel")
 		return
