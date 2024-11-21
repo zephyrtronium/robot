@@ -241,6 +241,7 @@ func (robo *Robot) sendTMI(ctx context.Context, send chan<- *tmi.Message, msg me
 			slog.String("in", msg.To),
 			slog.String("text", msg.Text),
 		)
+		robo.Metrics.TMISendWait.Observe(d.Seconds())
 		select {
 		case <-ctx.Done():
 			return

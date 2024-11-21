@@ -390,5 +390,15 @@ func newMetrics() *metrics.Metrics {
 				},
 			),
 		),
+		TMISendWait: metrics.NewPromCounter(
+			prometheus.NewCounter(
+				prometheus.CounterOpts{
+					Namespace: "robot",
+					Subsystem: "tmi",
+					Name:      "send_wait",
+					Help:      "Total time in seconds spent waiting for the global rate limit before sending messages to TMI.",
+				},
+			),
+		),
 	}
 }

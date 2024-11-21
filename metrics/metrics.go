@@ -18,6 +18,7 @@ type Metrics struct {
 	SpeakLatency              Observer
 	LearnLatency              Observer
 	UsedMessagesForGeneration Observer
+	TMISendWait               Observer
 }
 
 func (m Metrics) Collectors() []prometheus.Collector {
@@ -29,5 +30,6 @@ func (m Metrics) Collectors() []prometheus.Collector {
 		m.TMIMsgsCount,
 		m.LearnLatency,
 		m.UsedMessagesForGeneration,
+		m.TMISendWait,
 	}
 }
