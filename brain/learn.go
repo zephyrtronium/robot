@@ -3,10 +3,8 @@ package brain
 import (
 	"context"
 	"slices"
-	"time"
 
 	"github.com/zephyrtronium/robot/tpool"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Tuple is a single Markov chain tuple.
@@ -26,7 +24,7 @@ type Learner interface {
 	// of the message. The positions of each in the argument are not guaranteed.
 	// Each tuple's prefix has entropy reduction transformations applied.
 	// Tuples in the argument may share storage for prefixes.
-	Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []Tuple) error
+	Learn(ctx context.Context, tag string, msg *Message, tuples []Tuple) error
 	// Forget forgets everything learned from a single given message.
 	// If nothing has been learned from the message, it should prevent anything
 	// from being learned from a message with that ID.
@@ -35,9 +33,9 @@ type Learner interface {
 
 var tuplesPool tpool.Pool[[]Tuple]
 
-// Learn records tokens into a Learner.
-func Learn(ctx context.Context, l Learner, tag, id string, user userhash.Hash, t time.Time, text string) error {
-	toks := Tokens(tokensPool.Get(), text)
+// Learn records a message into a Learner.
+func Learn(ctx context.Context, l Learner, tag string, msg *Message) error {
+	toks := Tokens(tokensPool.Get(), msg.Text)
 	defer func() { tokensPool.Put(toks[:0]) }()
 	if len(toks) == 0 {
 		return nil
@@ -46,7 +44,7 @@ func Learn(ctx context.Context, l Learner, tag, id string, user userhash.Hash, t
 	defer func() { tuplesPool.Put(tt[:0]) }()
 	tt = slices.Grow(tt, len(toks)+1)
 	tt = tupleToks(tt, toks)
-	return l.Learn(ctx, tag, id, user, t, tt)
+	return l.Learn(ctx, tag, msg, tt)
 }
 
 func tupleToks(tt []Tuple, toks []string) []Tuple {

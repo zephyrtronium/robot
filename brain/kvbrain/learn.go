@@ -5,10 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/zephyrtronium/robot/brain"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Learn records a set of tuples. Each tuple prefix has length equal to the
@@ -16,7 +14,7 @@ import (
 // denote the start of the message and end with one empty suffix to denote
 // the end; all other tokens are non-empty. Each tuple's prefix has entropy
 // reduction transformations applied.
-func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []brain.Tuple) error {
+func (br *Brain) Learn(ctx context.Context, tag string, msg *brain.Message, tuples []brain.Tuple) error {
 	if len(tuples) == 0 {
 		return errors.New("no tuples to learn")
 	}
@@ -31,7 +29,7 @@ func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, 
 		b = hashTag(b[:0], tag)
 		b = append(appendPrefix(b, t.Prefix), '\xff')
 		// Write message ID.
-		b = append(b, id[:]...)
+		b = append(b, msg.ID...)
 		keys[i] = bytes.Clone(b)
 		vals[i] = []byte(t.Suffix)
 	}
@@ -42,7 +40,8 @@ func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, 
 		// overwrite if that happens.
 		p, _ = br.past.LoadOrStore(tag, new(past))
 	}
-	p.record(id, user, t.UnixNano(), keys)
+	// Scale the timestamp from milliseconds to nanoseconds for historical reasons.
+	p.record(msg.ID, msg.Sender, msg.Timestamp*1e6, keys)
 
 	batch := br.knowledge.NewWriteBatch()
 	defer batch.Cancel()

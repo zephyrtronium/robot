@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
@@ -107,19 +106,19 @@ func TestForget(t *testing.T) {
 		{
 			tag:  "kessoku",
 			id:   "2",
-			time: 3,
+			time: 3e6,
 			user: userhash.Hash{1},
 		},
 		{
 			tag:  "kessoku",
 			id:   "5",
-			time: 6,
+			time: 6e6,
 			user: userhash.Hash{4},
 		},
 		{
 			tag:  "sickhack",
 			id:   "2",
-			time: 3,
+			time: 3e6,
 			user: userhash.Hash{1},
 		},
 	}
@@ -206,20 +205,20 @@ func TestForget(t *testing.T) {
 				{
 					tag:     "kessoku",
 					id:      "2",
-					time:    3,
+					time:    3e6,
 					user:    userhash.Hash{1},
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:  "kessoku",
 					id:   "5",
-					time: 6,
+					time: 6e6,
 					user: userhash.Hash{4},
 				},
 				{
 					tag:  "sickhack",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 			},
@@ -290,20 +289,20 @@ func TestForget(t *testing.T) {
 				{
 					tag:  "kessoku",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:     "kessoku",
 					id:      "5",
-					time:    6,
+					time:    6e6,
 					user:    userhash.Hash{4},
 					deleted: ref("CLEARMSG"),
 				},
 				{
 					tag:  "sickhack",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 			},
@@ -374,19 +373,19 @@ func TestForget(t *testing.T) {
 				{
 					tag:  "kessoku",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:  "kessoku",
 					id:   "5",
-					time: 6,
+					time: 6e6,
 					user: userhash.Hash{4},
 				},
 				{
 					tag:     "sickhack",
 					id:      "2",
-					time:    3,
+					time:    3e6,
 					user:    userhash.Hash{1},
 					deleted: ref("CLEARMSG"),
 				},
@@ -403,7 +402,12 @@ func TestForget(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, m := range learn {
-				err := br.Learn(ctx, m.tag, m.id, m.user, time.Unix(0, m.t), m.tups)
+				msg := brain.Message{
+					ID:        m.id,
+					Sender:    m.user,
+					Timestamp: m.t,
+				}
+				err := br.Learn(ctx, m.tag, &msg, m.tups)
 				if err != nil {
 					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}

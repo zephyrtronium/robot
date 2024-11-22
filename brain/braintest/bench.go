@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
@@ -45,7 +44,8 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
 				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, l, "bocchi", id, u, time.Unix(t, 0), strings.Join(toks, " "))
+				msg := brain.Message{ID: id, Sender: u, Timestamp: t * 1e3, Text: strings.Join(toks, " ")}
+				err := brain.Learn(ctx, l, "bocchi", &msg)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -83,7 +83,8 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
 				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, l, "bocchi", id, u, time.Unix(t, 0), strings.Join(toks[:8], " "))
+				msg := brain.Message{ID: id, Sender: u, Timestamp: t * 1e3, Text: strings.Join(toks, " ")}
+				err := brain.Learn(ctx, l, "bocchi", &msg)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -117,7 +118,8 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				toks[len(toks)-1] = strconv.FormatInt(t, 10)
 				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(t, 0), strings.Join(toks, " "))
+				msg := brain.Message{ID: id, Sender: u, Timestamp: t * 1e3, Text: strings.Join(toks, " ")}
+				err := brain.Learn(ctx, br, "bocchi", &msg)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -162,7 +164,8 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
 				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(t, 0), strings.Join(toks, " "))
+				msg := brain.Message{ID: id, Sender: u, Timestamp: t * 1e3, Text: strings.Join(toks, " ")}
+				err := brain.Learn(ctx, br, "bocchi", &msg)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}
@@ -207,7 +210,8 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 				rand.Shuffle(len(toks), func(i, j int) { toks[i], toks[j] = toks[j], toks[i] })
 				id := randid()
 				u := userhash.Hash(randbytes(make([]byte, len(userhash.Hash{}))))
-				err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(t, 0), strings.Join(toks, " "))
+				msg := brain.Message{ID: id, Sender: u, Timestamp: t * 1e3, Text: strings.Join(toks, " ")}
+				err := brain.Learn(ctx, br, "bocchi", &msg)
 				if err != nil {
 					b.Errorf("error while learning: %v", err)
 				}

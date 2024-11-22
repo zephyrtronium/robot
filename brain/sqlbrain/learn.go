@@ -3,16 +3,14 @@ package sqlbrain
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"zombiezen.com/go/sqlite/sqlitex"
 
 	"github.com/zephyrtronium/robot/brain"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 // Learn records a set of tuples.
-func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []brain.Tuple) (err error) {
+func (br *Brain) Learn(ctx context.Context, tag string, msg *brain.Message, tuples []brain.Tuple) (err error) {
 	conn, err := br.db.Take(ctx)
 	defer br.db.Put(conn)
 	if err != nil {
@@ -30,7 +28,7 @@ func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, 
 		p = append(prefix(p[:0], tt.Prefix), 0)
 		s = append(s[:0], tt.Suffix...)
 		st.SetText(":tag", tag)
-		st.SetText(":id", id)
+		st.SetText(":id", msg.ID)
 		st.SetBytes(":prefix", p)
 		st.SetBytes(":suffix", s)
 		_, err := st.Step()
@@ -45,9 +43,9 @@ func (br *Brain) Learn(ctx context.Context, tag, id string, user userhash.Hash, 
 		return fmt.Errorf("couldn't prepare message insert: %w", err)
 	}
 	sm.SetText(":tag", tag)
-	sm.SetText(":id", id)
-	sm.SetInt64(":time", t.UnixNano())
-	sm.SetBytes(":user", user[:])
+	sm.SetText(":id", msg.ID)
+	sm.SetInt64(":time", msg.Timestamp*1e6) // scale from milliseconds to nanoseconds for historical reasons
+	sm.SetBytes(":user", msg.Sender[:])
 	_, err = sm.Step()
 	if err != nil {
 		return fmt.Errorf("couldn't insert message: %w", err)

@@ -214,7 +214,17 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 	}
 	user := hasher.Hash(msg.Sender, msg.To, msg.Time())
 	start := time.Now()
-	if err := brain.Learn(ctx, robo.brain, ch.Learn, msg.ID, user, msg.Time(), msg.Text); err != nil {
+	m := brain.Message{
+		ID:          msg.ID,
+		To:          msg.To,
+		Sender:      user,
+		Name:        msg.Name,
+		Text:        msg.Text,
+		Timestamp:   msg.Timestamp,
+		IsModerator: msg.IsModerator,
+		IsElevated:  msg.IsElevated,
+	}
+	if err := brain.Learn(ctx, robo.brain, ch.Learn, &m); err != nil {
 		log.ErrorContext(ctx, "failed to learn", slog.Any("err", err))
 		return
 	}

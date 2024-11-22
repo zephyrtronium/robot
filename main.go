@@ -20,7 +20,6 @@ import (
 	"github.com/zephyrtronium/robot/brain/kvbrain"
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 	"github.com/zephyrtronium/robot/metrics"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 var app = cli.Command{
@@ -237,7 +236,12 @@ func cliAncient(ctx context.Context, cmd *cli.Command) error {
 		}
 		id := fmt.Sprintf("import:%s:%d", file, n)
 		slog.DebugContext(ctx, "learn", slog.String("tag", msg.tag), slog.String("text", msg.text))
-		if err := brain.Learn(ctx, br, msg.tag, id, userhash.Hash{}, time.Now(), msg.text); err != nil {
+		m := brain.Message{
+			ID:        id,
+			Timestamp: time.Now().UnixMilli(),
+			Text:      msg.text,
+		}
+		if err := brain.Learn(ctx, br, msg.tag, &m); err != nil {
 			slog.ErrorContext(ctx, "error learning message", slog.Any("err", err))
 			return err
 		}

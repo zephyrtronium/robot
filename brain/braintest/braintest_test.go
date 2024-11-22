@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
@@ -25,7 +24,7 @@ type membrain struct {
 
 var _ brain.Brain = (*membrain)(nil)
 
-func (m *membrain) Learn(ctx context.Context, tag, id string, user userhash.Hash, t time.Time, tuples []brain.Tuple) error {
+func (m *membrain) Learn(ctx context.Context, tag string, msg *brain.Message, tuples []brain.Tuple) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.tups[tag] == nil {
@@ -37,13 +36,13 @@ func (m *membrain) Learn(ctx context.Context, tag, id string, user userhash.Hash
 		m.tups[tag] = make(map[string][][2]string)
 		m.tms[tag] = make(map[int64][]string)
 	}
-	m.users[user] = append(m.users[user], [2]string{tag, id})
+	m.users[msg.Sender] = append(m.users[msg.Sender], [2]string{tag, msg.ID})
 	tms := m.tms[tag]
-	tms[t.UnixNano()] = append(tms[t.UnixNano()], id)
+	tms[msg.Timestamp] = append(tms[msg.Timestamp], msg.ID)
 	r := m.tups[tag]
 	for _, tup := range tuples {
 		p := strings.Join(tup.Prefix, "\xff")
-		r[p] = append(r[p], [2]string{id, tup.Suffix})
+		r[p] = append(r[p], [2]string{msg.ID, tup.Suffix})
 	}
 	return nil
 }

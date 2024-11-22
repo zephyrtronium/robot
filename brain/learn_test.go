@@ -3,19 +3,17 @@ package brain_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/zephyrtronium/robot/brain"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 type testLearner struct {
 	learned []brain.Tuple
 }
 
-func (t *testLearner) Learn(ctx context.Context, tag, id string, user userhash.Hash, tm time.Time, tuples []brain.Tuple) error {
+func (t *testLearner) Learn(ctx context.Context, tag string, msg *brain.Message, tuples []brain.Tuple) error {
 	t.learned = append(t.learned, tuples...)
 	return nil
 }
@@ -63,7 +61,7 @@ func TestLearn(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			var l testLearner
-			err := brain.Learn(context.Background(), &l, "", "", userhash.Hash{}, time.Unix(0, 0), c.msg)
+			err := brain.Learn(context.Background(), &l, "", &brain.Message{Text: c.msg})
 			if err != nil {
 				t.Error(err)
 			}

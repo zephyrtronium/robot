@@ -97,7 +97,8 @@ var messages = [...]struct {
 func learn(ctx context.Context, t *testing.T, br brain.Learner) {
 	t.Helper()
 	for _, m := range messages {
-		if err := brain.Learn(ctx, br, m.Tag, m.ID, m.User, m.Time, m.Text); err != nil {
+		msg := brain.Message{ID: m.ID, Sender: m.User, Timestamp: m.Time.UnixMilli(), Text: m.Text}
+		if err := brain.Learn(ctx, br, m.Tag, &msg); err != nil {
 			t.Fatalf("couldn't learn message %v: %v", m.ID, err)
 		}
 	}
@@ -242,7 +243,8 @@ func testCombinatoric(ctx context.Context, br brain.Brain) func(t *testing.T) {
 								toks := toks
 								for len(toks) > 1 {
 									id := randid()
-									err := brain.Learn(ctx, br, "bocchi", id, u, time.Unix(0, 0), strings.Join(toks, " "))
+									msg := brain.Message{ID: id, Sender: u, Text: strings.Join(toks, " ")}
+									err := brain.Learn(ctx, br, "bocchi", &msg)
 									if err != nil {
 										t.Fatalf("couldn't learn init: %v", err)
 									}

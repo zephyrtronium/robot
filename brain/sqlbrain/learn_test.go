@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
@@ -171,7 +170,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "kessoku",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 			},
@@ -229,7 +228,7 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "結束",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 			},
@@ -288,13 +287,13 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "kessoku",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:  "kessoku",
 					id:   "5",
-					time: 6,
+					time: 6e6,
 					user: userhash.Hash{4},
 				},
 			},
@@ -353,13 +352,13 @@ func TestLearn(t *testing.T) {
 				{
 					tag:  "kessoku",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 				{
 					tag:  "sickhack",
 					id:   "2",
-					time: 3,
+					time: 3e6,
 					user: userhash.Hash{1},
 				},
 			},
@@ -375,7 +374,12 @@ func TestLearn(t *testing.T) {
 				t.Fatalf("couldn't open brain: %v", err)
 			}
 			for _, m := range c.learn {
-				err := br.Learn(ctx, m.tag, m.id, m.user, time.Unix(0, m.t), m.tups)
+				msg := brain.Message{
+					ID:        m.id,
+					Sender:    m.user,
+					Timestamp: m.t,
+				}
+				err := br.Learn(ctx, m.tag, &msg, m.tups)
 				if err != nil {
 					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
 				}

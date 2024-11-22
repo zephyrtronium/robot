@@ -128,7 +128,12 @@ func TestLearn(t *testing.T) {
 				t.Fatal(err)
 			}
 			br := New(db)
-			if err := br.Learn(ctx, c.tag, c.id, c.user, c.time, c.tups); err != nil {
+			msg := brain.Message{
+				ID:        c.id,
+				Sender:    c.user,
+				Timestamp: c.time.UnixMilli(),
+			}
+			if err := br.Learn(ctx, c.tag, &msg, c.tups); err != nil {
 				t.Errorf("failed to learn: %v", err)
 			}
 			dbcheck(t, db, c.want)

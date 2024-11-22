@@ -203,7 +203,12 @@ func TestForget(t *testing.T) {
 			}
 			br := New(db)
 			for _, msg := range c.msgs {
-				err := br.Learn(ctx, msg.tag, msg.id, msg.user, msg.time, msg.tups)
+				m := brain.Message{
+					ID:        msg.id,
+					Sender:    msg.user,
+					Timestamp: msg.time.UnixMilli(),
+				}
+				err := br.Learn(ctx, msg.tag, &m, msg.tups)
 				if err != nil {
 					t.Errorf("failed to learn: %v", err)
 				}
