@@ -70,3 +70,7 @@ func appendPrefix(b []byte, prefix []string) []byte {
 	}
 	return b
 }
+
+func (br *Brain) Recall(ctx context.Context, tag string, page string, out []brain.Message) (n int, next string, err error) {
+	panic("unimplemented")
+}

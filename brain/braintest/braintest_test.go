@@ -72,6 +72,10 @@ func (m *membrain) Forget(ctx context.Context, tag, id string) error {
 	return nil
 }
 
+func (m *membrain) Recall(ctx context.Context, tag string, page string, out []brain.Message) (n int, next string, err error) {
+	panic("unimplemented")
+}
+
 func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

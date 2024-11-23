@@ -2,6 +2,7 @@ package brain
 
 import (
 	"context"
+	"iter"
 	"slices"
 
 	"github.com/zephyrtronium/robot/tpool"
@@ -29,6 +30,19 @@ type Learner interface {
 	// If nothing has been learned from the message, it should prevent anything
 	// from being learned from a message with that ID.
 	Forget(ctx context.Context, tag, id string) error
+	// Recall reads out messages the brain knows.
+	// At minimum, the message ID and text of each message must be retrieved;
+	// other fields may be filled if they are available.
+	// It must be safe to call Recall concurrently with other methods of the
+	// implementation.
+	// Repeated calls using the pagination token returned from the previous
+	// must yield every message that the brain had recorded at the time of the
+	// first call exactly once. Messages learned after the first call of an
+	// enumeration are read at most once.
+	// The first call of an enumeration uses an empty pagination token.
+	// If the returned pagination token is empty, it is interpreted as the end
+	// of the enumeration.
+	Recall(ctx context.Context, tag, page string, out []Message) (n int, next string, err error)
 }
 
 var tuplesPool tpool.Pool[[]Tuple]
@@ -60,4 +74,31 @@ func tupleToks(tt []Tuple, toks []string) []Tuple {
 	}
 	tt = append(tt, Tuple{Prefix: nil, Suffix: suf})
 	return tt
+}
+
+// Recall iterates over all messages a brain knows with a given tag.
+func Recall(ctx context.Context, br Learner, tag string) iter.Seq2[Message, error] {
+	return func(yield func(Message, error) bool) {
+		var (
+			page string
+			n    int
+			err  error
+		)
+		msgs := make([]Message, 64)
+		for {
+			n, page, err = br.Recall(ctx, tag, page, msgs)
+			if err != nil {
+				yield(Message{}, err)
+				return
+			}
+			for i := range msgs[:n] {
+				if !yield(msgs[i], nil) {
+					return
+				}
+			}
+			if page == "" {
+				return
+			}
+		}
+	}
 }
