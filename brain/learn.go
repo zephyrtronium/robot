@@ -49,7 +49,7 @@ var tuplesPool tpool.Pool[[]Tuple]
 
 // Learn records a message into a Learner.
 func Learn(ctx context.Context, l Learner, tag string, msg *Message) error {
-	toks := Tokens(tokensPool.Get(), msg.Text)
+	toks := tokens(tokensPool.Get(), msg.Text)
 	defer func() { tokensPool.Put(toks[:0]) }()
 	if len(toks) == 0 {
 		return nil

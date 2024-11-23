@@ -14,8 +14,8 @@ var (
 	syms = rangetable.Merge(unicode.M, unicode.P, unicode.S)
 )
 
-// Tokens converts a message into a list of its words appended to dst.
-func Tokens(dst []string, msg string) []string {
+// tokens converts a message into a list of its words appended to dst.
+func tokens(dst []string, msg string) []string {
 	start := len(dst)
 	for len(msg) > 0 {
 		// The general procedure is to find which of several sets of runes

@@ -1,4 +1,4 @@
-package brain_test
+package brain
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/zephyrtronium/robot/brain"
 )
 
 func TestWords(t *testing.T) {
@@ -61,7 +60,7 @@ func TestWords(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := brain.Tokens(c.in, c.msg)
+			got := tokens(c.in, c.msg)
 			if diff := cmp.Diff(c.want, got); diff != "" {
 				t.Errorf("wrong result (+got/-want):\n%s", diff)
 			}
@@ -82,6 +81,6 @@ func BenchmarkWords(b *testing.B) {
 	dst := make([]string, 0, 16)
 	b.ResetTimer()
 	for range b.N {
-		dst = brain.Tokens(dst[:0], msgs[rand.Uint32()%uint32(len(msgs))])
+		dst = tokens(dst[:0], msgs[rand.Uint32()%uint32(len(msgs))])
 	}
 }

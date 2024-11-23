@@ -27,7 +27,7 @@ var (
 // regardless of the prompt, with no error.
 func Speak(ctx context.Context, s Speaker, tag, prompt string) (string, []string, error) {
 	w := builderPool.Get()
-	toks := Tokens(tokensPool.Get(), prompt)
+	toks := tokens(tokensPool.Get(), prompt)
 	defer func() {
 		w.Reset()
 		builderPool.Put(w)
