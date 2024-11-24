@@ -31,8 +31,9 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	}
 	m := message.FromTMI(msg)
 	log := slog.With(slog.String("trace", m.ID), slog.String("in", ch.Name))
-	from := m.Sender
-	if ch.Ignore[from] {
+	log.InfoContext(ctx, "privmsg", slog.Duration("bias", time.Since(m.Time())))
+	defer log.InfoContext(ctx, "end")
+	if ch.Ignore[m.Sender] {
 		log.InfoContext(ctx, "message from ignored user")
 		return
 	}
@@ -41,7 +42,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		return
 	}
 	if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
-		robo.command(ctx, log, ch, m, from, cmd)
+		robo.command(ctx, log, ch, m, m.Sender, cmd)
 		return
 	}
 	ch.History.Add(m.Time(), m)
@@ -55,7 +56,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		m.Text = t
 	}
 	robo.learn(ctx, log, ch, robo.hashes(), m)
-	switch err := ch.Memery.Check(m.Time(), from, m.Text); err {
+	switch err := ch.Memery.Check(m.Time(), m.Sender, m.Text); err {
 	case channel.ErrNotCopypasta: // do nothing
 	case nil:
 		// Meme detected. Copypasta.
@@ -99,11 +100,11 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	s, trace, err := brain.Speak(ctx, robo.brain, ch.Send, "")
 	cost := time.Since(start)
 	if err != nil {
-		log.ErrorContext(ctx, "wanted to speak but failed", slog.Any("err", err))
+		log.ErrorContext(ctx, "wanted to speak but failed", slog.Any("err", err), slog.Duration("cost", cost))
 		return
 	}
 	if s == "" {
-		log.InfoContext(ctx, "spoke nothing", slog.String("tag", ch.Send))
+		log.InfoContext(ctx, "spoke nothing", slog.String("tag", ch.Send), slog.Duration("cost", cost))
 		return
 	}
 	x := rand.Uint64()
@@ -113,6 +114,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		slog.String("text", s),
 		slog.String("emote", e),
 		slog.String("effect", f),
+		slog.Duration("cost", cost),
 	)
 	se := strings.TrimSpace(s + " " + e)
 	sef := command.Effect(log, f, se)
@@ -121,7 +123,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		return
 	}
 	if ch.Block.MatchString(se) || ch.Block.MatchString(sef) {
-		log.WarnContext(ctx, "wanted to send blocked message", slog.String("text", sef))
+		log.WarnContext(ctx, "wanted to send blocked message", slog.String("text", sef), slog.Any("ids", trace))
 		return
 	}
 	// Now that we've done all the work, which might take substantial time,
@@ -213,7 +215,6 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		return
 	}
 	user := hasher.Hash(msg.Sender, msg.To, msg.Time())
-	start := time.Now()
 	m := brain.Message{
 		ID:          msg.ID,
 		To:          msg.To,
@@ -224,12 +225,16 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		IsModerator: msg.IsModerator,
 		IsElevated:  msg.IsElevated,
 	}
-	if err := brain.Learn(ctx, robo.brain, ch.Learn, &m); err != nil {
+	start := time.Now()
+	err := brain.Learn(ctx, robo.brain, ch.Learn, &m)
+	cost := time.Since(start)
+	if err != nil {
 		log.ErrorContext(ctx, "failed to learn", slog.Any("err", err))
 		return
 	}
-	robo.Metrics.LearnLatency.Observe(time.Since(start).Seconds(), ch.Learn)
+	robo.Metrics.LearnLatency.Observe(cost.Seconds(), ch.Learn)
 	robo.Metrics.LearnedCount.Observe(1)
+	log.InfoContext(ctx, "learned", slog.Duration("cost", cost))
 }
 
 // sendTMI sends a message to TMI after waiting for the global rate limit.
