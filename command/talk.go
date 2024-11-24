@@ -18,7 +18,6 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 	if ngPrompt.MatchString(call.Args["prompt"]) {
 		robo.Log.WarnContext(ctx, "nasty prompt",
 			slog.String("in", call.Channel.Name),
-			slog.String("from", call.Message.Name),
 			slog.String("prompt", call.Args["prompt"]),
 		)
 		e := call.Channel.Emotes.Pick(rand.Uint32())

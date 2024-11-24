@@ -138,7 +138,7 @@ func (robo *Robot) clearchat(ctx context.Context, msg *tmi.Message) {
 	default:
 		// Delete from user.
 		for m := range ch.History.All() {
-			if m.Sender != t {
+			if m.Sender.ID != t {
 				continue
 			}
 			slog.DebugContext(ctx, "forget from user", slog.String("channel", msg.To()), slog.String("id", m.ID))

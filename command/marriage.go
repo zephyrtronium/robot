@@ -15,10 +15,10 @@ import (
 	"github.com/zephyrtronium/robot/message"
 )
 
-func score(log *slog.Logger, h *channel.History[*message.Received[string]], user string) (x float64, c, f, l, n int) {
+func score(log *slog.Logger, h *channel.History[*message.Received[message.User]], user string) (x float64, c, f, l, n int) {
 	mine := make(map[string]map[string]struct{})
 	for m := range h.All() {
-		who, text := m.Sender, m.Text
+		who, text := m.Sender.ID, m.Text
 		n++
 		// Count the number of distinct other users who said each of your messages
 		// after you said it.
@@ -77,12 +77,12 @@ var affections = pick.New([]pick.Case[string]{
 // Affection describes the caller's affection MMR.
 // No arguments.
 func Affection(ctx context.Context, robo *Robot, call *Invocation) {
-	x, c, f, l, n := score(robo.Log, &call.Channel.History, call.Message.Sender)
+	x, c, f, l, n := score(robo.Log, &call.Channel.History, call.Message.Sender.ID)
 	// Anything we do will require an emote.
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	if x == 0 {
 		// Check for the broadcaster. They get special treatment.
-		if strings.EqualFold(call.Message.Name, strings.TrimPrefix(call.Channel.Name, "#")) {
+		if strings.EqualFold(call.Message.Sender.Name, strings.TrimPrefix(call.Channel.Name, "#")) {
 			if _, ok := call.Channel.Extra.LoadOrStore(broadcasterAffectionKey{}, struct{}{}); ok {
 				call.Channel.Message(ctx, message.Format("", "Don't make me repeat myself, it's embarrassing! %s", e).AsReply(call.Message.ID))
 				return
@@ -111,14 +111,14 @@ type partner struct {
 // Marry proposes to the robo.
 //   - partnership: Type of partnership requested, e.g. "wife", "waifu", "daddy". Optional.
 func Marry(ctx context.Context, robo *Robot, call *Invocation) {
-	x, _, _, _, _ := score(robo.Log, &call.Channel.History, call.Message.Sender)
+	x, _, _, _, _ := score(robo.Log, &call.Channel.History, call.Message.Sender.ID)
 	e := call.Channel.Emotes.Pick(rand.Uint32())
-	broadcaster := strings.EqualFold(call.Message.Name, strings.TrimPrefix(call.Channel.Name, "#")) && x == 0
+	broadcaster := strings.EqualFold(call.Message.Sender.Name, strings.TrimPrefix(call.Channel.Name, "#")) && x == 0
 	if x < 10 && !broadcaster {
 		call.Channel.Message(ctx, message.Format("", "no %s", e).AsReply(call.Message.ID))
 		return
 	}
-	me := &partner{who: call.Message.Sender, until: call.Message.Time().Add(time.Hour)}
+	me := &partner{who: call.Message.Sender.ID, until: call.Message.Time().Add(time.Hour)}
 	for {
 		l, ok := call.Channel.Extra.LoadOrStore(partnerKey{}, me)
 		if !ok {

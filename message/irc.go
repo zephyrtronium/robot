@@ -7,16 +7,15 @@ import (
 )
 
 // FromTMI adapts a TMI IRC message.
-func FromTMI(m *tmi.Message) *Received[string] {
+func FromTMI(m *tmi.Message) *Received[User] {
 	id, _ := m.Tag("id")
 	sender, _ := m.Tag("user-id")
 	ts, _ := m.Tag("tmi-sent-ts")
 	u, _ := strconv.ParseInt(ts, 10, 64)
-	r := Received[string]{
+	r := Received[User]{
 		ID:          id,
 		To:          m.To(),
-		Sender:      sender,
-		Name:        m.DisplayName(),
+		Sender:      User{ID: sender, Name: m.DisplayName()},
 		Text:        m.Trailing,
 		Timestamp:   u,
 		IsModerator: moderator(m),

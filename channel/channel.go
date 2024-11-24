@@ -37,7 +37,7 @@ type Channel struct {
 	// History is a list of recent messages seen in the channel.
 	// Note that messages which are forgotten due to moderation are not removed
 	// from this list in general.
-	History History[*message.Received[string]]
+	History History[*message.Received[message.User]]
 	// Memery is the meme detector for the channel.
 	Memery *MemeDetector
 	// Emotes is the distribution of emotes.

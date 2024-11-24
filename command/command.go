@@ -33,7 +33,7 @@ type Invocation struct {
 	// Message is the message which triggered the invocation with the platform
 	// user ID as the type argument.
 	// It is always non-nil, but not all fields are guaranteed to be populated.
-	Message *message.Received[string]
+	Message *message.Received[message.User]
 	// Args is the parsed arguments to the command.
 	Args map[string]string
 }

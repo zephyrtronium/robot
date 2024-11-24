@@ -9,7 +9,7 @@ import (
 )
 
 func Private(ctx context.Context, robo *Robot, call *Invocation) {
-	err := robo.Privacy.Add(ctx, call.Message.Sender)
+	err := robo.Privacy.Add(ctx, call.Message.Sender.ID)
 	if err != nil {
 		robo.Log.ErrorContext(ctx, "privacy add failed", slog.Any("err", err), slog.String("channel", call.Channel.Name))
 		call.Channel.Message(ctx, message.Format("", "Something went wrong while trying to add you to the privacy list. Try again. Sorry!").AsReply(call.Message.ID))
@@ -20,7 +20,7 @@ func Private(ctx context.Context, robo *Robot, call *Invocation) {
 }
 
 func Unprivate(ctx context.Context, robo *Robot, call *Invocation) {
-	err := robo.Privacy.Remove(ctx, call.Message.Sender)
+	err := robo.Privacy.Remove(ctx, call.Message.Sender.ID)
 	if err != nil {
 		robo.Log.ErrorContext(ctx, "privacy remove failed", slog.Any("err", err), slog.String("channel", call.Channel.Name))
 		call.Channel.Message(ctx, message.Format("", "Something went wrong while trying to add you to the privacy list. Try again. Sorry!").AsReply(call.Message.ID))

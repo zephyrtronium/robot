@@ -6,8 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zephyrtronium/robot/message"
 	"gitlab.com/zephyrtronium/tmi"
+
+	"github.com/zephyrtronium/robot/message"
 )
 
 func TestFromIRC(t *testing.T) {
@@ -74,10 +75,10 @@ func TestFromIRC(t *testing.T) {
 			if got := msg.To; got != c.to {
 				t.Errorf("wrong to: want %q, got %q", c.to, got)
 			}
-			if got := msg.Sender; got != c.sender {
+			if got := msg.Sender.ID; got != c.sender {
 				t.Errorf("wrong sender: want %q, got %q", c.sender, got)
 			}
-			if got := msg.Name; got != c.disp {
+			if got := msg.Sender.Name; got != c.disp {
 				t.Errorf("wrong display name: want %q, got %q", c.disp, got)
 			}
 			if got := msg.Text; got != c.text {

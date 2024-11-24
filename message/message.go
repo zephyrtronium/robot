@@ -17,8 +17,6 @@ type Received[U comparable] struct {
 	// Whether it remains constant for a given sender depends on the semantics
 	// of the type argument.
 	Sender U
-	// Name is the display name of the message sender.
-	Name string
 	// Text is the text of the message.
 	Text string
 	// Timestamp is the timestamp of the message as milliseconds since the
@@ -35,6 +33,15 @@ type Received[U comparable] struct {
 
 func (m *Received[U]) Time() time.Time {
 	return time.UnixMilli(m.Timestamp)
+}
+
+// User is a user's ID and display name.
+type User struct {
+	// ID is a user's ID.
+	// It must remain constant for a given user even across name changes.
+	ID string
+	// Name is a user's display name.
+	Name string
 }
 
 // Sent is a message to be sent to a service.

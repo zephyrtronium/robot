@@ -33,7 +33,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	log := slog.With(slog.String("trace", m.ID), slog.String("in", ch.Name))
 	log.InfoContext(ctx, "privmsg", slog.Duration("bias", time.Since(m.Time())))
 	defer log.InfoContext(ctx, "end")
-	if ch.Ignore[m.Sender] {
+	if ch.Ignore[m.Sender.ID] {
 		log.InfoContext(ctx, "message from ignored user")
 		return
 	}
@@ -42,7 +42,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		return
 	}
 	if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
-		robo.command(ctx, log, ch, m, m.Sender, cmd)
+		robo.command(ctx, log, ch, m, cmd)
 		return
 	}
 	ch.History.Add(m.Time(), m)
@@ -56,7 +56,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		m.Text = t
 	}
 	robo.learn(ctx, log, ch, robo.hashes(), m)
-	switch err := ch.Memery.Check(m.Time(), m.Sender, m.Text); err {
+	switch err := ch.Memery.Check(m.Time(), m.Sender.ID, m.Text); err {
 	case channel.ErrNotCopypasta: // do nothing
 	case nil:
 		// Meme detected. Copypasta.
@@ -142,20 +142,20 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	robo.sendTMI(ctx, send, out)
 }
 
-func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Channel, m *message.Received[string], from, cmd string) {
+func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Channel, m *message.Received[message.User], cmd string) {
 	robo.Metrics.TMICommandCount.Observe(1)
 	var c *twitchCommand
 	var args map[string]string
 	level := "any"
 	switch {
-	case from == robo.tmi.owner:
+	case m.Sender.ID == robo.tmi.owner:
 		c, args = findTwitch(twitchOwner, cmd)
 		if c != nil {
 			level = "owner"
 			break
 		}
 		fallthrough
-	case ch.Mod[from], m.IsModerator:
+	case ch.Mod[m.Sender.ID], m.IsModerator:
 		c, args = findTwitch(twitchMod, cmd)
 		if c != nil {
 			level = "mod"
@@ -192,12 +192,12 @@ func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Ch
 }
 
 // learn learns a given message's text if it passes ch's filters.
-func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received[string]) {
+func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Channel, hasher userhash.Hasher, msg *message.Received[message.User]) {
 	if !ch.Enabled.Load() {
 		log.DebugContext(ctx, "not learning in disabled channel")
 		return
 	}
-	switch err := robo.privacy.Check(ctx, msg.Sender); err {
+	switch err := robo.privacy.Check(ctx, msg.Sender.ID); err {
 	case nil: // do nothing
 	case privacy.ErrPrivate:
 		log.DebugContext(ctx, "private sender")
@@ -214,12 +214,11 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		log.DebugContext(ctx, "no learn tag")
 		return
 	}
-	user := hasher.Hash(msg.Sender, msg.To, msg.Time())
+	user := hasher.Hash(msg.Sender.ID, msg.To, msg.Time())
 	m := brain.Message{
 		ID:          msg.ID,
 		To:          msg.To,
 		Sender:      user,
-		Name:        msg.Name,
 		Text:        msg.Text,
 		Timestamp:   msg.Timestamp,
 		IsModerator: msg.IsModerator,
