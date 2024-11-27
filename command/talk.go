@@ -110,6 +110,17 @@ func AAAAA(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, message.Sent{Text: u})
 }
 
+// Hte generats an typod message.
+//   - prompt: Start of the message to use. Optional.
+func Hte(ctx context.Context, robo *Robot, call *Invocation) {
+	u := speakCmd(ctx, robo, call, "cmd hte")
+	if u == "" {
+		return
+	}
+	u = lenlimit(hteize(u), 450)
+	call.Channel.Message(ctx, message.Sent{Text: u})
+}
+
 // Rawr says rawr.
 func Rawr(ctx context.Context, robo *Robot, call *Invocation) {
 	if call.Message.Time().Before(call.Channel.SilentTime()) {
