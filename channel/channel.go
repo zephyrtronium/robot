@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"gitlab.com/zephyrtronium/pick"
 	"golang.org/x/time/rate"
@@ -44,8 +45,15 @@ type Channel struct {
 	Emotes *pick.Dist[string]
 	// Effects is the distribution of effects.
 	Effects *pick.Dist[string]
+	// Silent is the earliest time that speaking and learning is allowed in the
+	// channel as nanoseconds from the Unix epoch.
+	Silent atomic.Int64
 	// Extra is extra channel data that may be added by commands.
 	Extra sync.Map // map[any]any; key is a type
 	// Enabled indicates whether a channel is allowed to learn messages.
 	Enabled atomic.Bool
+}
+
+func (ch *Channel) SilentTime() time.Time {
+	return time.Unix(0, ch.Silent.Load())
 }

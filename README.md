@@ -140,6 +140,7 @@ These are *not* recognized as commands:
 - `echo bocchi` causes Robot to say `bocchi`, or whatever other message you give.
 - `talk about ranked competitive marriage` gives a short description of Robot's marriage system.
 - `forget bocchi` causes Robot to forget everything she's learned from messages containing `bocchi` in the last fifteen minutes. As a special case, `forget everything` tells her to forget all messages in the last fifteen minutes.
+- `be quiet for 8 hours` has Robot stop learning and speaking for eight hours; other durations like `an hour`, `1h30m`, `until tomorrow` work as well. Some commands relating to moderation and privacy will still cause her to talk. There is a twelve hour limit on quiet time.
 
 
 ## Effects

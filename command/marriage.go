@@ -77,6 +77,10 @@ var affections = pick.New([]pick.Case[string]{
 // Affection describes the caller's affection MMR.
 // No arguments.
 func Affection(ctx context.Context, robo *Robot, call *Invocation) {
+	if call.Message.Time().Before(call.Channel.SilentTime()) {
+		robo.Log.InfoContext(ctx, "silent", slog.Time("until", call.Channel.SilentTime()))
+		return
+	}
 	x, c, f, l, n := score(robo.Log, &call.Channel.History, call.Message.Sender.ID)
 	// Anything we do will require an emote.
 	e := call.Channel.Emotes.Pick(rand.Uint32())
@@ -111,6 +115,10 @@ type partner struct {
 // Marry proposes to the robo.
 //   - partnership: Type of partnership requested, e.g. "wife", "waifu", "daddy". Optional.
 func Marry(ctx context.Context, robo *Robot, call *Invocation) {
+	if call.Message.Time().Before(call.Channel.SilentTime()) {
+		robo.Log.InfoContext(ctx, "silent", slog.Time("until", call.Channel.SilentTime()))
+		return
+	}
 	x, _, _, _, _ := score(robo.Log, &call.Channel.History, call.Message.Sender.ID)
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	broadcaster := strings.EqualFold(call.Message.Sender.Name, strings.TrimPrefix(call.Channel.Name, "#")) && x == 0
@@ -168,6 +176,10 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 // DescribeMarriage gives some exposition about the marriage system.
 // No args.
 func DescribeMarriage(ctx context.Context, robo *Robot, call *Invocation) {
+	if t := call.Channel.SilentTime(); call.Message.Time().Before(t) {
+		call.Channel.Message(ctx, message.Format("", "I'm being quiet for the next %v, so the marriage system is disabled until then.", t.Sub(call.Message.Time())).AsReply(call.Message.ID))
+		return
+	}
 	const s = `I am looking for a long series of short-term relationships and am holding a ranked competitive how-much-I-like-you tournament to decide my suitors! Politely ask me to marry you (or become your partner) and I'll evaluate your score. I like copypasta, memes, and long walks in the chat.`
 	call.Channel.Message(ctx, message.Sent{Text: s})
 }

@@ -13,6 +13,10 @@ import (
 )
 
 func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string) string {
+	if call.Message.Time().Before(call.Channel.SilentTime()) {
+		robo.Log.InfoContext(ctx, "silent", slog.Time("until", call.Channel.SilentTime()))
+		return ""
+	}
 	// Don't continue prompts that look like they start with TMI commands
 	// (even though those don't do anything anymore).
 	if ngPrompt.MatchString(call.Args["prompt"]) {
@@ -108,6 +112,10 @@ func AAAAA(ctx context.Context, robo *Robot, call *Invocation) {
 
 // Rawr says rawr.
 func Rawr(ctx context.Context, robo *Robot, call *Invocation) {
+	if call.Message.Time().Before(call.Channel.SilentTime()) {
+		robo.Log.InfoContext(ctx, "silent", slog.Time("until", call.Channel.SilentTime()))
+		return
+	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	if e == "" {
 		e = ":3"

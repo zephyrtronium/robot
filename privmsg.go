@@ -46,6 +46,13 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		return
 	}
 	ch.History.Add(m.Time(), m)
+	// Check for the channel being silent. This prevents learning, copypasta,
+	// and random speaking (among other things), which happens to be all the
+	// rest of this function.
+	if s := ch.SilentTime(); msg.Time().Before(s) {
+		log.DebugContext(ctx, "channel is silent", slog.Time("until", s))
+		return
+	}
 	// If the message is a reply to e.g. Bocchi, TMI adds @Bocchi to the
 	// start of the message text.
 	// That's helpful for commands, which we've already processed, but
@@ -363,6 +370,11 @@ var twitchMod = []twitchCommand{
 		parse: regexp.MustCompile(`(?i)^forgr?[eo]?r?t\s+(?:everything$|(?<term>.+))`),
 		fn:    command.Forget,
 		name:  "forget",
+	},
+	{
+		parse: regexp.MustCompile(`(?i)^(?:be\s+quiet|shut\s*up|stfu)(?:\s+for\s+(?P<dur>(?:\d+[hms]){1,3}|an\s+h(?:ou)?r|\d+\s+h(?:ou)?rs?|a\s+min(?:ute)?|\d+\s+min(?:ute)?s?)|\s+until\s+(?P<until>tomorrow))?$`),
+		fn:    command.Quiet,
+		name:  "quiet",
 	},
 }
 
