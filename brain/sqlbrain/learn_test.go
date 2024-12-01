@@ -394,6 +394,180 @@ func TestLearn(t *testing.T) {
 	}
 }
 
+func TestRecall(t *testing.T) {
+	cases := []struct {
+		name  string
+		learn []learn
+		want  []brain.Message
+	}{
+		{
+			name:  "empty",
+			learn: nil,
+			want:  nil,
+		},
+		{
+			name: "single",
+			learn: []learn{
+				{
+					tag:  "kessoku",
+					user: userhash.Hash{0: 1, userhash.Size - 1: 2},
+					id:   "1",
+					t:    1,
+					tups: []brain.Tuple{
+						{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
+						{Prefix: strings.Fields("nijika ryo bocchi"), Suffix: "kita"},
+						{Prefix: strings.Fields("ryo bocchi"), Suffix: "nijika"},
+						{Prefix: strings.Fields("bocchi"), Suffix: "ryo"},
+						{Prefix: nil, Suffix: "bocchi"},
+					},
+				},
+			},
+			want: []brain.Message{
+				{
+					ID:        "1",
+					Sender:    userhash.Hash{0: 1, userhash.Size - 1: 2},
+					Text:      "bocchiryonijikakita",
+					Timestamp: 1,
+				},
+			},
+		},
+		{
+			name: "several",
+			learn: []learn{
+				{
+					tag:  "kessoku",
+					user: userhash.Hash{0: 1, userhash.Size - 1: 2},
+					id:   "1",
+					t:    1,
+					tups: []brain.Tuple{
+						{Prefix: []string{"bocchi"}, Suffix: ""},
+						{Prefix: nil, Suffix: "bocchi"},
+					},
+				},
+				{
+					tag:  "kessoku",
+					user: userhash.Hash{0: 3, userhash.Size - 1: 4},
+					id:   "2",
+					t:    1, // n.b. same timestamp
+					tups: []brain.Tuple{
+						{Prefix: []string{"ryo"}, Suffix: ""},
+						{Prefix: nil, Suffix: "ryo"},
+					},
+				},
+				{
+					tag:  "kessoku",
+					user: userhash.Hash{0: 5, userhash.Size - 1: 6},
+					id:   "0", // n.b. lexicographically smaller id
+					t:    3,
+					tups: []brain.Tuple{
+						{Prefix: []string{"nijika"}, Suffix: ""},
+						{Prefix: nil, Suffix: "nijika"},
+					},
+				},
+				{
+					tag:  "kessoku",
+					user: userhash.Hash{0: 7, userhash.Size - 1: 8},
+					id:   "4",
+					t:    4,
+					tups: []brain.Tuple{
+						{Prefix: []string{"kita"}, Suffix: ""},
+						{Prefix: nil, Suffix: "kita"},
+					},
+				},
+			},
+			want: []brain.Message{
+				{
+					ID:        "1",
+					Sender:    userhash.Hash{0: 1, userhash.Size - 1: 2},
+					Text:      "bocchi",
+					Timestamp: 1,
+				},
+				{
+					ID:        "2",
+					Sender:    userhash.Hash{0: 3, userhash.Size - 1: 4},
+					Text:      "ryo",
+					Timestamp: 1,
+				},
+				{
+					ID:        "0",
+					Sender:    userhash.Hash{0: 5, userhash.Size - 1: 6},
+					Text:      "nijika",
+					Timestamp: 3,
+				},
+				{
+					ID:        "4",
+					Sender:    userhash.Hash{0: 7, userhash.Size - 1: 8},
+					Text:      "kita",
+					Timestamp: 4,
+				},
+			},
+		},
+		{
+			name: "tagged",
+			learn: []learn{
+				{
+					tag:  "sickhack",
+					user: userhash.Hash{0: 1, userhash.Size - 1: 2},
+					id:   "1",
+					t:    1,
+					tups: []brain.Tuple{
+						{Prefix: strings.Fields("kita nijika ryo bocchi"), Suffix: ""},
+						{Prefix: strings.Fields("nijika ryo bocchi"), Suffix: "kita"},
+						{Prefix: strings.Fields("ryo bocchi"), Suffix: "nijika"},
+						{Prefix: strings.Fields("bocchi"), Suffix: "ryo"},
+						{Prefix: nil, Suffix: "bocchi"},
+					},
+				},
+			},
+			want: nil,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db := testDB(ctx)
+			br, err := sqlbrain.Open(ctx, db)
+			if err != nil {
+				t.Fatalf("couldn't open brain: %v", err)
+			}
+			for _, m := range c.learn {
+				msg := brain.Message{
+					ID:        m.id,
+					Sender:    m.user,
+					Timestamp: m.t,
+				}
+				err := br.Learn(ctx, m.tag, &msg, m.tups)
+				if err != nil {
+					t.Errorf("failed to learn %v/%v: %v", m.tag, m.id, err)
+				}
+			}
+			var page string
+			got := make([]brain.Message, 1)
+			for _, want := range c.want {
+				n, next, err := br.Recall(ctx, "kessoku", page, got)
+				if err != nil {
+					t.Errorf("recall failed on page %s: %v", page, err)
+				}
+				if n != 1 {
+					t.Errorf("wrong number of recalled messages for page %s: want 1, got %d", page, n)
+				}
+				if got[0] != want {
+					t.Errorf("wrong result: want %+v, got %+v", want, got[0])
+				}
+				page = next
+			}
+			n, next, err := br.Recall(ctx, "kessoku", page, got)
+			if err != nil {
+				t.Errorf("final recall failed on page %s: %v", page, err)
+			}
+			if n != 0 || next != "" {
+				t.Errorf("final recall gave wrong results: want n=0 with empty next, got n=%d next=%s", n, next)
+			}
+		})
+	}
+}
+
 func BenchmarkLearn(b *testing.B) {
 	dir := filepath.ToSlash(b.TempDir())
 	new := func(ctx context.Context, b *testing.B) brain.Learner {
