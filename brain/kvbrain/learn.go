@@ -72,5 +72,8 @@ func appendPrefix(b []byte, prefix []string) []byte {
 }
 
 func (br *Brain) Recall(ctx context.Context, tag string, page string, out []brain.Message) (n int, next string, err error) {
-	panic("unimplemented")
+	// kvbrain is already missing various other features that want a rewrite,
+	// and it isn't feasible to implement this without one.
+	// Punt for now.
+	return 0, "", errors.New("kvbrain: recollection is not implemented")
 }
