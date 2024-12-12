@@ -90,7 +90,7 @@ func (robo *Robot) Run(ctx context.Context, listen string) error {
 		group.Go(func() error { return robo.runTwitch(ctx, group) })
 	}
 	if listen != "" {
-		group.Go(func() error { return api(ctx, listen, new(http.ServeMux), robo.Metrics.Collectors()) })
+		group.Go(func() error { return robo.api(ctx, listen, new(http.ServeMux), robo.Metrics.Collectors()) })
 	}
 	err := group.Wait()
 	if err == context.Canceled {
