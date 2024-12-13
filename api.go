@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/userhash"
 )
 
 func (robo *Robot) api(ctx context.Context, listen string, mux *http.ServeMux, metrics []prometheus.Collector) error {
@@ -44,6 +45,7 @@ func (robo *Robot) api(ctx context.Context, listen string, mux *http.ServeMux, m
 	mux.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
 	mux.HandleFunc("GET /api/message/{tag...}", robo.apiRecall)
+	mux.HandleFunc("POST /api/message/{tag...}", robo.apiLearn)
 	mux.HandleFunc("DELETE /api/message/{tag...}", robo.apiForget)
 	l, err := net.Listen("tcp", listen)
 	if err != nil {
@@ -146,6 +148,58 @@ func (robo *Robot) apiRecall(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := w.Write(b); err != nil {
 		log.ErrorContext(ctx, "write response failed", slog.Any("err", err))
+	}
+}
+
+func (robo *Robot) apiLearn(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := slog.With(slog.String("api", "recall"), slog.Any("trace", uuid.New()))
+	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
+	defer log.InfoContext(ctx, "done")
+	tag := r.PathValue("tag")
+	d := jsontext.NewDecoder(r.Body)
+	var all error
+	var msg apiMessage
+	for {
+		err := json.UnmarshalDecode(d, &msg)
+		switch err {
+		case nil: // do nothing
+		case io.EOF:
+			// Done; transmit any learn errors.
+			if all != nil {
+				jsonerror(w, http.StatusInternalServerError, all.Error())
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		default:
+			log.ErrorContext(ctx, "read message", slog.Any("err", err))
+			jsonerror(w, http.StatusBadRequest, "message read failed")
+			return
+		}
+		m := brain.Message{
+			ID:     msg.ID,
+			Sender: userhash.Hash{'A', 'P', 'I'},
+			Text:   msg.Text,
+		}
+		if m.ID == "" {
+			m.ID = "API:" + uuid.NewString()
+		}
+		if msg.Time == "" {
+			m.Timestamp = time.Now().UnixMilli()
+		} else {
+			t, err := time.Parse(time.RFC3339, msg.Time)
+			if err != nil {
+				all = errors.Join(all, err)
+				continue
+			}
+			m.Timestamp = t.UnixMilli()
+		}
+		if err := brain.Learn(ctx, robo.brain, tag, &m); err != nil {
+			log.ErrorContext(ctx, "learn failed", slog.String("tag", tag), slog.String("id", m.ID), slog.Any("err", err))
+			all = errors.Join(all, err)
+			// continue on
+		}
 	}
 }
 
