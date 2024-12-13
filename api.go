@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-json-experiment/json"
+	"github.com/go-json-experiment/json/jsontext"
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -41,6 +44,7 @@ func (robo *Robot) api(ctx context.Context, listen string, mux *http.ServeMux, m
 	mux.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
 	mux.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
 	mux.HandleFunc("GET /api/message/{tag...}", robo.apiRecall)
+	mux.HandleFunc("DELETE /api/message/{tag...}", robo.apiForget)
 	l, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("couldn't start API server: %w", err)
@@ -142,5 +146,44 @@ func (robo *Robot) apiRecall(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := w.Write(b); err != nil {
 		log.ErrorContext(ctx, "write response failed", slog.Any("err", err))
+	}
+}
+
+func (robo *Robot) apiForget(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := slog.With(slog.String("api", "recall"), slog.Any("trace", uuid.New()))
+	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
+	defer log.InfoContext(ctx, "done")
+	tag := r.PathValue("tag")
+	d := jsontext.NewDecoder(r.Body)
+	var all error
+	for {
+		tok, err := d.ReadToken()
+		switch err {
+		case nil: // do nothing
+		case io.EOF:
+			// Done; transmit any forget errors.
+			if all != nil {
+				jsonerror(w, http.StatusInternalServerError, all.Error())
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		default:
+			log.ErrorContext(ctx, "read token", slog.Any("err", err))
+			jsonerror(w, http.StatusBadRequest, "token read failed")
+			return
+		}
+		if tok.Kind() != '"' {
+			log.WarnContext(ctx, "invalid token", slog.Any("kind", tok.Kind()))
+			jsonerror(w, http.StatusBadRequest, "input not a JSON string")
+			return
+		}
+		id := tok.String()
+		if err := robo.brain.Forget(ctx, tag, id); err != nil {
+			log.ErrorContext(ctx, "forget failed", slog.String("tag", tag), slog.String("id", id), slog.Any("err", err))
+			all = errors.Join(all, err)
+			// continue on
+		}
 	}
 }
