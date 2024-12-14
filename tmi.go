@@ -50,6 +50,10 @@ func (robo *Robot) tmiLoop(ctx context.Context, group *errgroup.Group, send chan
 				// sense for verified bots which have a relaxed global limit.
 			case "GLOBALUSERSTATE":
 				slog.InfoContext(ctx, "connected to TMI", slog.String("GLOBALUSERSTATE", msg.Tags))
+			case "366": // End NAMES
+				if len(msg.Params) > 1 {
+					slog.InfoContext(ctx, "joined channel", slog.String("channel", msg.Params[1]))
+				}
 			case "376": // End MOTD
 				go robo.joinTwitch(ctx, send)
 			}
