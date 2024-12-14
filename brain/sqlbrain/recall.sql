@@ -21,6 +21,6 @@ SELECT
 	id,
 	time,
 	user,
-	GROUP_CONCAT(suffix, '') AS msg
+	TRIM(GROUP_CONCAT(suffix, '')) AS msg
 FROM k
 GROUP BY id, time, user
