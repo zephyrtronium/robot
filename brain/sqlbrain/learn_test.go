@@ -570,7 +570,7 @@ func TestRecall(t *testing.T) {
 
 func BenchmarkLearn(b *testing.B) {
 	dir := filepath.ToSlash(b.TempDir())
-	new := func(ctx context.Context, b *testing.B) brain.Learner {
+	new := func(ctx context.Context, b *testing.B) brain.Interface {
 		dsn := fmt.Sprintf("file:%s/benchmark_learn.db?_journal=WAL", dir)
 		db, err := sqlitex.NewPool(dsn, sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
 		if err != nil {
@@ -589,5 +589,5 @@ func BenchmarkLearn(b *testing.B) {
 		}
 		return br
 	}
-	braintest.BenchLearn(context.Background(), b, new, func(l brain.Learner) { l.(*sqlbrain.Brain).Close() })
+	braintest.BenchLearn(context.Background(), b, new, func(l brain.Interface) { l.(*sqlbrain.Brain).Close() })
 }

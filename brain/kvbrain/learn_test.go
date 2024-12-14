@@ -142,14 +142,14 @@ func TestLearn(t *testing.T) {
 }
 
 func BenchmarkLearn(b *testing.B) {
-	new := func(ctx context.Context, b *testing.B) brain.Learner {
+	new := func(ctx context.Context, b *testing.B) brain.Interface {
 		db, err := badger.Open(badger.DefaultOptions(b.TempDir()).WithLogger(nil))
 		if err != nil {
 			b.Fatal(err)
 		}
 		return New(db)
 	}
-	cleanup := func(l brain.Learner) {
+	cleanup := func(l brain.Interface) {
 		br := l.(*Brain)
 		if err := br.knowledge.DropAll(); err != nil {
 			b.Fatal(err)

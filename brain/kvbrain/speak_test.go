@@ -157,14 +157,14 @@ func TestSpeak(t *testing.T) {
 }
 
 func BenchmarkSpeak(b *testing.B) {
-	new := func(ctx context.Context, b *testing.B) brain.Brain {
+	new := func(ctx context.Context, b *testing.B) brain.Interface {
 		db, err := badger.Open(badger.DefaultOptions(b.TempDir()).WithLogger(nil).WithCompression(options.None).WithBloomFalsePositive(1.0 / 32).WithNumMemtables(16).WithLevelSizeMultiplier(4))
 		if err != nil {
 			b.Fatal(err)
 		}
 		return New(db)
 	}
-	cleanup := func(l brain.Brain) {
+	cleanup := func(l brain.Interface) {
 		br := l.(*Brain)
 		if err := br.knowledge.DropAll(); err != nil {
 			b.Fatal(err)

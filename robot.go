@@ -28,7 +28,7 @@ import (
 // Robot is the overall configuration for the bot.
 type Robot struct {
 	// brain is the brain.
-	brain brain.Brain
+	brain brain.Interface
 	// privacy is the privacy.
 	privacy *privacy.List
 	// spoken is the history of generated messages.

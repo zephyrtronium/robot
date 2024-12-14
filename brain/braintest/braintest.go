@@ -16,7 +16,7 @@ import (
 // Test runs the integration test suite against brains produced by new.
 //
 // If a brain cannot be created without error, new should call t.Fatal.
-func Test(ctx context.Context, t *testing.T, new func(context.Context) brain.Brain) {
+func Test(ctx context.Context, t *testing.T, new func(context.Context) brain.Interface) {
 	t.Run("speak", testSpeak(ctx, new(ctx)))
 	t.Run("forgetMessage", testForget(ctx, new(ctx)))
 	t.Run("combinatoric", testCombinatoric(ctx, new(ctx)))
@@ -94,7 +94,7 @@ var messages = [...]struct {
 	},
 }
 
-func learn(ctx context.Context, t *testing.T, br brain.Learner) {
+func learn(ctx context.Context, t *testing.T, br brain.Interface) {
 	t.Helper()
 	for _, m := range messages {
 		msg := brain.Message{ID: m.ID, Sender: m.User, Timestamp: m.Time.UnixMilli(), Text: m.Text}
@@ -104,7 +104,7 @@ func learn(ctx context.Context, t *testing.T, br brain.Learner) {
 	}
 }
 
-func speak(ctx context.Context, t *testing.T, br brain.Speaker, tag, prompt string, iters int) map[string]struct{} {
+func speak(ctx context.Context, t *testing.T, br brain.Interface, tag, prompt string, iters int) map[string]struct{} {
 	t.Helper()
 	got := make(map[string]struct{}, 20)
 	for range iters {
@@ -118,7 +118,7 @@ func speak(ctx context.Context, t *testing.T, br brain.Speaker, tag, prompt stri
 }
 
 // testSpeak tests that a brain can speak what it has learned.
-func testSpeak(ctx context.Context, br brain.Brain) func(t *testing.T) {
+func testSpeak(ctx context.Context, br brain.Interface) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
 		got := speak(ctx, t, br, "kessoku", "", 2048)
@@ -177,7 +177,7 @@ func testSpeak(ctx context.Context, br brain.Brain) func(t *testing.T) {
 }
 
 // testForget tests that a brain can forget messages by ID.
-func testForget(ctx context.Context, br brain.Brain) func(t *testing.T) {
+func testForget(ctx context.Context, br brain.Interface) func(t *testing.T) {
 	return func(t *testing.T) {
 		learn(ctx, t, br)
 		if err := br.Forget(ctx, "kessoku", messages[0].ID); err != nil {
@@ -229,7 +229,7 @@ func testForget(ctx context.Context, br brain.Brain) func(t *testing.T) {
 
 // testCombinatoric tests that chains can generate even with substantial
 // overlap in learned material.
-func testCombinatoric(ctx context.Context, br brain.Brain) func(t *testing.T) {
+func testCombinatoric(ctx context.Context, br brain.Interface) func(t *testing.T) {
 	return func(t *testing.T) {
 		u := userhash.Hash{2}
 		band := []string{"bocchi", "ryou", "nijika", "kita"}

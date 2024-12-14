@@ -22,7 +22,7 @@ type membrain struct {
 	tms   map[string]map[int64][]string     // map of tags to map of timestamps to ids
 }
 
-var _ brain.Brain = (*membrain)(nil)
+var _ brain.Interface = (*membrain)(nil)
 
 func (m *membrain) Learn(ctx context.Context, tag string, msg *brain.Message, tuples []brain.Tuple) error {
 	m.mu.Lock()
@@ -107,5 +107,5 @@ func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w *br
 }
 
 func TestTests(t *testing.T) {
-	braintest.Test(context.Background(), t, func(ctx context.Context) brain.Brain { return new(membrain) })
+	braintest.Test(context.Background(), t, func(ctx context.Context) brain.Interface { return new(membrain) })
 }

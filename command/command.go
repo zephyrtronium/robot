@@ -17,7 +17,7 @@ import (
 type Robot struct {
 	Log      *slog.Logger
 	Channels *syncmap.Map[string, *channel.Channel]
-	Brain    brain.Brain
+	Brain    brain.Interface
 	Privacy  *privacy.List
 	Spoken   *spoken.History
 	Owner    string

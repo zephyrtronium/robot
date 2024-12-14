@@ -518,7 +518,7 @@ func insert(t *testing.T, conn *sqlite.Conn, know []know, msgs []msg) {
 
 func BenchmarkSpeak(b *testing.B) {
 	var dbs atomic.Uint64
-	new := func(ctx context.Context, b *testing.B) brain.Brain {
+	new := func(ctx context.Context, b *testing.B) brain.Interface {
 		k := dbs.Add(1)
 		db, err := sqlitex.NewPool(fmt.Sprintf("file:%s/bench-%d.sql", b.TempDir(), k), sqlitex.PoolOptions{PrepareConn: sqlbrain.RecommendedPrep})
 		if err != nil {
@@ -530,7 +530,7 @@ func BenchmarkSpeak(b *testing.B) {
 		}
 		return br
 	}
-	cleanup := func(l brain.Brain) {
+	cleanup := func(l brain.Interface) {
 		br := l.(*sqlbrain.Brain)
 		br.Close()
 	}

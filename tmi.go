@@ -195,7 +195,7 @@ func (robo *Robot) clearmsg(ctx context.Context, msg *tmi.Message) {
 	forget(ctx, log, robo.Metrics.ForgotCount, robo.brain, ch.Send, trace...)
 }
 
-func forget(ctx context.Context, log *slog.Logger, forgetCount metrics.Observer, brain brain.Brain, tag string, trace ...string) {
+func forget(ctx context.Context, log *slog.Logger, forgetCount metrics.Observer, brain brain.Interface, tag string, trace ...string) {
 	forgetCount.Observe(1)
 	for _, id := range trace {
 		err := brain.Forget(ctx, tag, id)

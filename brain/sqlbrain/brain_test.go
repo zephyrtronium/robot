@@ -30,13 +30,10 @@ func testDB(ctx context.Context) *sqlitex.Pool {
 	return pool
 }
 
-var _ brain.Learner = (*sqlbrain.Brain)(nil)
-var _ brain.Speaker = (*sqlbrain.Brain)(nil)
-
 func TestIntegrated(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	new := func(ctx context.Context) brain.Brain {
+	new := func(ctx context.Context) brain.Interface {
 		db := testDB(ctx)
 		br, err := sqlbrain.Open(ctx, db)
 		if err != nil {

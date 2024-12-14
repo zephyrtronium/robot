@@ -151,7 +151,7 @@ func cliSpeak(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	var br brain.Brain
+	var br brain.Interface
 	if sql == nil {
 		if kv == nil {
 			panic("robot: no brain")
@@ -202,7 +202,7 @@ func cliAncient(ctx context.Context, cmd *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	var br brain.Brain
+	var br brain.Interface
 	if sql == nil {
 		if kv == nil {
 			panic("robot: no brain")

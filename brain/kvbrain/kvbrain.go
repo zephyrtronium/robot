@@ -40,7 +40,7 @@ type Brain struct {
 	past      sync2.Map[string, *past]
 }
 
-var _ brain.Learner = (*Brain)(nil)
+var _ brain.Interface = (*Brain)(nil)
 
 func New(knowledge *badger.DB) *Brain {
 	return &Brain{

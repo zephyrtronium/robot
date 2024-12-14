@@ -12,7 +12,7 @@ import (
 )
 
 func TestBrain(t *testing.T) {
-	braintest.Test(context.Background(), t, func(ctx context.Context) brain.Brain {
+	braintest.Test(context.Background(), t, func(ctx context.Context) brain.Interface {
 		db, err := badger.Open(badger.DefaultOptions("").WithInMemory(true).WithLogger(nil))
 		if err != nil {
 			t.Fatal(err)

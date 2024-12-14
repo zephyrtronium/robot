@@ -8,6 +8,8 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/message"
+	"github.com/zephyrtronium/robot/userhash"
 )
 
 type testSpeaker struct {
@@ -20,6 +22,21 @@ func (t *testSpeaker) Speak(ctx context.Context, tag string, prompt []string, w 
 	t.prompt = prompt
 	w.Append(t.id, t.append)
 	return nil
+}
+
+// Forget implements brain.Brain.
+func (t *testSpeaker) Forget(ctx context.Context, tag string, id string) error {
+	panic("unimplemented")
+}
+
+// Learn implements brain.Brain.
+func (t *testSpeaker) Learn(ctx context.Context, tag string, msg *message.Received[userhash.Hash], tuples []brain.Tuple) error {
+	panic("unimplemented")
+}
+
+// Recall implements brain.Brain.
+func (t *testSpeaker) Recall(ctx context.Context, tag string, page string, out []message.Received[userhash.Hash]) (n int, next string, err error) {
+	panic("unimplemented")
 }
 
 func TestSpeak(t *testing.T) {

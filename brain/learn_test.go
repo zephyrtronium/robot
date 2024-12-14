@@ -27,6 +27,11 @@ func (t *testLearner) Forget(ctx context.Context, tag, id string) error {
 	return nil
 }
 
+// Speak implements brain.Brain.
+func (t *testLearner) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
+	panic("unimplemented")
+}
+
 func (t *testLearner) Recall(ctx context.Context, tag string, page string, out []brain.Message) (n int, next string, err error) {
 	var k int
 	if page != "" {

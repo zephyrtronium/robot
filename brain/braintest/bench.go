@@ -20,7 +20,7 @@ func randid() string {
 
 // BenchLearn runs benchmarks on the brain's speed with recording new tuples.
 // The learner returned by new must be safe for concurrent use.
-func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context, b *testing.B) brain.Learner, cleanup func(brain.Learner)) {
+func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context, b *testing.B) brain.Interface, cleanup func(brain.Interface)) {
 	b.Run("similar", func(b *testing.B) {
 		l := new(ctx, b)
 		if cleanup != nil {
@@ -95,7 +95,7 @@ func BenchLearn(ctx context.Context, b *testing.B, new func(ctx context.Context,
 
 // BenchSpeak runs benchmarks on a brain's speed with generating messages
 // from tuples. The brain returned by new must be safe for concurrent use.
-func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context, b *testing.B) brain.Brain, cleanup func(brain.Brain)) {
+func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context, b *testing.B) brain.Interface, cleanup func(brain.Interface)) {
 	sizes := []int64{1e3, 1e4, 1e5}
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("similar-new-%d", size), func(b *testing.B) {
