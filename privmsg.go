@@ -435,14 +435,14 @@ var twitchAny = []twitchCommand{
 		name:  "contact",
 	},
 	{
-		parse: regexp.MustCompile(`^(?i:say|generate)\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s*(?<prompt>.*)`),
+		parse: regexp.MustCompile(`^(?i:say|generate)\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s+(?<prompt>.*)`),
 		fn:    command.Speak,
 		name:  "speak",
 	},
 	{
 		// NOTE(zeph): This command MUST be after the normal speak command,
 		// because it would capture the correct spelling otherwise.
-		parse: regexp.MustCompile(`^(?i:a*s[say]*|e*g[gen]*[er]*[ae]*[te]*)\s*(?<prompt>.*)`),
+		parse: regexp.MustCompile(`^(?i:a*s[say]*|e*g[gen]*[er]*[ae]*[te]*)\s+(?<prompt>.*)`),
 		fn:    command.Hte,
 		name:  "hte",
 	},
