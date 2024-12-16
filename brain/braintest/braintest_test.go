@@ -2,6 +2,7 @@ package braintest_test
 
 import (
 	"context"
+	"iter"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -73,6 +74,11 @@ func (m *membrain) Forget(ctx context.Context, tag, id string) error {
 }
 
 func (m *membrain) Recall(ctx context.Context, tag string, page string, out []brain.Message) (n int, next string, err error) {
+	panic("unimplemented")
+}
+
+// Think implements brain.Interface.
+func (m *membrain) Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id *[]byte, suf *[]byte) error] {
 	panic("unimplemented")
 }
 

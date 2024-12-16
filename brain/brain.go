@@ -2,6 +2,7 @@ package brain
 
 import (
 	"context"
+	"iter"
 
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/userhash"
@@ -17,10 +18,14 @@ type Interface interface {
 	// a different tuple has the empty string as its suffix to denote the end
 	// of the message. The positions of each in the argument are not guaranteed.
 	//
-	// Each tuple's prefix has entropy reduction transformations applied.
-	//
 	// Tuples in the argument may share storage for prefixes.
 	Learn(ctx context.Context, tag string, msg *Message, tuples []Tuple) error
+
+	// Think iterates all suffixes matching a prefix.
+	//
+	// Yielded closures replace id and suffix with successive messages' contents.
+	// The iterating loop may not call the yielded closure on every iteration.
+	Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id, suf *[]byte) error]
 
 	// Speak generates a full message and appends it to w.
 	//

@@ -3,6 +3,7 @@ package sqlbrain
 import (
 	"context"
 	"fmt"
+	"iter"
 	"math/rand/v2"
 
 	"zombiezen.com/go/sqlite"
@@ -13,6 +14,10 @@ import (
 )
 
 var prependerPool tpool.Pool[deque.Deque[string]]
+
+func (br *Brain) Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id *[]byte, suf *[]byte) error] {
+	panic("unimplemented")
+}
 
 // Speak generates a full message and appends it to w.
 // The prompt is in reverse order and has entropy reduction applied.

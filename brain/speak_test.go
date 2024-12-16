@@ -2,6 +2,7 @@ package brain_test
 
 import (
 	"context"
+	"iter"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -16,6 +17,10 @@ type testSpeaker struct {
 	prompt []string
 	id     string
 	append []byte
+}
+
+func (t *testSpeaker) Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id *[]byte, suf *[]byte) error] {
+	panic("unimplemented")
 }
 
 func (t *testSpeaker) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
