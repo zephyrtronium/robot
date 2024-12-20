@@ -15,6 +15,457 @@ import (
 	"github.com/zephyrtronium/robot/brain/sqlbrain"
 )
 
+func TestThink(t *testing.T) {
+	cases := []struct {
+		name   string
+		know   []know
+		tag    string
+		prompt []string
+		want   []string
+	}{
+		{
+			name:   "empty",
+			know:   nil,
+			tag:    "kessoku",
+			prompt: nil,
+			want:   nil,
+		},
+		{
+			name: "empty-tagged",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00\x00",
+					suffix: "",
+				},
+			},
+			tag:    "sickhack",
+			prompt: nil,
+			want:   nil,
+		},
+		{
+			name: "empty-prompted",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00\x00",
+					suffix: "",
+				},
+			},
+			tag:    "kessoku",
+			prompt: []string{"kikuri "},
+			want:   nil,
+		},
+		{
+			name: "single",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00\x00",
+					suffix: "",
+				},
+			},
+			tag:    "kessoku",
+			prompt: nil,
+			want:   []string{"bocchi "},
+		},
+		{
+			name: "several",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00\x00",
+					suffix: "ryo ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo \x00bocchi \x00\x00",
+					suffix: "nijika ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika \x00ryo \x00bocchi \x00\x00",
+					suffix: "kita ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "kita \x00nijika \x00ryo \x00bocchi \x00\x00",
+					suffix: "",
+				},
+			},
+			tag:    "kessoku",
+			prompt: nil,
+			want:   []string{"bocchi "},
+		},
+		{
+			name: "multi",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "ryo ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "nijika ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "kita ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "kita \x00member \x00\x00",
+					suffix: "",
+				},
+			},
+			tag:    "kessoku",
+			prompt: nil,
+			want:   []string{"member ", "member ", "member ", "member "},
+		},
+		{
+			name: "multi-prompted",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "ryo ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "nijika ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "kita ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "kita \x00member \x00\x00",
+					suffix: "",
+				},
+			},
+			tag:    "kessoku",
+			prompt: []string{"member "},
+			want:   []string{"bocchi ", "ryo ", "nijika ", "kita "},
+		},
+		{
+			name: "multi-tagged",
+			know: []know{
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "ryo ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "nijika ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "kita ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "kita \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "member \x00\x00",
+					suffix: "kikuri ",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "kikuri \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "member \x00\x00",
+					suffix: "eliza ",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "eliza \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "member \x00\x00",
+					suffix: "shima ",
+				},
+				{
+					tag:    "sickhack",
+					prefix: "shima \x00member \x00\x00",
+					suffix: "",
+				},
+			},
+			tag:    "sickhack",
+			prompt: nil,
+			want:   []string{"member ", "member ", "member "},
+		},
+		{
+			name: "forgort",
+			know: []know{
+				{
+					tag:     "kessoku",
+					prefix:  "",
+					suffix:  "member",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "bocchi ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "bocchi \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "ryo ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "ryo \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "member \x00\x00",
+					suffix: "nijika ",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "nijika \x00member \x00\x00",
+					suffix: "",
+				},
+				{
+					tag:    "kessoku",
+					prefix: "\x00",
+					suffix: "member ",
+				},
+				{
+					tag:     "kessoku",
+					prefix:  "member \x00",
+					suffix:  "kita ",
+					deleted: ref("FORGET"),
+				},
+				{
+					tag:     "kessoku",
+					prefix:  "kita \x00member \x00",
+					suffix:  "",
+					deleted: ref("FORGET"),
+				},
+			},
+			tag:    "kessoku",
+			prompt: nil,
+			want:   []string{"member ", "member ", "member "},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			db := testDB(ctx)
+			br, err := sqlbrain.Open(ctx, db)
+			if err != nil {
+				t.Fatalf("couldn't open brain: %v", err)
+			}
+			conn, err := db.Take(ctx)
+			defer db.Put(conn)
+			if err != nil {
+				t.Fatalf("couldn't get conn: %v", err)
+			}
+			insert(t, conn, c.know, nil)
+			_, got, err := braintest.Collect(br.Think(ctx, c.tag, c.prompt))
+			if err != nil {
+				t.Errorf("couldn't think: %v", err)
+			}
+			slices.Sort(c.want)
+			slices.Sort(got)
+			if !slices.Equal(c.want, got) {
+				t.Errorf("wrong results:\nwant %q\ngot  %q", c.want, got)
+			}
+		})
+	}
+}
+
 func TestSpeak(t *testing.T) {
 	cases := []struct {
 		name   string

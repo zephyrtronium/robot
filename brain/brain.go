@@ -25,6 +25,10 @@ type Interface interface {
 	//
 	// Yielded closures replace id and suffix with successive messages' contents.
 	// The iterating loop may not call the yielded closure on every iteration.
+	// When it does, it uses the closure fully within each loop, allowing the
+	// sequence to yield the same closure on each call.
+	// Conversely, iterators should expect that the arguments to the closure
+	// will be the same on each iteration and must not retain them.
 	Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id, suf *[]byte) error]
 
 	// Speak generates a full message and appends it to w.
