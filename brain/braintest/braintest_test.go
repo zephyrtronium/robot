@@ -11,16 +11,18 @@ import (
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/brain/braintest"
-	"github.com/zephyrtronium/robot/userhash"
 )
 
 // membrain is an implementation of braintest.Interface using in-memory maps
 // to verify that the integration tests test the correct things.
 type membrain struct {
-	mu    sync.Mutex
-	tups  map[string]map[string][][2]string // map of tags to map of prefixes to id and suffix
-	users map[userhash.Hash][][2]string     // map of hashes to tag and id
-	tms   map[string]map[int64][]string     // map of tags to map of timestamps to ids
+	mu   sync.Mutex
+	tups map[string]*memtag
+}
+
+type memtag struct {
+	tups    map[string][][2]string // map of prefixes to id and suffix
+	forgort map[string]bool        // set of forgorten ids
 }
 
 var _ brain.Interface = (*membrain)(nil)
@@ -30,46 +32,25 @@ func (m *membrain) Learn(ctx context.Context, tag string, msg *brain.Message, tu
 	defer m.mu.Unlock()
 	if m.tups[tag] == nil {
 		if m.tups == nil {
-			m.tups = make(map[string]map[string][][2]string)
-			m.users = make(map[userhash.Hash][][2]string)
-			m.tms = make(map[string]map[int64][]string)
+			m.tups = make(map[string]*memtag)
 		}
-		m.tups[tag] = make(map[string][][2]string)
-		m.tms[tag] = make(map[int64][]string)
+		m.tups[tag] = &memtag{tups: make(map[string][][2]string), forgort: make(map[string]bool)}
 	}
-	m.users[msg.Sender] = append(m.users[msg.Sender], [2]string{tag, msg.ID})
-	tms := m.tms[tag]
-	tms[msg.Timestamp] = append(tms[msg.Timestamp], msg.ID)
 	r := m.tups[tag]
 	for _, tup := range tuples {
 		p := strings.Join(tup.Prefix, "\xff")
-		r[p] = append(r[p], [2]string{msg.ID, tup.Suffix})
+		r.tups[p] = append(r.tups[p], [2]string{msg.ID, tup.Suffix})
 	}
 	return nil
-}
-
-func (m *membrain) forgetIDLocked(tag, id string) {
-	for p, u := range m.tups[tag] {
-		for len(u) > 0 {
-			k := slices.IndexFunc(u, func(v [2]string) bool { return v[0] == id })
-			if k < 0 {
-				break
-			}
-			u[k], u[len(u)-1] = u[len(u)-1], u[k]
-			u = u[:len(u)-1]
-		}
-		if len(u) != 0 {
-			m.tups[tag][p] = u
-		} else {
-			delete(m.tups[tag], p)
-		}
-	}
 }
 
 func (m *membrain) Forget(ctx context.Context, tag, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.forgetIDLocked(tag, id)
+	if m.tups[tag] == nil {
+		m.tups[tag] = &memtag{tups: make(map[string][][2]string), forgort: make(map[string]bool)}
+	}
+	m.tups[tag].forgort[id] = true
 	return nil
 }
 
@@ -78,7 +59,9 @@ func (m *membrain) Recall(ctx context.Context, tag string, page string, out []br
 }
 
 // Think implements brain.Interface.
-func (m *membrain) Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id *[]byte, suf *[]byte) error] {
+func (m *membrain) Think(ctx context.Context, tag string, prompt []string) iter.Seq[func(id *[]byte, suf *[]byte) error] {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	panic("unimplemented")
 }
 
@@ -87,7 +70,15 @@ func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w *br
 	defer m.mu.Unlock()
 	var s string
 	if len(prompt) == 0 {
-		u := m.tups[tag][""]
+		u := slices.Clone(m.tups[tag].tups[""])
+		d := 0
+		for k, v := range u {
+			if m.tups[tag].forgort[v[0]] {
+				u[d], u[k] = u[k], u[d]
+				d++
+			}
+		}
+		u = u[d:]
 		if len(u) == 0 {
 			return nil
 		}
@@ -98,7 +89,15 @@ func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w *br
 		s = brain.ReduceEntropy(prompt[len(prompt)-1])
 	}
 	for range 256 {
-		u := m.tups[tag][s]
+		u := slices.Clone(m.tups[tag].tups[s])
+		d := 0
+		for k, v := range u {
+			if m.tups[tag].forgort[v[0]] {
+				u[d], u[k] = u[k], u[d]
+				d++
+			}
+		}
+		u = u[d:]
 		if len(u) == 0 {
 			break
 		}
