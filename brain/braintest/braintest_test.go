@@ -3,7 +3,6 @@ package braintest_test
 import (
 	"context"
 	"iter"
-	"math/rand/v2"
 	"slices"
 	"strings"
 	"sync"
@@ -86,52 +85,6 @@ func (m *membrain) Think(ctx context.Context, tag string, prompt []string) iter.
 			}
 		}
 	}
-}
-
-func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	var s string
-	if len(prompt) == 0 {
-		u := slices.Clone(m.tups[tag].tups[""])
-		d := 0
-		for k, v := range u {
-			if m.tups[tag].forgort[v[0]] {
-				u[d], u[k] = u[k], u[d]
-				d++
-			}
-		}
-		u = u[d:]
-		if len(u) == 0 {
-			return nil
-		}
-		t := u[rand.IntN(len(u))]
-		w.Append(t[0], []byte(t[1]))
-		s = brain.ReduceEntropy(t[1])
-	} else {
-		s = brain.ReduceEntropy(prompt[len(prompt)-1])
-	}
-	for range 256 {
-		u := slices.Clone(m.tups[tag].tups[s])
-		d := 0
-		for k, v := range u {
-			if m.tups[tag].forgort[v[0]] {
-				u[d], u[k] = u[k], u[d]
-				d++
-			}
-		}
-		u = u[d:]
-		if len(u) == 0 {
-			break
-		}
-		t := u[rand.IntN(len(u))]
-		if t[1] == "" {
-			break
-		}
-		w.Append(t[0], []byte(t[1]))
-		s = brain.ReduceEntropy(t[1])
-	}
-	return nil
 }
 
 func TestTests(t *testing.T) {

@@ -31,11 +31,6 @@ type Interface interface {
 	// will be the same on each iteration and must not retain them.
 	Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id, suf *[]byte) error]
 
-	// Speak generates a full message and appends it to w.
-	//
-	// The prompt is in reverse order and has entropy reduction applied.
-	Speak(ctx context.Context, tag string, prompt []string, w *Builder) error
-
 	// Forget forgets everything learned from a single given message.
 	// If nothing has been learned from the message, it must prevent anything
 	// from being learned from a message with that ID.

@@ -28,11 +28,6 @@ func (t *testLearner) Forget(ctx context.Context, tag, id string) error {
 	return nil
 }
 
-// Speak implements brain.Brain.
-func (t *testLearner) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
-	panic("unimplemented")
-}
-
 // Think implements brain.Interface.
 func (t *testLearner) Think(ctx context.Context, tag string, prefix []string) iter.Seq[func(id *[]byte, suf *[]byte) error] {
 	panic("unimplemented")

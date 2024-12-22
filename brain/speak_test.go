@@ -47,10 +47,6 @@ func (t *testThinker) Think(ctx context.Context, tag string, prefix []string) it
 	}
 }
 
-func (t *testThinker) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
-	panic("TODO: remove")
-}
-
 // Forget implements brain.Brain.
 func (t *testThinker) Forget(ctx context.Context, tag string, id string) error {
 	panic("unimplemented")
