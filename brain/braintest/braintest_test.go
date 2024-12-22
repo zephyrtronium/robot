@@ -17,7 +17,7 @@ import (
 // to verify that the integration tests test the correct things.
 type membrain struct {
 	mu   sync.Mutex
-	tups map[string]*memtag
+	tups map[string]memtag
 }
 
 type memtag struct {
@@ -30,11 +30,11 @@ var _ brain.Interface = (*membrain)(nil)
 func (m *membrain) Learn(ctx context.Context, tag string, msg *brain.Message, tuples []brain.Tuple) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.tups[tag] == nil {
+	if m.tups[tag].tups == nil {
 		if m.tups == nil {
-			m.tups = make(map[string]*memtag)
+			m.tups = make(map[string]memtag)
 		}
-		m.tups[tag] = &memtag{tups: make(map[string][][2]string), forgort: make(map[string]bool)}
+		m.tups[tag] = memtag{tups: make(map[string][][2]string), forgort: make(map[string]bool)}
 	}
 	r := m.tups[tag]
 	for _, tup := range tuples {
@@ -47,8 +47,8 @@ func (m *membrain) Learn(ctx context.Context, tag string, msg *brain.Message, tu
 func (m *membrain) Forget(ctx context.Context, tag, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.tups[tag] == nil {
-		m.tups[tag] = &memtag{tups: make(map[string][][2]string), forgort: make(map[string]bool)}
+	if m.tups[tag].forgort == nil {
+		m.tups[tag] = memtag{tups: make(map[string][][2]string), forgort: make(map[string]bool)}
 	}
 	m.tups[tag].forgort[id] = true
 	return nil
@@ -58,11 +58,34 @@ func (m *membrain) Recall(ctx context.Context, tag string, page string, out []br
 	panic("unimplemented")
 }
 
-// Think implements brain.Interface.
 func (m *membrain) Think(ctx context.Context, tag string, prompt []string) iter.Seq[func(id *[]byte, suf *[]byte) error] {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	panic("unimplemented")
+	return func(yield func(func(id *[]byte, suf *[]byte) error) bool) {
+		m.mu.Lock()
+		r := m.tups[tag]
+		p := strings.Join(prompt, "\xff")
+		// Copy out the values we'll yield so that we don't need to dance
+		// around locks.
+		y := slices.Clone(r.tups[p])
+		m.mu.Unlock()
+		for _, v := range y {
+			// Check deletions during iteration so we don't unforget if the
+			// iterating loop forgets things.
+			m.mu.Lock()
+			ok := r.forgort[v[0]]
+			m.mu.Unlock()
+			if ok {
+				continue
+			}
+			f := func(id, suf *[]byte) error {
+				*id = append(*id, v[0]...)
+				*suf = append(*suf, v[1]...)
+				return nil
+			}
+			if !yield(f) {
+				break
+			}
+		}
+	}
 }
 
 func (m *membrain) Speak(ctx context.Context, tag string, prompt []string, w *brain.Builder) error {
