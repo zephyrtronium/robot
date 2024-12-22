@@ -138,6 +138,7 @@ func term(ctx context.Context, s Interface, tag string, prompt []string, wid, wt
 			n--
 			continue
 		}
+		*wid, *wtok = (*wid)[:0], (*wtok)[:0]
 		if err := f(wid, wtok); err != nil {
 			return n, seen, fmt.Errorf("couldn't think: %w", err)
 		}
