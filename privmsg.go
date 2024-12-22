@@ -104,14 +104,14 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		return
 	}
 	start := time.Now()
-	s, trace, err := brain.Speak(ctx, robo.brain, ch.Send, "")
+	s, trace, err := brain.Think(ctx, robo.brain, ch.Send, "")
 	cost := time.Since(start)
 	if err != nil {
-		log.ErrorContext(ctx, "wanted to speak but failed", slog.Any("err", err), slog.Duration("cost", cost))
+		log.ErrorContext(ctx, "wanted to think but failed", slog.Any("err", err), slog.Duration("cost", cost))
 		return
 	}
 	if s == "" {
-		log.InfoContext(ctx, "spoke nothing", slog.String("tag", ch.Send), slog.Duration("cost", cost))
+		log.InfoContext(ctx, "thought nothing", slog.String("tag", ch.Send), slog.Duration("cost", cost))
 		return
 	}
 	x := rand.Uint64()

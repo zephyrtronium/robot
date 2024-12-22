@@ -172,7 +172,7 @@ func cliSpeak(ctx context.Context, cmd *cli.Command) error {
 	prompt := cmd.String("prompt")
 	for range cmd.Int("n") {
 		group.Go(func() error {
-			m, tr, err := brain.Speak(ctx, br, tag, prompt)
+			m, tr, err := brain.Think(ctx, br, tag, prompt)
 			if err != nil {
 				return err
 			}

@@ -28,14 +28,14 @@ func speakCmd(ctx context.Context, robo *Robot, call *Invocation, effect string)
 		return "no " + e
 	}
 	start := time.Now()
-	m, trace, err := brain.Speak(ctx, robo.Brain, call.Channel.Send, call.Args["prompt"])
+	m, trace, err := brain.Think(ctx, robo.Brain, call.Channel.Send, call.Args["prompt"])
 	cost := time.Since(start)
 	if err != nil {
-		robo.Log.ErrorContext(ctx, "couldn't speak", "err", err.Error())
+		robo.Log.ErrorContext(ctx, "couldn't think", "err", err.Error())
 		return ""
 	}
 	if m == "" {
-		robo.Log.InfoContext(ctx, "spoke nothing", slog.String("tag", call.Channel.Send), slog.String("prompt", call.Args["prompt"]))
+		robo.Log.InfoContext(ctx, "thought nothing", slog.String("tag", call.Channel.Send), slog.String("prompt", call.Args["prompt"]))
 		return ""
 	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
