@@ -71,7 +71,7 @@ func (m *membrain) Think(ctx context.Context, tag string, prompt []string) iter.
 			// Check deletions during iteration so we don't unforget if the
 			// iterating loop forgets things.
 			m.mu.Lock()
-			ok := r.forgort[v[0]]
+			ok := m.tups[tag].forgort[v[0]]
 			m.mu.Unlock()
 			if ok {
 				continue

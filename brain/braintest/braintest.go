@@ -108,9 +108,9 @@ func speak(ctx context.Context, t *testing.T, br brain.Interface, tag, prompt st
 	t.Helper()
 	got := make(map[string]struct{}, 20)
 	for range iters {
-		s, trace, err := brain.Speak(ctx, br, tag, prompt)
+		s, trace, err := brain.Think(ctx, br, tag, prompt)
 		if err != nil {
-			t.Errorf("couldn't speak: %v", err)
+			t.Errorf("couldn't think: %v", err)
 		}
 		got[strings.Join(trace, " ")+"#"+s] = struct{}{}
 	}
@@ -257,11 +257,11 @@ func testCombinatoric(ctx context.Context, br brain.Interface) func(t *testing.T
 			}
 		}
 		allocs := testing.AllocsPerRun(10, func() {
-			_, _, err := brain.Speak(ctx, br, "bocchi", "")
+			_, _, err := brain.Think(ctx, br, "bocchi", "")
 			if err != nil {
-				t.Errorf("couldn't speak: %v", err)
+				t.Errorf("couldn't think: %v", err)
 			}
 		})
-		t.Logf("speaking cost %v allocs per run", allocs)
+		t.Logf("thinking cost %v allocs per run", allocs)
 	}
 }

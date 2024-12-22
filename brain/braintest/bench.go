@@ -128,8 +128,8 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
-					if _, _, err := brain.Speak(ctx, br, "bocchi", ""); err != nil {
-						b.Errorf("error while speaking: %v", err)
+					if _, _, err := brain.Think(ctx, br, "bocchi", ""); err != nil {
+						b.Errorf("error while thinking: %v", err)
 					}
 				}
 			})
@@ -174,8 +174,8 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
-					if _, _, err := brain.Speak(ctx, br, "bocchi", ""); err != nil {
-						b.Errorf("error while speaking: %v", err)
+					if _, _, err := brain.Think(ctx, br, "bocchi", ""); err != nil {
+						b.Errorf("error while thinking: %v", err)
 					}
 				}
 			})
@@ -220,8 +220,8 @@ func BenchSpeak(ctx context.Context, b *testing.B, new func(ctx context.Context,
 			b.ResetTimer()
 			b.RunParallel(func(pb *testing.PB) {
 				for pb.Next() {
-					if _, _, err := brain.Speak(ctx, br, "bocchi", toks[rand.IntN(len(toks)-1)]); err != nil {
-						b.Errorf("error while speaking: %v", err)
+					if _, _, err := brain.Think(ctx, br, "bocchi", toks[rand.IntN(len(toks)-1)]); err != nil {
+						b.Errorf("error while thinking: %v", err)
 					}
 				}
 			})
