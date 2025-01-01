@@ -184,6 +184,7 @@ func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Ch
 		Log:      log.With(slog.String("command", c.name), slog.Any("args", args)),
 		Channels: robo.channels,
 		Brain:    robo.brain,
+		Pet:      &robo.pet,
 		Privacy:  robo.privacy,
 		Spoken:   robo.spoken,
 		Owner:    robo.owner,
@@ -433,6 +434,26 @@ var twitchAny = []twitchCommand{
 		parse: regexp.MustCompile(`(?i)^[¿¡.]*\s*(?:who'?s?e?\s+(?:is\s+)?(?:your\s+)?|(?:let?\s*m?me\s+|i\s+want\s+(?:to\s+))?(?:(?:speak|talk|complain)\s+(?:to|with)\s*)?your\s+)(?:manage[rs]?|op(?:erat[eo][rs]?)?|runs?|admin|administrator|administrates?|owns?|owner)`),
 		fn:    command.Contact,
 		name:  "contact",
+	},
+	{
+		parse: regexp.MustCompile(`^(?i:(?:check)?\s*(?:current)?\s*status$)`),
+		fn:    command.Tamagotchi,
+		name:  "tamagotchi",
+	},
+	{
+		parse: regexp.MustCompile(`^(?i:eat|(?:have|wh?at(?:'|\s*i)?s?)\s*(?:s[ou]me?|fo?r|4)?\s*(?:brea?kfa?st|lu?nch|din*e*r))`),
+		fn:    command.Eat,
+		name:  "eat",
+	},
+	{
+		parse: regexp.MustCompile(`^(?i:(?:let(?:'|\s*u)s|go)?\s*clean)`),
+		fn:    command.Clean,
+		name:  "clean",
+	},
+	{
+		parse: regexp.MustCompile(`^(?i:\**(?:head\s*)?p[ae]t|(?:chin\s*)scritch|(?:cheek|shoulder|back|foot)?\s*rub|(?:bi+g\s+)hug|go+d\s+(?:girl|gril|boy|bot|pet|wife|waifu|h[ua]su?bando?|partner|spouse|daddy|mommy))`),
+		fn:    command.Pat,
+		name:  "pat",
 	},
 	{
 		parse: regexp.MustCompile(`^(?i:say|generate)\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s+(?<prompt>.*)`),

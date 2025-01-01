@@ -81,6 +81,21 @@ const (
 	Bathroom
 )
 
+func (r Room) String() string {
+	switch r {
+	case Bedroom:
+		return "bedroom"
+	case Kitchen:
+		return "kitchen"
+	case Living:
+		return "living room"
+	case Bathroom:
+		return "bathroom"
+	default:
+		return ""
+	}
+}
+
 // Clean cleans one of the pet's rooms, if any need to be cleaned.
 //
 // The first return value is the cleaned [Room], or [AllClean] if all were

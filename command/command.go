@@ -8,6 +8,7 @@ import (
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/message"
 	"github.com/zephyrtronium/robot/metrics"
+	"github.com/zephyrtronium/robot/pet"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/syncmap"
@@ -18,6 +19,7 @@ type Robot struct {
 	Log      *slog.Logger
 	Channels *syncmap.Map[string, *channel.Channel]
 	Brain    brain.Interface
+	Pet      *pet.Status
 	Privacy  *privacy.List
 	Spoken   *spoken.History
 	Owner    string

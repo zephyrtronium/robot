@@ -18,6 +18,7 @@ import (
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/channel"
 	"github.com/zephyrtronium/robot/metrics"
+	"github.com/zephyrtronium/robot/pet"
 	"github.com/zephyrtronium/robot/privacy"
 	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/syncmap"
@@ -48,6 +49,8 @@ type Robot struct {
 	tmi *client[*tmi.Message, *tmi.Message]
 	// twitch is the Twitch API client.
 	twitch twitch.Client
+	// pet is the robot's pet status.
+	pet pet.Status
 	// metrics are a collection of custom domain specific metrics.
 	metrics *metrics.Metrics
 }
