@@ -48,8 +48,8 @@ type Robot struct {
 	tmi *client[*tmi.Message, *tmi.Message]
 	// twitch is the Twitch API client.
 	twitch twitch.Client
-	// Metrics are a collection of custom domain specific Metrics.
-	Metrics *metrics.Metrics
+	// metrics are a collection of custom domain specific metrics.
+	metrics *metrics.Metrics
 }
 
 // client is the settings for OAuth2 and related elements.
@@ -79,7 +79,7 @@ func New(usersKey []byte, poolSize int) *Robot {
 		channels: syncmap.New[string, *channel.Channel](),
 		works:    make(chan chan func(context.Context), poolSize),
 		hashes:   func() userhash.Hasher { return userhash.New(usersKey) },
-		Metrics:  newMetrics(),
+		metrics:  newMetrics(),
 	}
 }
 
@@ -90,7 +90,7 @@ func (robo *Robot) Run(ctx context.Context, listen string) error {
 		group.Go(func() error { return robo.runTwitch(ctx, group) })
 	}
 	if listen != "" {
-		group.Go(func() error { return robo.api(ctx, listen, new(http.ServeMux), robo.Metrics.Collectors()) })
+		group.Go(func() error { return robo.api(ctx, listen, new(http.ServeMux), robo.metrics.Collectors()) })
 	}
 	err := group.Wait()
 	if err == context.Canceled {

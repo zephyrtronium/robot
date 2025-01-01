@@ -105,7 +105,7 @@ func (robo *Robot) clearchat(ctx context.Context, msg *tmi.Message) {
 		slog.InfoContext(ctx, "clear all chat", slog.String("channel", msg.To()), slog.String("tag", tag))
 		for m := range ch.History.All() {
 			slog.DebugContext(ctx, "forget all chat", slog.String("channel", msg.To()), slog.String("id", m.ID))
-			robo.Metrics.ForgotCount.Observe(1)
+			robo.metrics.ForgotCount.Observe(1)
 			err := robo.brain.Forget(ctx, tag, m.ID)
 			if err != nil {
 				slog.ErrorContext(ctx, "failed to forget while clearing all chat",
@@ -129,7 +129,7 @@ func (robo *Robot) clearchat(ctx context.Context, msg *tmi.Message) {
 				continue
 			}
 			slog.DebugContext(ctx, "forget from recent trace", slog.String("channel", msg.To()), slog.String("id", id))
-			robo.Metrics.ForgotCount.Observe(1)
+			robo.metrics.ForgotCount.Observe(1)
 			if err := robo.brain.Forget(ctx, tag, id); err != nil {
 				slog.ErrorContext(ctx, "failed to forget from recent trace",
 					slog.Any("err", err),
@@ -146,7 +146,7 @@ func (robo *Robot) clearchat(ctx context.Context, msg *tmi.Message) {
 				continue
 			}
 			slog.DebugContext(ctx, "forget from user", slog.String("channel", msg.To()), slog.String("id", m.ID))
-			robo.Metrics.ForgotCount.Observe(1)
+			robo.metrics.ForgotCount.Observe(1)
 			if err := robo.brain.Forget(ctx, ch.Learn, m.ID); err != nil {
 				slog.ErrorContext(ctx, "failed to forget from user",
 					slog.Any("err", err),
@@ -172,7 +172,7 @@ func (robo *Robot) clearmsg(ctx context.Context, msg *tmi.Message) {
 	if u != robo.tmi.name {
 		// Forget a message from someone else.
 		log.InfoContext(ctx, "forget message", slog.String("tag", ch.Learn), slog.String("id", t))
-		forget(ctx, log, robo.Metrics.ForgotCount, robo.brain, ch.Learn, t)
+		forget(ctx, log, robo.metrics.ForgotCount, robo.brain, ch.Learn, t)
 		return
 	}
 	// Forget a message from the robo.
@@ -192,7 +192,7 @@ func (robo *Robot) clearmsg(ctx context.Context, msg *tmi.Message) {
 		return
 	}
 	log.InfoContext(ctx, "forget trace", slog.String("tag", ch.Send), slog.Any("spoken", tm), slog.Any("trace", trace))
-	forget(ctx, log, robo.Metrics.ForgotCount, robo.brain, ch.Send, trace...)
+	forget(ctx, log, robo.metrics.ForgotCount, robo.brain, ch.Send, trace...)
 }
 
 func forget(ctx context.Context, log *slog.Logger, forgetCount metrics.Observer, brain brain.Interface, tag string, trace ...string) {

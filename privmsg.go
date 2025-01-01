@@ -22,7 +22,7 @@ import (
 
 // tmiMessage processes a PRIVMSG from TMI.
 func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg *tmi.Message) {
-	robo.Metrics.TMIMsgsCount.Observe(1)
+	robo.metrics.TMIMsgsCount.Observe(1)
 	ch, _ := robo.channels.Load(msg.To())
 	if ch == nil {
 		// TMI gives a WHISPER for a direct message, so this is a message to a
@@ -150,7 +150,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 }
 
 func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Channel, m *message.Received[message.User], cmd string) {
-	robo.Metrics.TMICommandCount.Observe(1)
+	robo.metrics.TMICommandCount.Observe(1)
 	var c *twitchCommand
 	var args map[string]string
 	level := "any"
@@ -188,7 +188,7 @@ func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Ch
 		Spoken:   robo.spoken,
 		Owner:    robo.owner,
 		Contact:  robo.ownerContact,
-		Metrics:  robo.Metrics,
+		Metrics:  robo.metrics,
 	}
 	inv := command.Invocation{
 		Channel: ch,
@@ -238,8 +238,8 @@ func (robo *Robot) learn(ctx context.Context, log *slog.Logger, ch *channel.Chan
 		log.ErrorContext(ctx, "failed to learn", slog.Any("err", err))
 		return
 	}
-	robo.Metrics.LearnLatency.Observe(cost.Seconds(), ch.Learn)
-	robo.Metrics.LearnedCount.Observe(1)
+	robo.metrics.LearnLatency.Observe(cost.Seconds(), ch.Learn)
+	robo.metrics.LearnedCount.Observe(1)
 	log.InfoContext(ctx, "learned", slog.Duration("cost", cost))
 }
 
@@ -262,7 +262,7 @@ func (robo *Robot) sendTMI(ctx context.Context, send chan<- *tmi.Message, msg me
 			slog.String("in", msg.To),
 			slog.String("text", msg.Text),
 		)
-		robo.Metrics.TMISendWait.Observe(d.Seconds())
+		robo.metrics.TMISendWait.Observe(d.Seconds())
 		select {
 		case <-ctx.Done():
 			return
