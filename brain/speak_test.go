@@ -47,17 +47,12 @@ func (t *testThinker) Think(ctx context.Context, tag string, prefix []string) it
 	}
 }
 
-// Forget implements brain.Brain.
 func (t *testThinker) Forget(ctx context.Context, tag string, id string) error {
 	panic("unimplemented")
 }
-
-// Learn implements brain.Brain.
 func (t *testThinker) Learn(ctx context.Context, tag string, msg *message.Received[userhash.Hash], tuples []brain.Tuple) error {
 	panic("unimplemented")
 }
-
-// Recall implements brain.Brain.
 func (t *testThinker) Recall(ctx context.Context, tag string, page string, out []message.Received[userhash.Hash]) (n int, next string, err error) {
 	panic("unimplemented")
 }
@@ -110,7 +105,7 @@ func TestThink(t *testing.T) {
 			id:     "kessoku",
 			tups: []brain.Tuple{
 				{
-					Prefix: []string{"nijika "},
+					Prefix: []string{"nijika ", "ryo ", "bocchi "},
 					Suffix: "kita",
 				},
 			},
@@ -124,7 +119,7 @@ func TestThink(t *testing.T) {
 			id:     "kessoku",
 			tups: []brain.Tuple{
 				{
-					Prefix: []string{"nijika "},
+					Prefix: []string{"nijika ", "ryo ", "bocchi "},
 					Suffix: "KITA",
 				},
 			},

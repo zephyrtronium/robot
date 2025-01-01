@@ -38,8 +38,7 @@ func Think(ctx context.Context, s Interface, tag, prompt string) (string, []stri
 
 	var ids []string
 	// We handle the first search specially.
-	// TODO(zeph): skip terminating choices
-	id, tok, l, err := next(ctx, s, tag, search.Slice())
+	id, tok, err := first(ctx, s, tag, search.Slice())
 	if len(tok) == 0 {
 		return "", nil, err
 	}
@@ -48,7 +47,8 @@ func Think(ctx context.Context, s Interface, tag, prompt string) (string, []stri
 		ids = slices.Insert(ids, k, id)
 	}
 	w = append(w, tok...)
-	search = search.DropEnd(search.Len() - l - 1).Prepend(ReduceEntropy(tok))
+	search = search.Prepend(ReduceEntropy(tok))
+
 	for range 1024 {
 		id, tok, l, err := next(ctx, s, tag, search.Slice())
 		if len(tok) == 0 {
@@ -115,4 +115,48 @@ func term(ctx context.Context, s Interface, tag string, prompt []string, wid, wt
 		n = skip.N(rand.Uint64(), rand.Uint64())
 	}
 	return n, seen, nil
+}
+
+// first finds a single first term from a brain given a prompt.
+// Unlike next, it requires the entire prompt to match, and it skips empty
+// continuations if the prompt is not empty.
+func first(ctx context.Context, s Interface, tag string, prompt []string) (id, tok string, err error) {
+	wid := make([]byte, 0, 64)
+	wtok := make([]byte, 0, 64)
+	var skip Skip
+	var n uint64
+	// Empty and non-empty prompts have different logic. We could merge them
+	// into the same loop, but it's easier and probably more efficient to
+	// split the control flow.
+	if len(prompt) == 0 {
+		_, _, err := term(ctx, s, tag, prompt, &wid, &wtok, &skip, 0)
+		if err != nil {
+			return "", "", fmt.Errorf("couldn't think of first term: %w", err)
+		}
+		return string(wid), string(wtok), nil
+	}
+
+	var rid, rtok []byte
+	for f := range s.Think(ctx, tag, prompt) {
+		// The downside with a prompt is that we have to read every option so
+		// that we only count non-empty continuations.
+		wid, wtok = wid[:0], wtok[:0]
+		if err := f(&wid, &wtok); err != nil {
+			return "", "", fmt.Errorf("couldn't think of first term with prompt %q: %w", prompt, err)
+		}
+		if len(wtok) == 0 {
+			// Empty suffix. Don't care.
+			continue
+		}
+		if n > 0 {
+			n--
+			continue
+		}
+		// Save this result as the potential selection.
+		// We could just assign id and tok here, but this reduces allocations.
+		rid = append(rid[:0], wid...)
+		rtok = append(rtok[:0], wtok...)
+		n = skip.N(rand.Uint64(), rand.Uint64())
+	}
+	return string(rid), string(rtok), nil
 }
