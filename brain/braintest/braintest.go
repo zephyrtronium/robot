@@ -185,9 +185,6 @@ func testForget(ctx context.Context, br brain.Interface) func(t *testing.T) {
 		}
 		got := speak(ctx, t, br, "kessoku", "", 2048)
 		want := map[string]struct{}{
-			// The current brains should delete the "member" with ID 1, but we
-			// don't strictly require it.
-			// This should change anyway once we stop deleting by tuples.
 			"2#member ryou":     {},
 			"2 3#member ryou":   {},
 			"2 4#member ryou":   {},

@@ -17,6 +17,7 @@ func (br *Brain) Think(ctx context.Context, tag string, prompt []string) iter.Se
 		// We don't actually need to iterate over values, only the single value
 		// that we decide to use per suffix. So, we can disable value prefetch.
 		opts.PrefetchValues = false
+		d := make([]byte, 0, 64)
 		b := make([]byte, 0, 128)
 		b = append(b, opts.Prefix...)
 		b = appendPrefix(b, prompt)
@@ -40,14 +41,8 @@ func (br *Brain) Think(ctx context.Context, tag string, prompt []string) iter.Se
 			// after its definition, because our half of the loop needs to use
 			// them too.
 			f := func(id, suf *[]byte) error {
-				// The id is everything after the first byte following the hash
-				// for empty prefixes, and everything after the first \xff\xff
-				// otherwise.
-				k := key[tagHashLen+1:]
-				if len(prompt) > 0 {
-					_, k, _ = bytes.Cut(k, []byte{0xff, 0xff})
-				}
-				*id = k
+				_, _, t := keyparts(key)
+				*id = append(*id, t...)
 				var err error
 				*suf, err = item.ValueCopy(*suf)
 				if err != nil {
@@ -57,9 +52,22 @@ func (br *Brain) Think(ctx context.Context, tag string, prompt []string) iter.Se
 			}
 			for it.ValidForPrefix(b) {
 				item = it.Item()
-				// TODO(zeph): for #43, check deleted uuids so we never pick
-				// a message that has been deleted
 				key = item.KeyCopy(key[:0])
+				// Check whether the message ID is deleted.
+				tag, _, id := keyparts(key)
+				d = append(d[:0], tag...)
+				d = append(d, 0xfe, 0xfe)
+				d = append(d, id...)
+				switch _, err := txn.Get(d); err {
+				case badger.ErrKeyNotFound: // do nothing
+				case nil:
+					// The fact that there is a value means the message was
+					// forgotten. Don't yield it.
+					it.Next()
+					continue
+				default:
+					erf(fmt.Errorf("couldn't check for deleted message: %w", err))
+				}
 				if !yield(f) {
 					break
 				}
@@ -71,4 +79,30 @@ func (br *Brain) Think(ctx context.Context, tag string, prompt []string) iter.Se
 			erf(fmt.Errorf("couldn't read knowledge: %w", err))
 		}
 	}
+}
+
+func keyparts(key []byte) (tag, content, id []byte) {
+	if len(key) < tagHashLen+2 {
+		return nil, nil, nil
+	}
+	tag = key[:tagHashLen]
+	switch key[tagHashLen] {
+	case 0xff:
+		// Empty prefix sentinel. The rest is the ID.
+		content = key[tagHashLen : tagHashLen+1]
+		id = key[tagHashLen+1:]
+	case 0xfe:
+		// Deleted ID sentinel. Two bytes long, and the rest is the ID.
+		content = key[tagHashLen : tagHashLen+2]
+		id = key[tagHashLen+2:]
+	default:
+		// Non-empty prefix. Ends after \xff\xff.
+		k := bytes.Index(key[tagHashLen:], []byte{0xff, 0xff})
+		if k < 0 {
+			panic("kvbrain: invalid key")
+		}
+		content = key[tagHashLen : tagHashLen+k+2]
+		id = key[tagHashLen+k+2:]
+	}
+	return tag, content, id
 }

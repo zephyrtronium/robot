@@ -34,15 +34,6 @@ func (br *Brain) Learn(ctx context.Context, tag string, msg *brain.Message, tupl
 		vals[i] = []byte(t.Suffix)
 	}
 
-	p, _ := br.past.Load(tag)
-	if p == nil {
-		// We might race with others also creating this past. Ensure we don't
-		// overwrite if that happens.
-		p, _ = br.past.LoadOrStore(tag, new(past))
-	}
-	// Scale the timestamp from milliseconds to nanoseconds for historical reasons.
-	p.record(msg.ID, msg.Sender, msg.Timestamp*1e6, keys)
-
 	batch := br.knowledge.NewWriteBatch()
 	defer batch.Cancel()
 	for i, key := range keys {

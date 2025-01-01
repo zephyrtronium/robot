@@ -1,9 +1,7 @@
 package kvbrain
 
 import (
-	"bytes"
 	"context"
-	"slices"
 	"testing"
 	"time"
 
@@ -12,102 +10,6 @@ import (
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/userhash"
 )
-
-func TestPastRecord(t *testing.T) {
-	var p past
-	ch := make(chan struct{})
-	for i := range len(p.id) {
-		go func() {
-			p.record("1"+string(byte(i)), userhash.Hash{2, byte(i)}, int64(i), [][]byte{{4, byte(i)}, {5}})
-			ch <- struct{}{}
-		}()
-	}
-	for range len(p.id) {
-		<-ch
-	}
-	if p.k != 0 {
-		t.Errorf("wrong final index: %d should be zero", p.k)
-	}
-	for k := range len(p.id) {
-		key, id, user, time := p.key[k], p.id[k], p.user[k], p.time[k]
-		if want := [][]byte{{4, byte(time)}, {5}}; !slices.EqualFunc(key, want, bytes.Equal) {
-			t.Errorf("wrong association between key and time: want %v, got %v", want, key)
-		}
-		if want := ("1" + string(byte(time))); id != want {
-			t.Errorf("wrong association between id and time: want %v, got %v", want, id)
-		}
-		if want := (userhash.Hash{2, byte(time)}); user != want {
-			t.Errorf("wrong association between user and time: want %v, got %v", want, user)
-		}
-	}
-	// Do it again to verify we overwrite.
-	for i := range len(p.id) {
-		go func() {
-			p.record("5"+string(byte(i)), userhash.Hash{6, byte(i)}, int64(i), [][]byte{{8, byte(i)}, {9}})
-			ch <- struct{}{}
-		}()
-	}
-	for range len(p.id) {
-		<-ch
-	}
-	if p.k != 0 {
-		t.Errorf("wrong final index: %d should be zero", p.k)
-	}
-	for k := range len(p.id) {
-		key, id, user, time := p.key[k], p.id[k], p.user[k], p.time[k]
-		if want := [][]byte{{8, byte(time)}, {9}}; !slices.EqualFunc(key, want, bytes.Equal) {
-			t.Errorf("wrong association between key and time: want %v, got %v", want, key)
-		}
-		if want := ("5" + string(byte(time))); id != want {
-			t.Errorf("wrong association between id and time: want %v, got %v", want, id)
-		}
-		if want := (userhash.Hash{6, byte(time)}); user != want {
-			t.Errorf("wrong association between user and time: want %v, got %v", want, user)
-		}
-	}
-}
-
-func TestPastFind(t *testing.T) {
-	uu := "1"
-	p := past{
-		k:    127,
-		key:  [256][][]byte{255: {[]byte("bocchi")}},
-		id:   [256]string{255: uu},
-		user: [256]userhash.Hash{255: {2}},
-		time: [256]int64{255: 3},
-	}
-	if got, want := p.findID(uu), [][]byte{[]byte("bocchi")}; !slices.EqualFunc(got, want, bytes.Equal) {
-		t.Errorf("wrong key: want %q, got %q", want, got)
-	}
-	if got := p.findID("fake"); got != nil {
-		t.Errorf("non-nil key %q finding fake uuid", got)
-	}
-}
-
-func BenchmarkPastRecord(b *testing.B) {
-	var p past
-	uu := "1"
-	user := userhash.Hash{2}
-	b.ReportAllocs()
-	for i := range b.N {
-		p.record(uu, user, int64(i), [][]byte{{byte(i)}})
-	}
-}
-
-func BenchmarkPastFind(b *testing.B) {
-	var p past
-	for i := range len(p.id) {
-		p.record(string(byte(i)), userhash.Hash{byte(i)}, int64(i), [][]byte{{byte(i)}})
-	}
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := range b.N {
-		use(p.findID(string(byte(i))))
-	}
-}
-
-//go:noinline
-func use(x [][]byte) {}
 
 func TestForget(t *testing.T) {
 	type message struct {
@@ -136,8 +38,11 @@ func TestForget(t *testing.T) {
 					},
 				},
 			},
-			uu:   "1",
-			want: map[string]string{},
+			uu: "1",
+			want: map[string]string{
+				mkey("kessoku", "bocchi\xff\xff", "1"): "ryou",
+				mkey("kessoku", "\xfe\xfe", "1"):       "",
+			},
 		},
 		{
 			name: "several",
@@ -153,8 +58,12 @@ func TestForget(t *testing.T) {
 					},
 				},
 			},
-			uu:   "1",
-			want: map[string]string{},
+			uu: "1",
+			want: map[string]string{
+				mkey("kessoku", "bocchi\xff\xff", "1"): "ryou",
+				mkey("kessoku", "nijika\xff\xff", "1"): "kita",
+				mkey("kessoku", "\xfe\xfe", "1"):       "",
+			},
 		},
 		{
 			name: "tagged",
@@ -172,6 +81,7 @@ func TestForget(t *testing.T) {
 			uu: "1",
 			want: map[string]string{
 				mkey("sickhack", "bocchi\xff\xff", "1"): "ryou",
+				mkey("kessoku", "\xfe\xfe", "1"):        "",
 			},
 		},
 		{
@@ -190,6 +100,7 @@ func TestForget(t *testing.T) {
 			uu: "2",
 			want: map[string]string{
 				mkey("kessoku", "bocchi\xff\xff", "1"): "ryou",
+				mkey("kessoku", "\xfe\xfe", "2"):       "",
 			},
 		},
 	}

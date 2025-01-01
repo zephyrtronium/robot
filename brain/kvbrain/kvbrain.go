@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/dgraph-io/badger/v4"
-	"gopkg.in/typ.v4/sync2"
 
 	"github.com/zephyrtronium/robot/brain"
 )
@@ -37,7 +36,6 @@ Operations:
 
 type Brain struct {
 	knowledge *badger.DB
-	past      sync2.Map[string, *past]
 }
 
 var _ brain.Interface = (*Brain)(nil)
