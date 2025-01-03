@@ -77,8 +77,8 @@ func tokens(dst []string, msg string) []string {
 	return dst
 }
 
-// ReduceEntropy transforms a term in a way which makes it more likely to
+// reduceEntropy transforms a term in a way which makes it more likely to
 // equal other terms transformed the same way.
-func ReduceEntropy(w string) string {
+func reduceEntropy(w string) string {
 	return strings.ToLower(w)
 }

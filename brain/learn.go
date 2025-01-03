@@ -37,7 +37,7 @@ func tupleToks(tt []Tuple, toks []string) []Tuple {
 	slices.Reverse(toks)
 	pres := slices.Clone(toks)
 	for i, w := range pres {
-		pres[i] = ReduceEntropy(w)
+		pres[i] = reduceEntropy(w)
 	}
 	suf := ""
 	for i, w := range toks {

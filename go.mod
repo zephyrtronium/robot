@@ -8,16 +8,16 @@ require (
 	github.com/dgraph-io/badger/v4 v4.2.0
 	github.com/go-json-experiment/json v0.0.0-20240815175050-ebd3a8989ca1
 	github.com/google/go-cmp v0.6.0
+	github.com/google/uuid v1.6.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/urfave/cli/v3 v3.0.0-alpha9
-	gitlab.com/zephyrtronium/pick v1.0.0
+	gitlab.com/zephyrtronium/pick v1.1.0
 	gitlab.com/zephyrtronium/tmi v0.0.0-20240325132202-7adf62e91c49
 	golang.org/x/crypto v0.26.0
 	golang.org/x/oauth2 v0.22.0
 	golang.org/x/sync v0.8.0
 	golang.org/x/text v0.17.0
 	golang.org/x/time v0.6.0
-	gopkg.in/typ.v4 v4.3.0
 	zombiezen.com/go/sqlite v1.3.0
 )
 
@@ -32,7 +32,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect

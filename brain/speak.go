@@ -7,6 +7,8 @@ import (
 	"math/rand/v2"
 	"slices"
 
+	"gitlab.com/zephyrtronium/pick"
+
 	"github.com/zephyrtronium/robot/deque"
 	"github.com/zephyrtronium/robot/tpool"
 )
@@ -26,7 +28,7 @@ func Think(ctx context.Context, s Interface, tag, prompt string) (string, []stri
 	toks := tokens(tokensPool.Get(), prompt)
 	for i, t := range toks {
 		w = append(w, t...)
-		toks[i] = ReduceEntropy(t)
+		toks[i] = reduceEntropy(t)
 	}
 	slices.Reverse(toks)
 	search := prependerPool.Get().Prepend(toks...)
@@ -47,7 +49,7 @@ func Think(ctx context.Context, s Interface, tag, prompt string) (string, []stri
 		ids = slices.Insert(ids, k, id)
 	}
 	w = append(w, tok...)
-	search = search.Prepend(ReduceEntropy(tok))
+	search = search.Prepend(reduceEntropy(tok))
 
 	for range 1024 {
 		id, tok, l, err := next(ctx, s, tag, search.Slice())
@@ -61,7 +63,7 @@ func Think(ctx context.Context, s Interface, tag, prompt string) (string, []stri
 			ids = slices.Insert(ids, k, id)
 		}
 		w = append(w, tok...)
-		search = search.DropEnd(search.Len() - l - 1).Prepend(ReduceEntropy(tok))
+		search = search.DropEnd(search.Len() - l - 1).Prepend(reduceEntropy(tok))
 	}
 	return string(bytes.TrimSpace(w)), ids, nil
 }
@@ -70,7 +72,7 @@ func Think(ctx context.Context, s Interface, tag, prompt string) (string, []stri
 func next(ctx context.Context, s Interface, tag string, prompt []string) (id, tok string, l int, err error) {
 	wid := make([]byte, 0, 64)
 	wtok := make([]byte, 0, 64)
-	var skip Skip
+	var skip pick.Skip
 	var n uint64
 	for {
 		var seen uint64
@@ -100,7 +102,7 @@ func next(ctx context.Context, s Interface, tag string, prompt []string) (id, to
 
 // term gets the thought for a single prompt and skip sequence with a starting
 // skip length, returning the new skip length and the total number skipped.
-func term(ctx context.Context, s Interface, tag string, prompt []string, wid, wtok *[]byte, skip *Skip, n uint64) (uint64, uint64, error) {
+func term(ctx context.Context, s Interface, tag string, prompt []string, wid, wtok *[]byte, skip *pick.Skip, n uint64) (uint64, uint64, error) {
 	var seen uint64
 	for f := range s.Think(ctx, tag, prompt) {
 		seen++
@@ -123,7 +125,7 @@ func term(ctx context.Context, s Interface, tag string, prompt []string, wid, wt
 func first(ctx context.Context, s Interface, tag string, prompt []string) (id, tok string, err error) {
 	wid := make([]byte, 0, 64)
 	wtok := make([]byte, 0, 64)
-	var skip Skip
+	var skip pick.Skip
 	var n uint64
 	// Empty and non-empty prompts have different logic. We could merge them
 	// into the same loop, but it's easier and probably more efficient to
