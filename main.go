@@ -256,10 +256,9 @@ func cliAncient(ctx context.Context, cmd *cli.Command) error {
 
 var (
 	flagConfig = cli.StringFlag{
-		Name:       "config",
-		Required:   true,
-		Usage:      "TOML config file",
-		Persistent: true,
+		Name:     "config",
+		Required: true,
+		Usage:    "TOML config file",
 		Action: func(ctx context.Context, cmd *cli.Command, s string) error {
 			i, err := os.Stat(s)
 			if err != nil {
@@ -273,10 +272,9 @@ var (
 	}
 
 	flagLog = cli.StringFlag{
-		Name:       "log",
-		Usage:      "Logging level, one of debug, info, warn, error",
-		Value:      "info",
-		Persistent: true,
+		Name:  "log",
+		Usage: "Logging level, one of debug, info, warn, error",
+		Value: "info",
 		Action: func(ctx context.Context, c *cli.Command, s string) error {
 			var l slog.Level
 			return l.UnmarshalText([]byte(s))
@@ -284,10 +282,9 @@ var (
 	}
 
 	flagLogFormat = cli.StringFlag{
-		Name:       "log-format",
-		Usage:      "Logging format, either text or json",
-		Value:      "text",
-		Persistent: true,
+		Name:  "log-format",
+		Usage: "Logging format, either text or json",
+		Value: "text",
 		Action: func(ctx context.Context, c *cli.Command, s string) error {
 			switch strings.ToLower(s) {
 			case "text", "json":
