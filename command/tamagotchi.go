@@ -19,9 +19,9 @@ var hungerys = pick.New([]pick.Case[string]{
 })
 
 var cleanies = pick.New([]pick.Case[string]{
-	{E: "need to clean the", W: 15},
-	{E: "kinda messy in the", W: 15},
-	{E: "lil stinky in the", W: 5},
+	{E: "need to clean up", W: 15},
+	{E: "kinda messy around here", W: 15},
+	{E: "lil stinky", W: 5},
 })
 
 var socials = pick.New([]pick.Case[string]{
@@ -44,18 +44,9 @@ func satmsg(sat pet.Satisfaction) (connective, state string) {
 	case sat.Fed:
 		m := hungerys.Pick(rand.Uint32())
 		return ", but", m + " 🥺👉👈 tell me to eat?"
-	case sat.Bed:
+	case sat.Bed, sat.Kitche, sat.Living, sat.Bath:
 		m := cleanies.Pick(rand.Uint32())
-		return ", but", m + " bedroom 🥺👉👈 help me clean?"
-	case sat.Kitche:
-		m := cleanies.Pick(rand.Uint32())
-		return ", but", m + " kitchen 🥺👉👈 help me clean?"
-	case sat.Living:
-		m := cleanies.Pick(rand.Uint32())
-		return ", but", m + " living room 🥺👉👈 help me clean?"
-	case sat.Bath:
-		m := cleanies.Pick(rand.Uint32())
-		return ", but", m + " bathroom 🥺👉👈 help me clean?"
+		return ", but", m + " 🥺👉👈 help me clean?"
 	case sat.Pats:
 		m := socials.Pick(rand.Uint32())
 		return ", but", m + " 🥺👉👈 give pats?"

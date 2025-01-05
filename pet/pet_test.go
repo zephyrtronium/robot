@@ -73,7 +73,7 @@ func TestClean(t *testing.T) {
 	if sat != (pet.Satisfaction{Bed: true, Kitche: true, Living: true, Bath: true}) {
 		t.Errorf("wrong satisfied after cleaning: got %+v, want all rooms true", sat)
 	}
-	r, _ = s.Clean(now.Add(40*time.Hour + 1))
+	r, _ = s.Clean(now.Add(50*time.Hour + 1))
 	if r == pet.AllClean {
 		t.Errorf("didn't clean after clean expired")
 	}

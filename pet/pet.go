@@ -1,6 +1,7 @@
 package pet
 
 import (
+	"math/rand/v2"
 	"sync"
 	"time"
 )
@@ -104,21 +105,27 @@ func (r Room) String() string {
 func (s *Status) Clean(asof time.Time) (Room, Satisfaction) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	type pair struct {
+	type cleanup struct {
 		room Room
 		tm   *time.Time
+		add  time.Duration
 	}
-	ck := []pair{
-		{Bedroom, &s.bed},
-		{Kitchen, &s.kitche},
-		{Living, &s.living},
-		{Bathroom, &s.bath},
+	ck := []cleanup{
+		{Bedroom, &s.bed, 100 * time.Hour},
+		{Bedroom, &s.bed, 120 * time.Hour},
+		{Kitchen, &s.kitche, 30 * time.Hour},
+		{Kitchen, &s.kitche, 50 * time.Hour},
+		{Living, &s.living, 156 * time.Hour},
+		{Living, &s.living, 176 * time.Hour},
+		{Bathroom, &s.bath, 80 * time.Hour},
+		{Bathroom, &s.bath, 100 * time.Hour},
 	}
+	rand.Shuffle(len(ck), func(i, j int) { ck[i], ck[j] = ck[j], ck[i] })
 	for _, c := range ck {
 		if asof.Before(*c.tm) {
 			continue
 		}
-		*c.tm = asof.Add(40 * time.Hour)
+		*c.tm = asof.Add(c.add)
 		return c.room, s.satLocked(asof)
 	}
 	return AllClean, s.satLocked(asof)
@@ -128,9 +135,14 @@ func (s *Status) Clean(asof time.Time) (Room, Satisfaction) {
 // love is interpreted as a number of minutes for which the pet will feel loved
 // with this pat. If the resulting time expires before its existing love, it
 // has no effect.
+// If all the pet's other needs are met, but not pat, the pat becomes stronger.
 func (s *Status) Pat(asof time.Time, love int) Satisfaction {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	r := s.satLocked(asof)
+	if r == (Satisfaction{Fed: true, Bed: true, Kitche: true, Living: true, Bath: true, Pats: false}) {
+		love *= 2
+	}
 	sat := asof.Add(time.Duration(love) * time.Minute)
 	if s.pats.Before(sat) {
 		s.pats = sat
