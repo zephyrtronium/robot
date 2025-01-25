@@ -29,6 +29,12 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		// channel that isn't configured. Ignore it.
 		return
 	}
+	room, _ := msg.Tag("room-id")
+	source, ok := msg.Tag("source-room-id")
+	// TODO(zeph): This prevents commands from any shared chat, even if the bot
+	// isn't in the source room. We should still allow commands from shared
+	// chats that we aren't in.
+	shared := ok && room != source
 	m := message.FromTMI(msg)
 	log := slog.With(slog.String("trace", m.ID), slog.String("in", ch.Name))
 	log.InfoContext(ctx, "privmsg", slog.Duration("bias", time.Since(m.Time())))
@@ -42,6 +48,10 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		return
 	}
 	if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
+		if shared {
+			log.InfoContext(ctx, "ignore shared chat command")
+			return
+		}
 		robo.command(ctx, log, ch, m, cmd)
 		return
 	}
@@ -99,6 +109,11 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	default:
 		log.ErrorContext(ctx, "failed copypasta check", slog.Any("err", err))
 		// Continue on.
+	}
+	// If this is a shared chat, we don't want to respond unprompted, so that
+	// we don't get double probability if we're in multiple shared chats.
+	if shared {
+		return
 	}
 	if rand.Float64() > ch.Responses {
 		return
