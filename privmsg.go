@@ -471,6 +471,11 @@ var twitchAny = []twitchCommand{
 		name:  "pat",
 	},
 	{
+		parse: regexp.MustCompile(`(?i)^hap+y?\s+bir(?:f|th)(?:day)?`),
+		fn:    command.HappyBirthdayToYou,
+		name:  "birthday",
+	},
+	{
 		parse: regexp.MustCompile(`^(?i:say|generate)\s*(?i:something)?\s*(?i:starting)?\s*(?i:with)?\s+(?<prompt>.*)`),
 		fn:    command.Speak,
 		name:  "speak",

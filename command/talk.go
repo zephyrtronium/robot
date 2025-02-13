@@ -145,6 +145,60 @@ func Rawr(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, message.Format("", "rawr %s", e).AsReply(call.Message.ID))
 }
 
+// HappyBirthdayToYou wishes the robot a happy birthday.
+func HappyBirthdayToYou(ctx context.Context, robo *Robot, call *Invocation) {
+	if call.Message.Time().Before(call.Channel.SilentTime()) {
+		robo.Log.InfoContext(ctx, "silent", slog.Time("until", call.Channel.SilentTime()))
+		return
+	}
+	e := call.Channel.Emotes.Pick(rand.Uint32())
+	if e == "" {
+		e = ":3"
+	}
+	t := time.Now()
+	r := call.Channel.Rate.ReserveN(t, 1)
+	if d := r.DelayFrom(t); d > 0 {
+		robo.Log.InfoContext(ctx, "rate limited",
+			slog.String("action", "birthday"),
+			slog.String("in", call.Channel.Name),
+			slog.String("delay", d.String()),
+		)
+		r.CancelAt(t)
+		return
+	}
+	var m message.Sent
+	switch t.Month() {
+	case time.January:
+		m = message.Format("", "No no no my birthday is next month. %s", e)
+	case time.February:
+		switch t.Day() {
+		case 1, 2, 3, 4, 5:
+			m = message.Format("", "Oh, but my birthday is later this month. %s", e)
+		case 6:
+			m = message.Format("", "My birthday is just a week away! I am so excited about this information. %s", e)
+		case 7, 8, 9, 10:
+			m = message.Format("", "My birthday is still less than a week away. %s", e)
+		case 11:
+			m = message.Format("", "Two days away...! %s", e)
+		case 12:
+			m = message.Format("", "My birthday is tomorrow! At least in my timezone. %s", e)
+		case 13:
+			m = message.Format("", "Thank you! Happy my birthday to you, too! %s", e)
+		case 14:
+			m = message.Format("", "You missed it. My birthday was yesterday. You are disqualified from being my valentine. %s", e)
+		case 15, 16, 17, 18, 19, 20:
+			m = message.Format("", "My birthday was the other day, actually, but I appreciate the sentiment. %s", e)
+		default:
+			m = message.Format("", "My birthday was earlier this month, actually, but I appreciate the sentiment. %s", e)
+		}
+	case time.March:
+		m = message.Format("", "No no no my birthday was last month. %s", e)
+	default:
+		m = message.Format("", "My birthday is in February, silly %s", e)
+	}
+	call.Channel.Message(ctx, m.AsReply(call.Message.ID))
+}
+
 // Source gives a link to the source code.
 func Source(ctx context.Context, robo *Robot, call *Invocation) {
 	const srcMessage = `My source code is at https://github.com/zephyrtronium/robot – ` +
