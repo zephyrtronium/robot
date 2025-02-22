@@ -299,37 +299,46 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 		}
 		emotes := pick.New(pick.FromMap(mergemaps(global.Emotes, ch.Emotes)))
 		effects := pick.New(pick.FromMap(mergemaps(global.Effects, ch.Effects)))
-		ign, mod := make(map[string]bool), make(map[string]bool)
+		perms := make(map[string]channel.UserPerms)
 		for _, p := range global.Privileges.Twitch {
 			switch {
 			case strings.EqualFold(p.Level, "ignore"):
-				ign[p.ID] = true
+				perms[p.ID] = channel.UserPerms{
+					DisableCommands: true,
+					DisableLearn:    true,
+					DisableSpeak:    true,
+					DisableMemes:    true,
+				}
 			case strings.EqualFold(p.Level, "moderator"):
-				mod[p.ID] = true
+				perms[p.ID] = channel.UserPerms{Moderator: true}
 			}
 		}
 		for _, p := range ch.Privileges {
 			switch {
 			case strings.EqualFold(p.Level, "ignore"):
-				ign[p.ID] = true
+				perms[p.ID] = channel.UserPerms{
+					DisableCommands: true,
+					DisableLearn:    true,
+					DisableSpeak:    true,
+					DisableMemes:    true,
+				}
 			case strings.EqualFold(p.Level, "moderator"):
-				mod[p.ID] = true
+				perms[p.ID] = channel.UserPerms{Moderator: true}
 			}
 		}
 		for _, p := range ch.Channels {
 			v := &channel.Channel{
-				Name:      p,
-				Learn:     ch.Learn,
-				Send:      ch.Send,
-				Block:     blk,
-				Meme:      meme,
-				Responses: ch.Responses,
-				Rate:      rate.NewLimiter(rate.Every(fseconds(ch.Rate.Every)), ch.Rate.Num),
-				Ignore:    ign,
-				Mod:       mod,
-				Memery:    channel.NewMemeDetector(ch.Copypasta.Need, fseconds(ch.Copypasta.Within)),
-				Emotes:    emotes,
-				Effects:   effects,
+				Name:        p,
+				Learn:       ch.Learn,
+				Send:        ch.Send,
+				Block:       blk,
+				Meme:        meme,
+				Responses:   ch.Responses,
+				Rate:        rate.NewLimiter(rate.Every(fseconds(ch.Rate.Every)), ch.Rate.Num),
+				Permissions: perms,
+				Memery:      channel.NewMemeDetector(ch.Copypasta.Need, fseconds(ch.Copypasta.Within)),
+				Emotes:      emotes,
+				Effects:     effects,
 			}
 			v.Message = func(ctx context.Context, msg message.Sent) {
 				if msg.To == "" {

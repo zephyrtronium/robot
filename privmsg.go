@@ -39,15 +39,16 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	log := slog.With(slog.String("trace", m.ID), slog.String("in", ch.Name))
 	log.InfoContext(ctx, "privmsg", slog.Duration("bias", time.Since(m.Time())))
 	defer log.InfoContext(ctx, "end")
-	if ch.Ignore[m.Sender.ID] {
-		log.InfoContext(ctx, "message from ignored user")
-		return
-	}
+	perms := ch.Permissions[m.Sender.ID]
 	if ch.Block.MatchString(m.Text) && !ch.Meme.MatchString(m.Text) {
 		log.InfoContext(ctx, "blocked message", slog.String("text", m.Text), slog.Bool("meme", false))
 		return
 	}
 	if cmd, ok := parseCommand(robo.tmi.name, m.Text); ok {
+		if perms.DisableCommands {
+			log.InfoContext(ctx, "commands disabled for user")
+			return
+		}
 		if shared {
 			log.InfoContext(ctx, "ignore shared chat command")
 			return
@@ -72,50 +73,54 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		log.DebugContext(ctx, "stripped reply mention", slog.String("text", t))
 		m.Text = t
 	}
-	robo.learn(ctx, log, ch, robo.hashes(), m)
-	switch err := ch.Memery.Check(m.Time(), m.Sender.ID, m.Text); err {
-	case channel.ErrNotCopypasta: // do nothing
-	case nil:
-		// Meme detected. Copypasta.
-		t := time.Now()
-		r := ch.Rate.ReserveN(t, 1)
-		if d := r.DelayFrom(t); d > 0 {
-			// But we can't meme it. Restore it so we can next time.
-			log.InfoContext(ctx, "rate limited",
-				slog.String("action", "copypasta"),
-				slog.String("delay", d.String()),
+	if !perms.DisableLearn {
+		robo.learn(ctx, log, ch, robo.hashes(), m)
+	}
+	if !perms.DisableMemes {
+		switch err := ch.Memery.Check(m.Time(), m.Sender.ID, m.Text); err {
+		case channel.ErrNotCopypasta: // do nothing
+		case nil:
+			// Meme detected. Copypasta.
+			t := time.Now()
+			r := ch.Rate.ReserveN(t, 1)
+			if d := r.DelayFrom(t); d > 0 {
+				// But we can't meme it. Restore it so we can next time.
+				log.InfoContext(ctx, "rate limited",
+					slog.String("action", "copypasta"),
+					slog.String("delay", d.String()),
+				)
+				ch.Memery.Unblock(m.Text)
+				r.CancelAt(t)
+				return
+			}
+			f := ch.Effects.Pick(rand.Uint32())
+			s := command.Effect(log, f, m.Text)
+			if ch.Block.MatchString(s) && !ch.Meme.MatchString(s) {
+				// We would copypasta something that is blocked.
+				// Note that since we reached here at all, that implies the
+				// effect made it unacceptable.
+				log.WarnContext(ctx, "blocked copypasta", slog.String("text", s), slog.String("effect", f))
+				return
+			}
+			ch.Memery.Block(m.Time(), s)
+			log.InfoContext(ctx, "copypasta",
+				slog.String("text", s),
+				slog.String("effect", f),
 			)
-			ch.Memery.Unblock(m.Text)
-			r.CancelAt(t)
+			msg := message.Format(ch.Name, "%s", s)
+			robo.sendTMI(ctx, send, msg)
 			return
+		default:
+			log.ErrorContext(ctx, "failed copypasta check", slog.Any("err", err))
+			// Continue on.
 		}
-		f := ch.Effects.Pick(rand.Uint32())
-		s := command.Effect(log, f, m.Text)
-		if ch.Block.MatchString(s) && !ch.Meme.MatchString(s) {
-			// We would copypasta something that is blocked.
-			// Note that since we reached here at all, that implies the
-			// effect made it unacceptable.
-			log.WarnContext(ctx, "blocked copypasta", slog.String("text", s), slog.String("effect", f))
-			return
-		}
-		ch.Memery.Block(m.Time(), s)
-		log.InfoContext(ctx, "copypasta",
-			slog.String("text", s),
-			slog.String("effect", f),
-		)
-		msg := message.Format(ch.Name, "%s", s)
-		robo.sendTMI(ctx, send, msg)
-		return
-	default:
-		log.ErrorContext(ctx, "failed copypasta check", slog.Any("err", err))
-		// Continue on.
 	}
 	// If this is a shared chat, we don't want to respond unprompted, so that
 	// we don't get double probability if we're in multiple shared chats.
 	if shared {
 		return
 	}
-	if rand.Float64() > ch.Responses {
+	if perms.DisableSpeak || rand.Float64() > ch.Responses {
 		return
 	}
 	start := time.Now()
@@ -177,7 +182,7 @@ func (robo *Robot) command(ctx context.Context, log *slog.Logger, ch *channel.Ch
 			break
 		}
 		fallthrough
-	case ch.Mod[m.Sender.ID], m.IsModerator:
+	case ch.Permissions[m.Sender.ID].Moderator, m.IsModerator:
 		c, args = findTwitch(twitchMod, cmd)
 		if c != nil {
 			level = "mod"

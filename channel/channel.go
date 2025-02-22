@@ -31,10 +31,9 @@ type Channel struct {
 	// Rate is the rate limiter for messages. Attempts to speak in excess of
 	// the rate limit are dropped.
 	Rate *rate.Limiter
-	// Ignore is the set of ignored user IDs.
-	Ignore map[string]bool
-	// Mod is the set of designated moderators' user IDs.
-	Mod map[string]bool
+	// Permissions is the set of users with special permissions granted through
+	// static config.
+	Permissions map[string]UserPerms
 	// History is a list of recent messages seen in the channel.
 	// Note that messages which are forgotten due to moderation are not removed
 	// from this list in general.
@@ -56,4 +55,22 @@ type Channel struct {
 
 func (ch *Channel) SilentTime() time.Time {
 	return time.Unix(0, ch.Silent.Load())
+}
+
+// UserPerms is the permissions for a user granted by static configuration.
+type UserPerms struct {
+	// DisableCommands means the user has access to no commands.
+	// This overrides moderator status.
+	DisableCommands bool
+	// DisableLearn means the bot never learns the user's messages.
+	// This is independent of the privacy list.
+	DisableLearn bool
+	// DisableSpeak means the user's messages won't trigger the bot to
+	// speak unprompted.
+	DisableSpeak bool
+	// DisableMemes means the user's messages don't count toward copypasta.
+	DisableMemes bool
+	// Moderator means the user has access to moderator commands if not
+	// disabled by DisableCommands.
+	Moderator bool
 }
