@@ -205,18 +205,20 @@ func Clean(ctx context.Context, robo *Robot, call *Invocation) {
 	}
 	_, m := satmsg(sat)
 	clean := cleans.Pick(rand.Uint32())
+	var msg message.Sent
 	switch len(rooms) {
 	case 0:
-		call.Channel.Message(ctx, message.Format("", "Everything's already clean! %s %s", m, e).AsReply(call.Message.ID))
+		msg = message.Format("", "Everything's already clean! %s %s", m, e)
 	case 1:
-		call.Channel.Message(ctx, message.Format("", "%s %s%s Now %s %s", clean[0], rooms[0], clean[1], m, e).AsReply(call.Message.ID))
+		msg = message.Format("", "%s %s%s Now %s %s", clean[0], rooms[0], clean[1], m, e)
 	case 2:
-		call.Channel.Message(ctx, message.Format("", "%s %s and %s%s Now %s %s", clean[0], rooms[0], rooms[1], clean[1], m, e).AsReply(call.Message.ID))
+		msg = message.Format("", "%s %s and %s%s Now %s %s", clean[0], rooms[0], rooms[1], clean[1], m, e)
 	case 3:
-		call.Channel.Message(ctx, message.Format("", "%s %s, %s, and %s%s Now %s %s", clean[0], rooms[0], rooms[1], rooms[2], clean[1], m, e).AsReply(call.Message.ID))
+		msg = message.Format("", "%s %s, %s, and %s%s Now %s %s", clean[0], rooms[0], rooms[1], rooms[2], clean[1], m, e)
 	case 4:
-		call.Channel.Message(ctx, message.Format("", "%s whole home%s Now %s %s", clean[0], clean[1], m, e).AsReply(call.Message.ID))
+		msg = message.Format("", "%s whole home%s Now %s %s", clean[0], clean[1], m, e)
 	}
+	call.Channel.Message(ctx, msg.AsReply(call.Message.ID))
 }
 
 type pat struct {
@@ -267,13 +269,14 @@ func Pat(ctx context.Context, robo *Robot, call *Invocation) {
 	// Is it weird to mix the pet functionality with the marriage system?
 	l, _ := call.Channel.Extra.Load(partnerKey{})
 	cur, _ := l.(*partner)
-	if cur != nil && cur.who == call.Message.Sender.ID {
+	bonus := cur != nil && cur.who == call.Message.Sender.ID
+	if bonus {
 		pat.love += 30
 	}
 	robo.Log.InfoContext(ctx, "pat",
 		slog.String("where", pat.where),
 		slog.Int("love", pat.love),
-		slog.Bool("partner", cur != nil && cur.who == call.Message.Sender.ID),
+		slog.Bool("partner", bonus),
 	)
 	sat := robo.Pet.Pat(call.Message.Time(), pat.love)
 	_, m := satmsg(sat)
