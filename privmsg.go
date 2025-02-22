@@ -471,7 +471,7 @@ var twitchAny = []twitchCommand{
 		name:  "clean",
 	},
 	{
-		parse: regexp.MustCompile(`^(?i:\**(?:head\s*)?p[ae]t|(?:chin\s*)scritch|(?:cheek|shoulder|back|foot)?\s*rub|(?:bi+g\s+)hug|go+d\s+(?:girl|gril|boy|bot|pet|wife|waifu|h[ua]su?bando?|partner|spouse|daddy|mommy))`),
+		parse: regexp.MustCompile(`^(?i:\**(?:head\s*)?p[ae]t|(?:chin\s*)scritch|(?:cheek|shoulder|back|foot)?\s*rub|(?:bi+g\s+)hug|g[ou]+d\s+(?:girl|gril|boy|bot|pet|wife|waifu|h[ua]su?bando?|partner|spouse|daddy|mommy))|^(?::?\w+P[aAeE][tT][sS]?:?\s*)*\W*$`),
 		fn:    command.Pat,
 		name:  "pat",
 	},
