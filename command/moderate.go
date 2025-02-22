@@ -11,6 +11,8 @@ import (
 	"github.com/zephyrtronium/robot/message"
 )
 
+// Forget makes the bot unlearn recent messages containing a term.
+//   - term: Substring to search. If empty, all messages are matched.
 func Forget(ctx context.Context, robo *Robot, call *Invocation) {
 	h := call.Channel.History.All()
 	term := strings.ToLower(call.Args["term"])
@@ -34,14 +36,16 @@ func Forget(ctx context.Context, robo *Robot, call *Invocation) {
 			)
 		}
 	}
+	var r message.Sent
 	switch n {
 	case 0:
-		call.Channel.Message(ctx, message.Format("", "No messages contained %q.", term).AsReply(call.Message.ID))
+		r = message.Format("", "No messages contained %q.", term)
 	case 1:
-		call.Channel.Message(ctx, message.Format("", "Forgot 1 message."))
+		r = message.Format("", "Forgot 1 message.")
 	default:
-		call.Channel.Message(ctx, message.Format("", "Forgot %d messages.", n).AsReply(call.Message.ID))
+		r = message.Format("", "Forgot %d messages.", n)
 	}
+	call.Channel.Message(ctx, r.AsReply(call.Message.ID))
 }
 
 // Quiet makes the bot temporarily stop learning and speaking in the channel.
