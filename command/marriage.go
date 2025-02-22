@@ -88,15 +88,15 @@ func Affection(ctx context.Context, robo *Robot, call *Invocation) {
 		// Check for the broadcaster. They get special treatment.
 		if strings.EqualFold(call.Message.Sender.Name, strings.TrimPrefix(call.Channel.Name, "#")) {
 			if _, ok := call.Channel.Extra.LoadOrStore(broadcasterAffectionKey{}, struct{}{}); ok {
-				call.Channel.Message(ctx, message.Format("", "Don't make me repeat myself, it's embarrassing! %s", e).AsReply(call.Message.ID))
+				call.Channel.Message(ctx, message.Format("Don't make me repeat myself, it's embarrassing! %s", e).AsReply(call.Message.ID))
 				return
 			}
 			const funnyMessage = `It's a bit awkward to think of you like that, streamer... But, well, it's so fun to be here, and I have you to thank for that! So I'd say a whole bunch! %s`
-			call.Channel.Message(ctx, message.Format("", funnyMessage, e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format(funnyMessage, e).AsReply(call.Message.ID))
 			return
 		}
 		// possible!
-		call.Channel.Message(ctx, message.Format("", "literally zero %s", e).AsReply(call.Message.ID))
+		call.Channel.Message(ctx, message.Format("literally zero %s", e).AsReply(call.Message.ID))
 		return
 	}
 	s := affections.Pick(rand.Uint32())
@@ -123,7 +123,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	broadcaster := strings.EqualFold(call.Message.Sender.Name, strings.TrimPrefix(call.Channel.Name, "#")) && x == 0
 	if x < 10 && !broadcaster {
-		call.Channel.Message(ctx, message.Format("", "no %s", e).AsReply(call.Message.ID))
+		call.Channel.Message(ctx, message.Format("no %s", e).AsReply(call.Message.ID))
 		return
 	}
 	me := &partner{who: call.Message.Sender.ID, until: call.Message.Time().Add(time.Hour)}
@@ -131,7 +131,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 		l, ok := call.Channel.Extra.LoadOrStore(partnerKey{}, me)
 		if !ok {
 			// No competition. We're a shoo-in.
-			call.Channel.Message(ctx, message.Format("", "sure why not %s", e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("sure why not %s", e).AsReply(call.Message.ID))
 			return
 		}
 		cur := l.(*partner)
@@ -143,19 +143,19 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 					// but start over anyway.
 					continue
 				}
-				call.Channel.Message(ctx, message.Format("", "How could you forget we're already together? I hate you! Unsubbed, unfollowed, unloved! %s", e).AsReply(call.Message.ID))
+				call.Channel.Message(ctx, message.Format("How could you forget we're already together? I hate you! Unsubbed, unfollowed, unloved! %s", e).AsReply(call.Message.ID))
 				return
 			}
-			call.Channel.Message(ctx, message.Format("", "We're already together, silly! You're so funny and cute haha. %s", e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("We're already together, silly! You're so funny and cute haha. %s", e).AsReply(call.Message.ID))
 			return
 		}
 		if call.Message.Time().Before(cur.until) {
-			call.Channel.Message(ctx, message.Format("", "My heart yet belongs to another... %s", e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("My heart yet belongs to another... %s", e).AsReply(call.Message.ID))
 			return
 		}
 		y, _, _, _, _ := score(robo.Log, &call.Channel.History, cur.who)
 		if x < y && !broadcaster {
-			call.Channel.Message(ctx, message.Format("", "I'm touched, but I must decline. I'm in love with someone else. %s", e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("I'm touched, but I must decline. I'm in love with someone else. %s", e).AsReply(call.Message.ID))
 			return
 		}
 		if !call.Channel.Extra.CompareAndSwap(partnerKey{}, cur, me) {
@@ -165,9 +165,9 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 		// We win. Now just decide which message to send.
 		// TODO(zeph): since pick.Dist exists now, we could randomize
 		if call.Args["partnership"] != "" {
-			call.Channel.Message(ctx, message.Format("", "Yes! I'll be your %s! %s", call.Args["partnership"], e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("Yes! I'll be your %s! %s", call.Args["partnership"], e).AsReply(call.Message.ID))
 		} else {
-			call.Channel.Message(ctx, message.Format("", "Yes! I'll marry you! %s", e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("Yes! I'll marry you! %s", e).AsReply(call.Message.ID))
 		}
 		return
 	}
@@ -177,7 +177,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 // No args.
 func DescribeMarriage(ctx context.Context, robo *Robot, call *Invocation) {
 	if t := call.Channel.SilentTime(); call.Message.Time().Before(t) {
-		call.Channel.Message(ctx, message.Format("", "I'm being quiet for the next %v, so the marriage system is disabled until then.", t.Sub(call.Message.Time())).AsReply(call.Message.ID))
+		call.Channel.Message(ctx, message.Format("I'm being quiet for the next %v, so the marriage system is disabled until then.", t.Sub(call.Message.Time())).AsReply(call.Message.ID))
 		return
 	}
 	const s = `I am looking for a long series of short-term relationships and am holding a ranked competitive how-much-I-like-you tournament to decide my suitors! Politely ask me to marry you (or become your partner) and I'll evaluate your score. I like copypasta, memes, and long walks in the chat.`

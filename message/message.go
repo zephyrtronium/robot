@@ -49,7 +49,7 @@ type Sent struct {
 	// Reply is a message to reply to. If empty, the message is not interpreted
 	// as a reply.
 	Reply string
-	// To is the channel to whom the message is sent.
+	// To is the channel to which the message is sent.
 	To string
 	// Text is the message text.
 	Text string
@@ -60,14 +60,18 @@ func (m Sent) AsReply(reply string) Sent {
 	return m
 }
 
+func (m Sent) SendTo(to string) Sent {
+	m.To = to
+	return m
+}
+
 // formatString is a type to prevent misuse of format strings passed to [Format].
 type formatString string
 
 // Format constructs a message to send from a format string literal and
 // formatting arguments.
-func Format(to string, f formatString, args ...any) Sent {
+func Format(f formatString, args ...any) Sent {
 	return Sent{
-		To:   to,
 		Text: strings.TrimSpace(fmt.Sprintf(string(f), args...)),
 	}
 }

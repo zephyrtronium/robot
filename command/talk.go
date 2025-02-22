@@ -142,7 +142,7 @@ func Rawr(ctx context.Context, robo *Robot, call *Invocation) {
 		r.CancelAt(t)
 		return
 	}
-	call.Channel.Message(ctx, message.Format("", "rawr %s", e).AsReply(call.Message.ID))
+	call.Channel.Message(ctx, message.Format("rawr %s", e).AsReply(call.Message.ID))
 }
 
 // HappyBirthdayToYou wishes the robot a happy birthday.
@@ -169,32 +169,32 @@ func HappyBirthdayToYou(ctx context.Context, robo *Robot, call *Invocation) {
 	var m message.Sent
 	switch t.Month() {
 	case time.January:
-		m = message.Format("", "No no no my birthday is next month. %s", e)
+		m = message.Format("No no no my birthday is next month. %s", e)
 	case time.February:
 		switch t.Day() {
 		case 1, 2, 3, 4, 5:
-			m = message.Format("", "Oh, but my birthday is later this month. %s", e)
+			m = message.Format("Oh, but my birthday is later this month. %s", e)
 		case 6:
-			m = message.Format("", "My birthday is just a week away! I am so excited about this information. %s", e)
+			m = message.Format("My birthday is just a week away! I am so excited about this information. %s", e)
 		case 7, 8, 9, 10:
-			m = message.Format("", "My birthday is still less than a week away. %s", e)
+			m = message.Format("My birthday is still less than a week away. %s", e)
 		case 11:
-			m = message.Format("", "Two days away...! %s", e)
+			m = message.Format("Two days away...! %s", e)
 		case 12:
-			m = message.Format("", "My birthday is tomorrow! At least in my timezone. %s", e)
+			m = message.Format("My birthday is tomorrow! At least in my timezone. %s", e)
 		case 13:
-			m = message.Format("", "Thank you! Happy my birthday to you, too! %s", e)
+			m = message.Format("Thank you! Happy my birthday to you, too! %s", e)
 		case 14:
-			m = message.Format("", "You missed it. My birthday was yesterday. You are disqualified from being my valentine. %s", e)
+			m = message.Format("You missed it. My birthday was yesterday. You are disqualified from being my valentine. %s", e)
 		case 15, 16, 17, 18, 19, 20:
-			m = message.Format("", "My birthday was the other day, actually, but I appreciate the sentiment. %s", e)
+			m = message.Format("My birthday was the other day, actually, but I appreciate the sentiment. %s", e)
 		default:
-			m = message.Format("", "My birthday was earlier this month, actually, but I appreciate the sentiment. %s", e)
+			m = message.Format("My birthday was earlier this month, actually, but I appreciate the sentiment. %s", e)
 		}
 	case time.March:
-		m = message.Format("", "No no no my birthday was last month. %s", e)
+		m = message.Format("No no no my birthday was last month. %s", e)
 	default:
-		m = message.Format("", "My birthday is in February, silly %s", e)
+		m = message.Format("My birthday is in February, silly %s", e)
 	}
 	call.Channel.Message(ctx, m.AsReply(call.Message.ID))
 }
@@ -211,11 +211,11 @@ func Source(ctx context.Context, robo *Robot, call *Invocation) {
 func Who(ctx context.Context, robo *Robot, call *Invocation) {
 	const whoMessage = `I'm a Markov chain bot! I learn from things people say in chat, then spew vaguely intelligible memes back. More info at: https://github.com/zephyrtronium/robot#how-robot-works %s`
 	e := call.Channel.Emotes.Pick(rand.Uint32())
-	call.Channel.Message(ctx, message.Format("", whoMessage, e).AsReply(call.Message.ID))
+	call.Channel.Message(ctx, message.Format(whoMessage, e).AsReply(call.Message.ID))
 }
 
 // Contact gives information on how to contact the bot owner.
 func Contact(ctx context.Context, robo *Robot, call *Invocation) {
 	e := call.Channel.Emotes.Pick(rand.Uint32())
-	call.Channel.Message(ctx, message.Format("", "My operator is %[1]s. %[2]s is the best way to contact %[1]s. %[3]s", robo.Owner, robo.Contact, e).AsReply(call.Message.ID))
+	call.Channel.Message(ctx, message.Format("My operator is %[1]s. %[2]s is the best way to contact %[1]s. %[3]s", robo.Owner, robo.Contact, e).AsReply(call.Message.ID))
 }

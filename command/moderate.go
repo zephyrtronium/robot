@@ -39,11 +39,11 @@ func Forget(ctx context.Context, robo *Robot, call *Invocation) {
 	var r message.Sent
 	switch n {
 	case 0:
-		r = message.Format("", "No messages contained %q.", term)
+		r = message.Format("No messages contained %q.", term)
 	case 1:
-		r = message.Format("", "Forgot 1 message.")
+		r = message.Format("Forgot 1 message.")
 	default:
-		r = message.Format("", "Forgot %d messages.", n)
+		r = message.Format("Forgot %d messages.", n)
 	}
 	call.Channel.Message(ctx, r.AsReply(call.Message.ID))
 }
@@ -75,7 +75,7 @@ func Quiet(ctx context.Context, robo *Robot, call *Invocation) {
 			n, err := strconv.Atoi(m[1])
 			if err != nil {
 				// Should be impossible.
-				call.Channel.Message(ctx, message.Format("", `sorry? (%v)`, err).AsReply(call.Message.ID))
+				call.Channel.Message(ctx, message.Format(`sorry? (%v)`, err).AsReply(call.Message.ID))
 				return
 			}
 			switch m[2][0] {
@@ -89,7 +89,7 @@ func Quiet(ctx context.Context, robo *Robot, call *Invocation) {
 		var err error
 		dur, err = time.ParseDuration(call.Args["dur"])
 		if err != nil {
-			call.Channel.Message(ctx, message.Format("", `sorry? (%v)`, err).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format(`sorry? (%v)`, err).AsReply(call.Message.ID))
 			return
 		}
 	}
@@ -102,7 +102,7 @@ func Quiet(ctx context.Context, robo *Robot, call *Invocation) {
 	// Only do the spiel if the timer isn't very short.
 	// Otherwise it's likely just clearing an existing silent time.
 	if dur > 5*time.Second {
-		call.Channel.Message(ctx, message.Format("", `I won't talk or learn for %v. Some commands relating to moderation and privacy will still make me talk. I'll mention when quiet time is up.`, dur).AsReply(call.Message.ID))
+		call.Channel.Message(ctx, message.Format(`I won't talk or learn for %v. Some commands relating to moderation and privacy will still make me talk. I'll mention when quiet time is up.`, dur).AsReply(call.Message.ID))
 	}
 	t := time.NewTimer(dur)
 	defer t.Stop()
@@ -116,7 +116,7 @@ func Quiet(ctx context.Context, robo *Robot, call *Invocation) {
 		if call.Channel.Silent.Load() != n {
 			return
 		}
-		call.Channel.Message(ctx, message.Format("", `@%s My quiet time has ended.`, call.Message.Sender.Name))
+		call.Channel.Message(ctx, message.Format(`@%s My quiet time has ended.`, call.Message.Sender.Name))
 	}
 }
 

@@ -66,7 +66,7 @@ func Tamagotchi(ctx context.Context, robo *Robot, call *Invocation) {
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 	sat := robo.Pet.Satisfaction(call.Message.Time())
 	_, m := satmsg(sat)
-	call.Channel.Message(ctx, message.Format("", "%s %s", m, e).AsReply(call.Message.ID))
+	call.Channel.Message(ctx, message.Format("%s %s", m, e).AsReply(call.Message.ID))
 }
 
 type dinner struct {
@@ -154,12 +154,12 @@ func Eat(ctx context.Context, robo *Robot, call *Invocation) {
 	)
 	if !ok {
 		s := fullmsgs.Pick(rand.Uint32())
-		call.Channel.Message(ctx, message.Format("", "%s %s", s, e).AsReply(call.Message.ID))
+		call.Channel.Message(ctx, message.Format("%s %s", s, e).AsReply(call.Message.ID))
 		return
 	}
 	c, m := satmsg(sat)
 	chew := chewmsgs.Pick(rand.Uint32())
-	call.Channel.Message(ctx, message.Format("", "%s %s %s %s %s%s %s %s", chew[0], menu[0].name, menu[1].name, menu[2].name, chew[1], c, m, e).AsReply(call.Message.ID))
+	call.Channel.Message(ctx, message.Format("%s %s %s %s %s%s %s %s", chew[0], menu[0].name, menu[1].name, menu[2].name, chew[1], c, m, e).AsReply(call.Message.ID))
 }
 
 var cleancounts = pick.New([]pick.Case[int]{
@@ -208,15 +208,15 @@ func Clean(ctx context.Context, robo *Robot, call *Invocation) {
 	var msg message.Sent
 	switch len(rooms) {
 	case 0:
-		msg = message.Format("", "Everything's already clean! %s %s", m, e)
+		msg = message.Format("Everything's already clean! %s %s", m, e)
 	case 1:
-		msg = message.Format("", "%s %s%s Now %s %s", clean[0], rooms[0], clean[1], m, e)
+		msg = message.Format("%s %s%s Now %s %s", clean[0], rooms[0], clean[1], m, e)
 	case 2:
-		msg = message.Format("", "%s %s and %s%s Now %s %s", clean[0], rooms[0], rooms[1], clean[1], m, e)
+		msg = message.Format("%s %s and %s%s Now %s %s", clean[0], rooms[0], rooms[1], clean[1], m, e)
 	case 3:
-		msg = message.Format("", "%s %s, %s, and %s%s Now %s %s", clean[0], rooms[0], rooms[1], rooms[2], clean[1], m, e)
+		msg = message.Format("%s %s, %s, and %s%s Now %s %s", clean[0], rooms[0], rooms[1], rooms[2], clean[1], m, e)
 	case 4:
-		msg = message.Format("", "%s whole home%s Now %s %s", clean[0], clean[1], m, e)
+		msg = message.Format("%s whole home%s Now %s %s", clean[0], clean[1], m, e)
 	}
 	call.Channel.Message(ctx, msg.AsReply(call.Message.ID))
 }
@@ -280,5 +280,5 @@ func Pat(ctx context.Context, robo *Robot, call *Invocation) {
 	)
 	sat := robo.Pet.Pat(call.Message.Time(), pat.love)
 	_, m := satmsg(sat)
-	call.Channel.Message(ctx, message.Format("", "%s %s %s", pat.where, m, e).AsReply(call.Message.ID))
+	call.Channel.Message(ctx, message.Format("%s %s %s", pat.where, m, e).AsReply(call.Message.ID))
 }
