@@ -127,8 +127,9 @@ meme = '^\S*$'
 # Access levels for users.
 # Each entry must have a name or ID and a level. If both a name and ID are
 # given, the name is ignored.
-# The valid levels are 'ignore' to disable use of all commands, including
-# prompting, or 'moderator' to add use of moderation commands.
+# The valid levels are 'ignore' to disable learning and use of all commands,
+# including prompting; 'selfbot' to disable learning but still allow commmands;
+# or 'moderator' to add use of moderation commands.
 # Note that on Twitch, the broadcaster and channel moderators always have
 # moderator privileges.
 # Unlike most strings, these are not expanded with environment variables.

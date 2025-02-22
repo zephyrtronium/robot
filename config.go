@@ -309,6 +309,8 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 					DisableSpeak:    true,
 					DisableMemes:    true,
 				}
+			case strings.EqualFold(p.Level, "selfbot"):
+				perms[p.ID] = channel.UserPerms{DisableLearn: true}
 			case strings.EqualFold(p.Level, "moderator"):
 				perms[p.ID] = channel.UserPerms{Moderator: true}
 			}
@@ -322,6 +324,8 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 					DisableSpeak:    true,
 					DisableMemes:    true,
 				}
+			case strings.EqualFold(p.Level, "selfbot"):
+				perms[p.ID] = channel.UserPerms{DisableLearn: true}
 			case strings.EqualFold(p.Level, "moderator"):
 				perms[p.ID] = channel.UserPerms{Moderator: true}
 			}
