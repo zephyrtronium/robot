@@ -121,11 +121,11 @@ var chewmsgs = pick.New([]pick.Case[[2]string]{
 })
 
 var fullmsgs = pick.New([]pick.Case[string]{
-	{E: "I'm seriously full.", W: 20},
-	{E: "I'm really not hungry right now.", W: 20},
-	{E: "I've already eaten way too much…", W: 20},
-	{E: "I've eaten so much tasty food already!", W: 20},
-	{E: "Give me some time to digest first…", W: 20},
+	{E: "I'm seriously full.", W: 10},
+	{E: "I'm really not hungry right now.", W: 10},
+	{E: "I've already eaten way too much…", W: 10},
+	{E: "I've eaten so much tasty food already!", W: 10},
+	{E: "Give me some time to digest first…", W: 10},
 	{E: "please no do not make me eat any more my digital belly will literally explode please i do not have the same physiology as a human it is not safe please", W: 1},
 })
 
@@ -162,6 +162,13 @@ func Eat(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, message.Format("", "%s %s %s %s %s%s %s %s", chew[0], menu[0].name, menu[1].name, menu[2].name, chew[1], c, m, e).AsReply(call.Message.ID))
 }
 
+var cleancounts = pick.New([]pick.Case[int]{
+	{E: 1, W: 8},
+	{E: 2, W: 9},
+	{E: 3, W: 5},
+	{E: 4, W: 3},
+})
+
 var cleans = pick.New([]pick.Case[[2]string]{
 	{E: [2]string{"Thank you for cleaning my", "!"}, W: 1},
 	{E: [2]string{"Thanks for helping clean my", "!"}, W: 1},
@@ -178,21 +185,38 @@ func Clean(ctx context.Context, robo *Robot, call *Invocation) {
 	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 
-	r, sat := robo.Pet.Clean(call.Message.Time())
-	robo.Log.InfoContext(ctx, "clean",
-		slog.String("room", r.String()),
-		slog.Bool("bedroom", sat.Bed),
-		slog.Bool("kitchen", sat.Kitche),
-		slog.Bool("living", sat.Living),
-		slog.Bool("bathroom", sat.Bath),
-	)
-	_, m := satmsg(sat)
-	if r == pet.AllClean {
-		call.Channel.Message(ctx, message.Format("", "Everything's already clean! %s %s", m, e).AsReply(call.Message.ID))
-		return
+	n := cleancounts.Pick(rand.Uint32())
+	rooms := make([]pet.Room, 0, 4)
+	var sat pet.Satisfaction
+	for range n {
+		r, s := robo.Pet.Clean(call.Message.Time())
+		sat = s
+		robo.Log.InfoContext(ctx, "clean",
+			slog.String("room", r.String()),
+			slog.Bool("bedroom", sat.Bed),
+			slog.Bool("kitchen", sat.Kitche),
+			slog.Bool("living", sat.Living),
+			slog.Bool("bathroom", sat.Bath),
+		)
+		if r == pet.AllClean {
+			break
+		}
+		rooms = append(rooms, r)
 	}
+	_, m := satmsg(sat)
 	clean := cleans.Pick(rand.Uint32())
-	call.Channel.Message(ctx, message.Format("", "%s %s%s Now %s %s", clean[0], r, clean[1], m, e).AsReply(call.Message.ID))
+	switch len(rooms) {
+	case 0:
+		call.Channel.Message(ctx, message.Format("", "Everything's already clean! %s %s", m, e).AsReply(call.Message.ID))
+	case 1:
+		call.Channel.Message(ctx, message.Format("", "%s %s%s Now %s %s", clean[0], rooms[0], clean[1], m, e).AsReply(call.Message.ID))
+	case 2:
+		call.Channel.Message(ctx, message.Format("", "%s %s and %s%s Now %s %s", clean[0], rooms[0], rooms[1], clean[1], m, e).AsReply(call.Message.ID))
+	case 3:
+		call.Channel.Message(ctx, message.Format("", "%s %s, %s, and %s%s Now %s %s", clean[0], rooms[0], rooms[1], rooms[2], clean[1], m, e).AsReply(call.Message.ID))
+	case 4:
+		call.Channel.Message(ctx, message.Format("", "%s whole home%s Now %s %s", clean[0], clean[1], m, e).AsReply(call.Message.ID))
+	}
 }
 
 type pat struct {
