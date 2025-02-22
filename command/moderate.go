@@ -96,15 +96,26 @@ func Quiet(ctx context.Context, robo *Robot, call *Invocation) {
 	if dur > 12*time.Hour {
 		dur = 12 * time.Hour
 	}
-	call.Channel.Silent.Store(call.Message.Time().Add(dur).UnixNano())
+	n := call.Message.Time().Add(dur).UnixNano()
+	call.Channel.Silent.Store(n)
 	robo.Log.InfoContext(ctx, "silent", slog.Duration("duration", dur), slog.Time("until", call.Channel.SilentTime()))
-	call.Channel.Message(ctx, message.Format("", `I won't talk or learn for %v. Some commands relating to moderation and privacy will still make me talk. I'll mention when quiet time is up.`, dur).AsReply(call.Message.ID))
+	// Only do the spiel if the timer isn't very short.
+	// Otherwise it's likely just clearing an existing silent time.
+	if dur > 5*time.Second {
+		call.Channel.Message(ctx, message.Format("", `I won't talk or learn for %v. Some commands relating to moderation and privacy will still make me talk. I'll mention when quiet time is up.`, dur).AsReply(call.Message.ID))
+	}
 	t := time.NewTimer(dur)
 	defer t.Stop()
 	select {
 	case <-ctx.Done():
 		return
 	case <-t.C:
+		// If the actual quiet time is different from what we set it to, then
+		// another instance of this command ran and changed it to something else.
+		// Don't message in that case.
+		if call.Channel.Silent.Load() != n {
+			return
+		}
 		call.Channel.Message(ctx, message.Format("", `@%s My quiet time has ended.`, call.Message.Sender.Name))
 	}
 }
