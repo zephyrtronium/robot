@@ -241,10 +241,6 @@ var petpats = pick.New([]pick.Case[pat]{
 	{E: pat{where: "んんんん～ That shoulder rub feels way too good, it must be a critical hit! ", love: 120}, W: 50},
 	{E: pat{where: "This is… a shoulder rub? Glancing blow… Kinda hurt a bit…", love: 0}, W: 50},
 
-	{E: pat{where: "You give rubs on that spot on my lower back that feels really nice.", love: 60}, W: 300},
-	{E: pat{where: "You give rubs on that spot on my lower back, and landed a critical hit! Don't mind me if I fall asleep…", love: 120}, W: 30},
-	{E: pat{where: "You give rubs on that spot on my lower back, but it was a glancing blow… Maybe don't use your feet next time.", love: 0}, W: 30},
-
 	{E: pat{where: "Foot rub…? I-I'm not really into that kind of thing. It does feels nice, though.", love: 30}, W: 100},
 	{E: pat{where: "Foot rub… is a critical hit! I swear, I'm really not into that!!", love: 120}, W: 10},
 	{E: pat{where: "You give a foot rub, but it was a glancing blow… Are you rubbing your own feet??", love: 0}, W: 50},
