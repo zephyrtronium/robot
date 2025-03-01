@@ -165,6 +165,8 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		r.CancelAt(t)
 		return
 	}
+	robo.metrics.SpeakLatency.Observe(time.Since(start).Seconds(), ch.Send, "true")
+	robo.metrics.UsedMessagesForGeneration.Observe(float64(len(trace)))
 	out := message.Format("%s", sef).SendTo(ch.Name)
 	robo.sendTMI(ctx, send, out)
 }
