@@ -350,16 +350,16 @@ func newMetrics() *metrics.Metrics {
 					Namespace: "robot",
 					Subsystem: "brain",
 					Name:      "forgot",
-					Help:      "Number of individual messages deleted. Does not include messages deleted by user or time.",
+					Help:      "Number of individual messages deleted.",
 				},
 			),
 		),
 		SpeakLatency: metrics.NewPromObserverVec(
 			prometheus.NewHistogramVec(
 				prometheus.HistogramOpts{
-					Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
+					Buckets:   []float64{0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10},
 					Namespace: "robot",
-					Subsystem: "commands",
+					Subsystem: "brain",
 					Name:      "speak_latency",
 					Help:      "How long it takes for robot to speak once prompted in seconds",
 				},
@@ -369,7 +369,7 @@ func newMetrics() *metrics.Metrics {
 		LearnLatency: metrics.NewPromObserverVec(
 			prometheus.NewHistogramVec(
 				prometheus.HistogramOpts{
-					Buckets:   []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10},
+					Buckets:   []float64{0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10},
 					Namespace: "robot",
 					Subsystem: "brain",
 					Name:      "learn_latency",
@@ -383,7 +383,7 @@ func newMetrics() *metrics.Metrics {
 				prometheus.HistogramOpts{
 					Buckets:   []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 					Namespace: "robot",
-					Subsystem: "commands",
+					Subsystem: "brain",
 					Name:      "used_messages",
 					Help:      "How many messages were used while generating a new message",
 				},
