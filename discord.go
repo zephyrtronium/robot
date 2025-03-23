@@ -170,7 +170,11 @@ func (robo *Robot) onDiscordMessage(ctx context.Context, session *discordgo.Sess
 
 	// TODO: Learn from this user only if not disabled, not sure if applicable to discord
 	// TODO: Meme detector stuff, possibly not necessary in discord?
-	robo.discordLearn(ctx, ch.Learn, event)
+
+	// Empty messages could exist due to being a sticker or a file upload
+	if event.Content != "" {
+		robo.discordLearn(ctx, ch.Learn, event)
+	}
 
 	// Now we can check rate limits
 	t := time.Now()
