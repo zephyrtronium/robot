@@ -133,7 +133,13 @@ func cliRun(ctx context.Context, cmd *cli.Command) error {
 		}
 	}
 
-	return robo.Run(ctx, cfg.HTTP.Listen)
+	if cfg.Discord.Token != "" {
+		if err := robo.SetDiscordChannels(cfg.Global, cfg.Discord); err != nil {
+			return err
+		}
+	}
+
+	return robo.Run(ctx, cfg.HTTP.Listen, cfg.Discord)
 }
 
 func cliSpeak(ctx context.Context, cmd *cli.Command) error {
