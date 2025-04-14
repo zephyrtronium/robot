@@ -13,10 +13,10 @@ require (
 	github.com/urfave/cli/v3 v3.0.0-beta1
 	gitlab.com/zephyrtronium/pick v1.1.0
 	gitlab.com/zephyrtronium/tmi v0.0.0-20240325132202-7adf62e91c49
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/oauth2 v0.25.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/text v0.21.0
+	golang.org/x/sync v0.11.0
+	golang.org/x/text v0.22.0
 	golang.org/x/time v0.9.0
 	zombiezen.com/go/sqlite v1.4.0
 )
@@ -40,7 +40,7 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	google.golang.org/protobuf v1.36.1 // indirect
 	modernc.org/libc v1.61.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
