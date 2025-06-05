@@ -155,12 +155,14 @@ func hteize(msg string) string {
 			f[i] = "Should of"
 		case "SHOULD'VE", "SHOULD've", `SHOULD"VE`:
 			f[i] = "SHOULD OF"
-		case "it", "It":
-			f[i] = "ti"
-		case "IT":
-			f[i] = "TI"
+		case "and":
+			f[i] = "adn"
+		case "And":
+			f[i] = "Adn"
+		case "AND":
+			f[i] = "ADN"
 		default:
-			k := strings.IndexAny(w, ".?!")
+			k := strings.IndexAny(w, "?!")
 			switch {
 			// Note we check for k > 0, not k >= 0, because we don't want to
 			// do this when the punctuation character is at the start.
@@ -170,6 +172,11 @@ func hteize(msg string) string {
 				f[i] = w[:len(w)-2] + "gn"
 			case strings.HasSuffix(w, "ING"):
 				f[i] = w[:len(w)-2] + "GN"
+			}
+			k = strings.IndexAny(w, `"')`)
+			// Similar to above.
+			if k > 0 {
+				f[i] = w[:k] + w[k+1:]
 			}
 		}
 	}
