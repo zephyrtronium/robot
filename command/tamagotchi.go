@@ -162,13 +162,6 @@ func Eat(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, message.Format("%s %s %s %s %s%s %s %s", chew[0], menu[0].name, menu[1].name, menu[2].name, chew[1], c, m, e).AsReply(call.Message.ID))
 }
 
-var cleancounts = pick.New([]pick.Case[int]{
-	{E: 1, W: 8},
-	{E: 2, W: 9},
-	{E: 3, W: 5},
-	{E: 4, W: 3},
-})
-
 var cleans = pick.New([]pick.Case[[2]string]{
 	{E: [2]string{"Thank you for cleaning my", "!"}, W: 1},
 	{E: [2]string{"Thanks for helping clean my", "!"}, W: 1},
@@ -185,7 +178,7 @@ func Clean(ctx context.Context, robo *Robot, call *Invocation) {
 	}
 	e := call.Channel.Emotes.Pick(rand.Uint32())
 
-	n := cleancounts.Pick(rand.Uint32())
+	n := 4
 	rooms := make([]pet.Room, 0, 4)
 	var sat pet.Satisfaction
 	for range n {
@@ -216,7 +209,7 @@ func Clean(ctx context.Context, robo *Robot, call *Invocation) {
 	case 3:
 		msg = message.Format("%s %s, %s, and %s%s Now %s %s", clean[0], rooms[0], rooms[1], rooms[2], clean[1], m, e)
 	case 4:
-		msg = message.Format("%s whole home%s Now %s %s", clean[0], clean[1], m, e)
+		msg = message.Format("%s home%s Now %s %s", clean[0], clean[1], m, e)
 	}
 	call.Channel.Message(ctx, msg.AsReply(call.Message.ID))
 }
