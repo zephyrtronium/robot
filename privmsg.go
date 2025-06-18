@@ -428,7 +428,7 @@ var twitchAny = []twitchCommand{
 		name:  "affection",
 	},
 	{
-		parse: regexp.MustCompile(`(?i:\bim?\b.+\bseiso\b|\bseiso\b.+\bi\b)`),
+		parse: regexp.MustCompile(`(?i:\bim?\b.+\bseiso\b|\bseiso\b.+\bi\b|^seiso$)`),
 		fn:    command.Seiso,
 		name:  "seiso",
 	},
