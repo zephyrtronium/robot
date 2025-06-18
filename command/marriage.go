@@ -205,7 +205,7 @@ func Seiso(ctx context.Context, robo *Robot, call *Invocation) {
 	}
 	x, _, _, _, _ := score(robo.Log, &call.Channel.History, call.Message.Sender.ID)
 	m := 清楚.Pick(rand.Uint32())
-	call.Channel.Message(ctx, message.Format("%s %f%s %e", m[0], x, m[1], e).AsReply(call.Message.ID))
+	call.Channel.Message(ctx, message.Format("%s %f%s %s", m[0], x, m[1], e).AsReply(call.Message.ID))
 }
 
 var パートナーの清楚 = pick.New([]pick.Case[string]{
