@@ -261,7 +261,7 @@ func Pat(ctx context.Context, robo *Robot, call *Invocation) {
 	// Pats from the pet's partner are more effective.
 	// Is it weird to mix the pet functionality with the marriage system?
 	l, _ := call.Channel.Extra.Load(partnerKey{})
-	cur, _ := l.(*partner)
+	cur, _ := l.(*suitor)
 	bonus := cur != nil && cur.who == call.Message.Sender.ID
 	if bonus {
 		pat.love += 30

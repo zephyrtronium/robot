@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"strings"
+	"sync"
 	"time"
 
 	"gitlab.com/zephyrtronium/pick"
@@ -105,11 +106,26 @@ func Affection(ctx context.Context, robo *Robot, call *Invocation) {
 	call.Channel.Message(ctx, message.Sent{Reply: call.Message.ID, Text: fmt.Sprintf(s, x, e, c, f, l, n)})
 }
 
-type partnerKey struct{}
+type (
+	partnerKey struct{}
+	dislikeKey struct{}
+)
 
-type partner struct {
+type suitor struct {
 	who   string
+	name  string
+	kind  string
 	until time.Time
+}
+
+func dislikemap(ch *channel.Channel) *sync.Map {
+	a, _ := ch.Extra.Load(dislikeKey{})
+	m, _ := a.(*sync.Map)
+	for m == nil {
+		a, _ = ch.Extra.LoadOrStore(dislikeKey{}, new(sync.Map))
+		m, _ = a.(*sync.Map)
+	}
+	return m
 }
 
 // Marry proposes to the robo.
@@ -126,15 +142,28 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 		call.Channel.Message(ctx, message.Format("no %s", e).AsReply(call.Message.ID))
 		return
 	}
-	me := &partner{who: call.Message.Sender.ID, until: call.Message.Time().Add(time.Hour)}
+	me := &suitor{
+		who:   call.Message.Sender.ID,
+		name:  call.Message.Sender.Name,
+		kind:  call.Args["partnership"],
+		until: call.Message.Time().Add(time.Hour),
+	}
 	for {
+		// First check whether we're disliked.
+		dislike := dislikemap(call.Channel)
+		u, _ := dislike.Load(me.who)
+		if u, _ := u.(*suitor); u != nil && call.Message.Time().Before(u.until) {
+			call.Channel.Message(ctx, message.Format("Absolutely not. At least not for the next %v. %s", u.until.Sub(call.Message.Time()).Truncate(time.Millisecond), e))
+			return
+		}
+		// Now we can compete.
 		l, ok := call.Channel.Extra.LoadOrStore(partnerKey{}, me)
 		if !ok {
 			// No competition. We're a shoo-in.
 			call.Channel.Message(ctx, message.Format("sure why not %s", e).AsReply(call.Message.ID))
 			return
 		}
-		cur := l.(*partner)
+		cur := l.(*suitor)
 		if cur.who == me.who {
 			if rand.Uint32() <= 0xffffffff*3/5 {
 				if !call.Channel.Extra.CompareAndDelete(partnerKey{}, cur) {
@@ -143,6 +172,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 					// but start over anyway.
 					continue
 				}
+				dislike.Store(me.who, me)
 				call.Channel.Message(ctx, message.Format("How could you forget we're already together? I hate you! Unsubbed, unfollowed, unloved! %s", e).AsReply(call.Message.ID))
 				return
 			}
@@ -150,12 +180,12 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 			return
 		}
 		if call.Message.Time().Before(cur.until) {
-			call.Channel.Message(ctx, message.Format("My heart yet belongs to another... %s", e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("My heart yet belongs to %s... %s", cur.name, e).AsReply(call.Message.ID))
 			return
 		}
 		y, _, _, _, _ := score(robo.Log, &call.Channel.History, cur.who)
 		if x < y && !broadcaster {
-			call.Channel.Message(ctx, message.Format("I'm touched, but I must decline. I'm in love with someone else. %s", e).AsReply(call.Message.ID))
+			call.Channel.Message(ctx, message.Format("I'm touched, but I must decline. I'm in love with %s. %s", cur.name, e).AsReply(call.Message.ID))
 			return
 		}
 		if !call.Channel.Extra.CompareAndSwap(partnerKey{}, cur, me) {
@@ -193,7 +223,7 @@ func Seiso(ctx context.Context, robo *Robot, call *Invocation) {
 	}
 	v, _ := call.Channel.Extra.Load(partnerKey{})
 	e := call.Channel.Emotes.Pick(rand.Uint32())
-	if v, _ := v.(*partner); v != nil && v.who == call.Message.Sender.ID {
+	if v, _ := v.(*suitor); v != nil && v.who == call.Message.Sender.ID {
 		m := パートナーの清楚.Pick(rand.Uint32())
 		call.Channel.Message(ctx, message.Format("%s %s", m, e).AsReply(call.Message.ID))
 		return
