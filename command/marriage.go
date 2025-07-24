@@ -145,7 +145,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 	me := &suitor{
 		who:   call.Message.Sender.ID,
 		name:  call.Message.Sender.Name,
-		kind:  call.Args["partnership"],
+		kind:  strings.ToLower(call.Args["partnership"]),
 		until: call.Message.Time().Add(time.Hour),
 	}
 	for {
@@ -153,7 +153,7 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 		dislike := dislikemap(call.Channel)
 		u, _ := dislike.Load(me.who)
 		if u, _ := u.(*suitor); u != nil && call.Message.Time().Before(u.until) {
-			call.Channel.Message(ctx, message.Format("Absolutely not. At least not for the next %v. %s", u.until.Sub(call.Message.Time()).Truncate(time.Millisecond), e))
+			call.Channel.Message(ctx, message.Format("Absolutely not. At least not for the next %v. %s", u.until.Sub(call.Message.Time()).Truncate(time.Millisecond), e).AsReply(call.Message.ID))
 			return
 		}
 		// Now we can compete.
@@ -198,6 +198,53 @@ func Marry(ctx context.Context, robo *Robot, call *Invocation) {
 			call.Channel.Message(ctx, message.Format("Yes! I'll be your %s! %s", call.Args["partnership"], e).AsReply(call.Message.ID))
 		} else {
 			call.Channel.Message(ctx, message.Format("Yes! I'll marry you! %s", e).AsReply(call.Message.ID))
+		}
+		return
+	}
+}
+
+// ILoveMyWife tells the robot that the user is in love with it, which is kind
+// of weird if the user is not married to the robot.
+// No args.
+func ILoveMyWife(ctx context.Context, robo *Robot, call *Invocation) {
+	if call.Message.Time().Before(call.Channel.SilentTime()) {
+		robo.Log.InfoContext(ctx, "silent", slog.Time("until", call.Channel.SilentTime()))
+		return
+	}
+	e := call.Channel.Emotes.Pick(rand.Uint32())
+	broadcaster := strings.EqualFold(call.Message.Sender.Name, strings.TrimPrefix(call.Channel.Name, "#"))
+	if broadcaster {
+		call.Channel.Message(ctx, message.Format(`I'm so happy you feel that way about me! I love you and your community, too! %s`, e).AsReply(call.Message.ID))
+		return
+	}
+	for {
+		l, _ := call.Channel.Extra.Load(partnerKey{})
+		cur, _ := l.(*suitor)
+		if cur == nil {
+			call.Channel.Message(ctx, message.Format("Ok... Kinda weird... %s", e).AsReply(call.Message.ID))
+			return
+		}
+		if cur.who != call.Message.Sender.ID {
+			me := &suitor{
+				who:   call.Message.Sender.ID,
+				name:  call.Message.Sender.Name,
+				kind:  call.Args["partnership"],
+				until: call.Message.Time().Add(time.Hour),
+			}
+			dislikemap(call.Channel).Store(me.who, me)
+			call.Channel.Message(ctx, message.Format("Yeah? Why don't you tell my sweetheart %s about that. Weirdo. %s", cur.name, e).AsReply(call.Message.ID))
+			return
+		}
+		new := *cur
+		new.until = call.Message.Time().Add(time.Hour)
+		if !call.Channel.Extra.CompareAndSwap(partnerKey{}, cur, &new) {
+			// Partner changed concurrently. Start over.
+			continue
+		}
+		if cur.kind != "" {
+			call.Channel.Message(ctx, message.Format("I'm so happy to be your %s! %s", cur.kind, e).AsReply(call.Message.ID))
+		} else {
+			call.Channel.Message(ctx, message.Format("I love you! %s", e).AsReply(call.Message.ID))
 		}
 		return
 	}
