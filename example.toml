@@ -71,8 +71,8 @@ meme = '^\S*$'
 # Currently, the only entry in it is twitch.
 [global.privileges]
 twitch = [
-	{ name = 'nightbot', level = 'ignore' },
-	{ name = 'streamelementsbot', level = 'ignore' },
+    { name = 'nightbot', level = 'ignore' },
+    { name = 'streamelementsbot', level = 'ignore' },
 ]
 
 [tmi]
@@ -134,7 +134,7 @@ meme = '^\S*$'
 # moderator privileges.
 # Unlike most strings, these are not expanded with environment variables.
 privileges = [
-	{ name = 'zephyrtronium', level = 'moderator' },
+    { name = 'zephyrtronium', level = 'moderator' },
 ]
 
 [twitch.bocchi.emotes]
@@ -142,3 +142,15 @@ privileges = [
 
 [twitch.bocchi.effects]
 'AAAAA' = 44444
+
+[discord]
+# Discord bot token, requires the Message Content intent enabled.
+token = ''
+# Server configurations, each server/guild must have a config section here
+# this is because we may want to learn from both twitch and discord
+# however only use discord messages in discord due to how pings are
+# formatted, emotes, etc...
+# Other parameters work the same way as the twitch configurations.
+configs = [
+    { server = "859946655310413844", learn = "bocchi", send = "bocchi", responses = 0.02, rate = { every = 10.1, num = 2 } }
+]

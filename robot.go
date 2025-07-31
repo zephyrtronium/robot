@@ -86,22 +86,37 @@ func New(usersKey []byte, poolSize int) *Robot {
 	}
 }
 
-func (robo *Robot) Run(ctx context.Context, listen string) error {
+func (robo *Robot) Run(ctx context.Context, listen string, discord Discord) error {
 	group, ctx := errgroup.WithContext(ctx)
 	// TODO(zeph): stdin?
 	if robo.tmi != nil {
 		group.Go(func() error { return robo.runTwitch(ctx, group) })
 	}
+	if discord.Token != "" {
+		group.Go(func() error { return robo.runDiscord(ctx, group, discord) })
+	}
 	if listen != "" {
 		group.Go(func() error { return robo.api(ctx, listen, new(http.ServeMux), robo.metrics.Collectors()) })
 	}
 	err := group.Wait()
-	if err == context.Canceled {
+	if errors.Is(err, context.Canceled) {
 		// If the first error is context canceled, then we are shutting down
 		// normally in response to a sigint.
 		err = nil
 	}
 	return err
+}
+
+func (robo *Robot) runDiscord(ctx context.Context, group *errgroup.Group, config Discord) error {
+	receiver, err := robo.NewDiscord(ctx, config.Token)
+	if err != nil {
+		return fmt.Errorf("failed to initialize discord: %w", err)
+	}
+	group.Go(func() error {
+		<-ctx.Done() // Wait for context cancellation
+		return receiver.Close()
+	})
+	return receiver.Start()
 }
 
 func (robo *Robot) runTwitch(ctx context.Context, group *errgroup.Group) error {
