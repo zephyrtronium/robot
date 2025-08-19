@@ -433,7 +433,7 @@ var twitchAny = []twitchCommand{
 		name:  "ILoveMyWife",
 	},
 	{
-		parse: regexp.MustCompile(`(?i:\bim?\b.+\bseiso\b|\bseiso\b.+\bi\b|^seiso$)`),
+		parse: regexp.MustCompile(`(?i:\bim?\b.+\bseiso\b|\bseiso\b.+\bi\b|^seiso$)|清楚`),
 		fn:    command.Seiso,
 		name:  "seiso",
 	},
