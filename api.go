@@ -6,11 +6,14 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net"
 	"net/http"
 	"net/http/pprof" // register handlers
 	"regexp"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-json-experiment/json"
@@ -19,8 +22,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/zephyrtronium/robot/brain"
+	"github.com/zephyrtronium/robot/command"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -47,6 +52,8 @@ func (robo *Robot) api(ctx context.Context, listen string, mux *http.ServeMux, m
 	mux.HandleFunc("GET /api/message/{tag...}", robo.apiRecall)
 	mux.HandleFunc("POST /api/message/{tag...}", robo.apiLearn)
 	mux.HandleFunc("DELETE /api/message/{tag...}", robo.apiForget)
+	// TODO(zeph): this setup for thinking is TMI-specific
+	mux.HandleFunc("GET /api/think/{channel...}", robo.apiThink)
 	l, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("couldn't start API server: %w", err)
@@ -153,7 +160,7 @@ func (robo *Robot) apiRecall(w http.ResponseWriter, r *http.Request) {
 
 func (robo *Robot) apiLearn(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := slog.With(slog.String("api", "recall"), slog.Any("trace", uuid.New()))
+	log := slog.With(slog.String("api", "learn"), slog.Any("trace", uuid.New()))
 	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
 	defer log.InfoContext(ctx, "done")
 	tag := r.PathValue("tag")
@@ -205,7 +212,7 @@ func (robo *Robot) apiLearn(w http.ResponseWriter, r *http.Request) {
 
 func (robo *Robot) apiForget(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	log := slog.With(slog.String("api", "recall"), slog.Any("trace", uuid.New()))
+	log := slog.With(slog.String("api", "forget"), slog.Any("trace", uuid.New()))
 	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
 	defer log.InfoContext(ctx, "done")
 	tag := r.PathValue("tag")
@@ -239,5 +246,104 @@ func (robo *Robot) apiForget(w http.ResponseWriter, r *http.Request) {
 			all = errors.Join(all, err)
 			// continue on
 		}
+	}
+}
+
+func (robo *Robot) apiThink(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := slog.With(slog.String("api", "think"), slog.Any("trace", uuid.New()))
+	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
+	defer log.InfoContext(ctx, "done")
+	where := r.PathValue("channel")
+	// TODO(zeph): this processing is TMI-specific
+	where = strings.ToLower(where)
+	if !strings.HasPrefix(where, "#") {
+		where = "#" + where
+	}
+	ch, _ := robo.channels.Load(where)
+	if ch == nil {
+		log.InfoContext(ctx, "not found", slog.String("channel", where))
+		jsonerror(w, http.StatusNotFound, "no such channel")
+		return
+	}
+	if ch.Send == "" {
+		log.InfoContext(ctx, "no send tag", slog.String("channel", where))
+		jsonerror(w, http.StatusNotFound, "channel has no send tag")
+		return
+	}
+	prompt := r.FormValue("prompt")
+	count := r.FormValue("count")
+	n, err := strconv.Atoi(count)
+	if count == "" {
+		n = 1
+	}
+	if n <= 0 {
+		log.InfoContext(ctx, "parsing count", slog.Any("err", err))
+		jsonerror(w, http.StatusBadRequest, "bad count")
+		return
+	}
+	log.InfoContext(ctx, "think",
+		slog.String("where", where),
+		slog.String("send", ch.Send),
+		slog.String("prompt", prompt),
+		slog.Int("count", n),
+	)
+	type gen struct {
+		Text     string   `json:"text"`
+		Emote    string   `json:"emote"`
+		Effect   string   `json:"effect,omitzero"`
+		Original string   `json:"original,omitzero"`
+		Trace    []string `json:"trace"`
+		Cost     string   `json:"cost"`
+	}
+	var mu sync.Mutex
+	out := make([]gen, 0, n)
+	group, ctx := errgroup.WithContext(ctx)
+	for range n {
+		group.Go(func() error {
+			start := time.Now()
+			m, tr, err := brain.Think(ctx, robo.brain, ch.Send, prompt)
+			cost := time.Since(start)
+			if err != nil {
+				return err
+			}
+			if len(tr) == 0 {
+				return nil
+			}
+			x := rand.Uint64()
+			e := ch.Emotes.Pick(uint32(x))
+			f := ch.Effects.Pick(uint32(x >> 32))
+			se := strings.TrimSpace(m + " " + e)
+			sef := command.Effect(log, f, se)
+			g := gen{
+				Text:   sef,
+				Emote:  e,
+				Effect: f,
+				Trace:  tr,
+				Cost:   cost.String(),
+			}
+			if se != sef {
+				g.Original = se
+			}
+			mu.Lock()
+			out = append(out, g)
+			mu.Unlock()
+			return nil
+		})
+	}
+	if err := group.Wait(); err != nil {
+		log.ErrorContext(ctx, "thinking", slog.Any("err", err))
+		jsonerror(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	u := struct {
+		Data []gen `json:"data"`
+	}{out}
+	b, err := json.Marshal(&u)
+	if err != nil {
+		panic(err)
+	}
+	if _, err := w.Write(b); err != nil {
+		log.ErrorContext(ctx, "write response failed", slog.Any("err", err))
 	}
 }
