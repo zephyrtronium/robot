@@ -260,39 +260,3 @@ func DescribeMarriage(ctx context.Context, robo *Robot, call *Invocation) {
 	const s = `I am looking for a long series of short-term relationships and am holding a ranked competitive how-much-I-like-you tournament to decide my suitors! Politely ask me to marry you (or become your partner) and I'll evaluate your score. I like copypasta, memes, and long walks in the chat.`
 	call.Channel.Message(ctx, message.Sent{Text: s})
 }
-
-// Seiso calculates how "seiso" (Zoe tells me this means バニー姿 or "bunny form")
-// the user is.
-func Seiso(ctx context.Context, robo *Robot, call *Invocation) {
-	if t := call.Channel.SilentTime(); call.Message.Time().Before(t) {
-		robo.Log.InfoContext(ctx, "silent", slog.Time("until", call.Channel.SilentTime()))
-		return
-	}
-	v, _ := call.Channel.Extra.Load(partnerKey{})
-	e := call.Channel.Emotes.Pick(rand.Uint32())
-	if v, _ := v.(*suitor); v != nil && v.who == call.Message.Sender.ID {
-		m := パートナーの清楚.Pick(rand.Uint32())
-		call.Channel.Message(ctx, message.Format("%s %s", m, e).AsReply(call.Message.ID))
-		return
-	}
-	broadcaster := strings.EqualFold(call.Message.Sender.Name, strings.TrimPrefix(call.Channel.Name, "#"))
-	if broadcaster {
-		call.Channel.Message(ctx, message.Format("All streamers are seiso. %s", e).AsReply(call.Message.ID))
-		return
-	}
-	x, _, _, _, _ := score(robo.Log, &call.Channel.History, call.Message.Sender.ID)
-	m := 清楚.Pick(rand.Uint32())
-	call.Channel.Message(ctx, message.Format("%s %.0f%s %s", m[0], x, m[1], e).AsReply(call.Message.ID))
-}
-
-var パートナーの清楚 = pick.New([]pick.Case[string]{
-	{E: "Of course you're seiso, sweetie!", W: 10},
-	// TODO(zeph): more
-})
-
-var 清楚 = pick.New([]pick.Case[[2]string]{
-	{E: [2]string{"You're like", "% seiso."}, W: 10},
-	{E: [2]string{"I think you're about", "% seiso."}, W: 10},
-	{E: [2]string{"Are you seiso? Like", "%. Take that as you will."}, W: 2},
-	{E: [2]string{"You are exactly", "% seiso."}, W: 10},
-})
