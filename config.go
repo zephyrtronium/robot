@@ -283,6 +283,25 @@ func mergere(global, ch string) (*regexp.Regexp, error) {
 	return regexp.Compile(re)
 }
 
+func (robo *Robot) SetDiscordChannels(global Global, discord Discord) error {
+	for _, config := range discord.Configs {
+		blk, err := mergere(global.Block, config.Block)
+		if err != nil {
+			return fmt.Errorf("bad global or channel block expression for discord.%s: %w", config.Server, err)
+		}
+		c := &channel.Channel{
+			Name:      config.Server,
+			Learn:     config.Learn,
+			Send:      config.Send,
+			Responses: config.Responses,
+			Rate:      rate.NewLimiter(rate.Every(fseconds(config.Rate.Every)), config.Rate.Num),
+			Block:     blk,
+		}
+		robo.channels.Store(config.Server, c)
+	}
+	return nil
+}
+
 // SetTwitchChannels initializes Twitch channel configuration.
 // It must be called after SetTMI.
 func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channels map[string]*ChannelCfg) error {
@@ -503,6 +522,31 @@ type Config struct {
 	// Twitch is the set of channel configurations for twitch. Each key
 	// represents a group of one or more channels sharing a config.
 	Twitch map[string]*ChannelCfg `toml:"twitch"`
+	// Discord is the discord client configuration options
+	Discord Discord `toml:"discord"`
+}
+
+type Discord struct {
+	// Token is the discord bot token
+	Token string `toml:"token"`
+	// Configs are the discord server configs
+	Configs []DiscordCfg `toml:"configs"`
+}
+
+type DiscordCfg struct {
+	// Server is the discord server ID for this configuration
+	Server string `toml:"server"`
+	// Learn is the tag used for learning from these channels.
+	Learn string `toml:"learn"`
+	// Send is the tag used for generating messages for these channels.
+	Send string `toml:"send"`
+	// Responses is the probability of generating a random message when
+	// a non-command message is received.
+	Responses float64 `toml:"responses"`
+	// Rate is the rate limit for interactions.
+	Rate Rate `toml:"rate"`
+	// Block is a regular expression of messages to ignore.
+	Block string `toml:"block"`
 }
 
 // ChannelCfg is the configuration for a channel.
@@ -641,6 +685,7 @@ func expandcfg(cfg *Config, expand func(s string) string) {
 		&cfg.TMI.TokenFile,
 		&cfg.TMI.Owner.Name,
 		&cfg.TMI.Owner.ID,
+		&cfg.Discord.Token,
 	}
 	for _, f := range fields {
 		*f = os.Expand(*f, expand)
