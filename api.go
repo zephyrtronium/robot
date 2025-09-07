@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/pprof" // register handlers
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/zephyrtronium/robot/brain"
 	"github.com/zephyrtronium/robot/command"
+	"github.com/zephyrtronium/robot/spoken"
 	"github.com/zephyrtronium/robot/userhash"
 )
 
@@ -52,8 +54,9 @@ func (robo *Robot) api(ctx context.Context, listen string, mux *http.ServeMux, m
 	mux.HandleFunc("GET /api/message/{tag...}", robo.apiRecall)
 	mux.HandleFunc("POST /api/message/{tag...}", robo.apiLearn)
 	mux.HandleFunc("DELETE /api/message/{tag...}", robo.apiForget)
-	// TODO(zeph): this setup for thinking is TMI-specific
+	// TODO(zeph): this setup for thinking &c. is TMI-specific
 	mux.HandleFunc("GET /api/think/{channel...}", robo.apiThink)
+	mux.HandleFunc("GET /api/spoken/{channel...}", robo.apiSpoken)
 	l, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("couldn't start API server: %w", err)
@@ -339,6 +342,67 @@ func (robo *Robot) apiThink(w http.ResponseWriter, r *http.Request) {
 	u := struct {
 		Data []gen `json:"data"`
 	}{out}
+	b, err := json.Marshal(&u)
+	if err != nil {
+		panic(err)
+	}
+	if _, err := w.Write(b); err != nil {
+		log.ErrorContext(ctx, "write response failed", slog.Any("err", err))
+	}
+}
+
+func (robo *Robot) apiSpoken(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	log := slog.With(slog.String("api", "spoken"), slog.Any("trace", uuid.New()))
+	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
+	defer log.InfoContext(ctx, "done")
+	where := r.PathValue("channel")
+	// TODO(zeph): this processing is TMI-specific
+	where = strings.ToLower(where)
+	if !strings.HasPrefix(where, "#") {
+		where = "#" + where
+	}
+	ch, _ := robo.channels.Load(where)
+	if ch == nil {
+		log.InfoContext(ctx, "not found", slog.String("channel", where))
+		jsonerror(w, http.StatusNotFound, "no such channel")
+		return
+	}
+	if ch.Send == "" {
+		log.InfoContext(ctx, "no send tag", slog.String("channel", where))
+		jsonerror(w, http.StatusNotFound, "channel has no send tag")
+		return
+	}
+	count := r.FormValue("count")
+	n, err := strconv.Atoi(count)
+	if count == "" {
+		n = 1
+	}
+	if n <= 0 {
+		log.InfoContext(ctx, "parsing count", slog.Any("err", err))
+		jsonerror(w, http.StatusBadRequest, "bad count")
+		return
+	}
+	log.InfoContext(ctx, "spoken",
+		slog.String("where", where),
+		slog.String("send", ch.Send),
+		slog.Int("count", n),
+	)
+	it, errf := robo.spoken.Previous(ctx, ch.Send, n)
+	v := slices.Collect(it)
+	if err := errf(); err != nil {
+		log.ErrorContext(ctx, "getting previous spoken messages", slog.Any("err", err))
+		jsonerror(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	log.InfoContext(ctx, "previous", slog.Int("count", len(v)))
+	if len(v) == 0 {
+		jsonerror(w, http.StatusNotFound, "no spoken messages")
+		return
+	}
+	u := struct {
+		Data []spoken.Message `json:"data"`
+	}{v}
 	b, err := json.Marshal(&u)
 	if err != nil {
 		panic(err)
