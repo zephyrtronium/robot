@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/go-json-experiment/json"
-	"github.com/zephyrtronium/robot/spoken"
+	"github.com/google/go-cmp/cmp"
 	"zombiezen.com/go/sqlite"
 	"zombiezen.com/go/sqlite/sqlitex"
+
+	"github.com/zephyrtronium/robot/spoken"
 )
 
 var dbCount atomic.Int64
@@ -263,6 +265,7 @@ func TestSince(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			var got []string
 			for id, err := range h.Since(ctx, c.tag, time.Unix(0, c.time)) {
 				if err != nil {
@@ -274,6 +277,132 @@ func TestSince(t *testing.T) {
 			slices.Sort(got)
 			if !slices.Equal(c.want, got) {
 				t.Errorf("wrong ids: want %q, got %q", c.want, got)
+			}
+		})
+	}
+}
+
+func TestPrevious(t *testing.T) {
+	// Create test fixture first.
+	ctx := context.Background()
+	db := testDB()
+	h, err := spoken.Open(ctx, db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	insert := []struct {
+		tag   string
+		msg   string
+		trace string
+		time  int64
+	}{
+		{"kessoku", "bocchi", `["1"]`, 10},
+		{"kessoku", "ryo", `["2"]`, 20},
+		{"sickhack", "bocchi", `["3"]`, 30},
+		{"kessoku", "ryo", `["4"]`, 40},
+	}
+	{
+		conn, err := db.Take(ctx)
+		if err != nil {
+			t.Fatalf("couldn't get conn: %v", err)
+		}
+		st, err := conn.Prepare(`INSERT INTO spoken (tag, msg, trace, time, meta) VALUES (:tag, :msg, JSONB(:trace), :time, JSONB('{"cost":1000000000}'))`)
+		if err != nil {
+			t.Fatalf("couldn't prep insert: %v", err)
+		}
+		for _, r := range insert {
+			st.SetText(":tag", r.tag)
+			st.SetText(":msg", r.msg)
+			st.SetText(":trace", r.trace)
+			st.SetInt64(":time", r.time)
+			_, err := st.Step()
+			if err != nil {
+				t.Errorf("failed to insert %v: %v", r, err)
+			}
+			if err := st.Reset(); err != nil {
+				t.Errorf("couldn't reset: %v", err)
+			}
+		}
+		if err := st.Finalize(); err != nil {
+			t.Fatalf("couldn't finalize insert: %v", err)
+		}
+		db.Put(conn)
+	}
+
+	cases := []struct {
+		name string
+		tag  string
+		n    int
+		want []spoken.Message
+	}{
+		{
+			name: "zero",
+			tag:  "kessoku",
+			n:    0,
+			want: nil,
+		},
+		{
+			name: "one",
+			tag:  "kessoku",
+			n:    1,
+			want: []spoken.Message{
+				{
+					Text:  "ryo",
+					Trace: []string{"4"},
+					Time:  time.Unix(0, 40),
+					Cost:  "1s",
+				},
+			},
+		},
+		{
+			name: "ten",
+			tag:  "kessoku",
+			n:    10,
+			want: []spoken.Message{
+				{
+					Text:  "ryo",
+					Trace: []string{"4"},
+					Time:  time.Unix(0, 40),
+					Cost:  "1s",
+				},
+				{
+					Text:  "ryo",
+					Trace: []string{"2"},
+					Time:  time.Unix(0, 20),
+					Cost:  "1s",
+				},
+				{
+					Text:  "bocchi",
+					Trace: []string{"1"},
+					Time:  time.Unix(0, 10),
+					Cost:  "1s",
+				},
+			},
+		},
+		{
+			name: "tagged",
+			tag:  "sickhack",
+			n:    10,
+			want: []spoken.Message{
+				{
+					Text:  "bocchi",
+					Trace: []string{"3"},
+					Time:  time.Unix(0, 30),
+					Cost:  "1s",
+				},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			it, errf := h.Previous(t.Context(), c.tag, c.n)
+			got := slices.Collect(it)
+			if err := errf(); err != nil {
+				t.Error(err)
+			}
+			if diff := cmp.Diff(c.want, got); diff != "" {
+				t.Errorf("wrong result (+got/-want):\n%s", diff)
 			}
 		})
 	}

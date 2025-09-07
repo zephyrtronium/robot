@@ -123,7 +123,7 @@ func once2[K, V any](k K, v V) iter.Seq2[K, V] {
 	}
 }
 
-// AllSince provides an iterator over all trace IDs since the given time.
+// Since provides an iterator over all trace IDs since the given time.
 func (h *History) Since(ctx context.Context, tag string, tm time.Time) iter.Seq2[string, error] {
 	conn, err := h.db.Take(ctx)
 	// NOTE(zeph): we don't defer return the conn here because we need it alive
@@ -159,4 +159,73 @@ func (h *History) Since(ctx context.Context, tag string, tm time.Time) iter.Seq2
 			}
 		}
 	}
+}
+
+// Message is data about a message recorded in the spoken history.
+type Message struct {
+	Text     string    `json:"text"`
+	Trace    []string  `json:"trace"`
+	Time     time.Time `json:"time"`
+	Original string    `json:"orig,omitzero"`
+	Cost     string    `json:"cost"`
+	Emote    string    `json:"emote,omitzero"`
+	Effect   string    `json:"effect,omitzero"`
+}
+
+// Previous gets the most recent n messages and their traces.
+// The returned closures are always non-nil.
+func (h *History) Previous(ctx context.Context, tag string, n int) (iter.Seq[Message], func() error) {
+	var err error
+	errf := func() error { return err }
+	conn, err := h.db.Take(ctx)
+	if err != nil {
+		err = fmt.Errorf("couldn't get connection to find previous messages: %w", err)
+		return func(yield func(Message) bool) {}, errf
+	}
+	const sel = `SELECT msg, JSON(trace), time, JSON(meta) FROM spoken WHERE tag = :tag ORDER BY time DESC LIMIT :n`
+	st, err := conn.Prepare(sel)
+	if err != nil {
+		h.db.Put(conn)
+		err = fmt.Errorf("couldn't prepare statement to find previous messages: %w", err)
+		return func(yield func(Message) bool) {}, errf
+	}
+	st.SetText(":tag", tag)
+	st.SetInt64(":n", int64(n))
+	it := func(yield func(Message) bool) {
+		defer h.db.Put(conn)
+		defer st.Reset()
+		for {
+			var (
+				m    Message
+				meta meta
+				ok   bool
+			)
+			ok, err = st.Step()
+			if err != nil {
+				err = fmt.Errorf("couldn't get previous messages: %w", err)
+				return
+			}
+			if !ok {
+				return
+			}
+			m.Text = st.ColumnText(0)
+			if err = json.Unmarshal([]byte(st.ColumnText(1)), &m.Trace); err != nil {
+				err = fmt.Errorf("couldn't decode trace: %w", err)
+				return
+			}
+			m.Time = time.Unix(0, st.ColumnInt64(2))
+			if err = json.Unmarshal([]byte(st.ColumnText(3)), &meta); err != nil {
+				err = fmt.Errorf("couldn't decode metadata: %w", err)
+				return
+			}
+			m.Original = meta.Orig
+			m.Cost = time.Duration(meta.Cost).String()
+			m.Emote = meta.Emote
+			m.Effect = meta.Effect
+			if !yield(m) {
+				return
+			}
+		}
+	}
+	return it, errf
 }
