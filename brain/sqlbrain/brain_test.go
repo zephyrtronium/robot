@@ -31,7 +31,6 @@ func testDB(ctx context.Context) *sqlitex.Pool {
 }
 
 func TestIntegrated(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	new := func(ctx context.Context) brain.Interface {
 		db := testDB(ctx)
