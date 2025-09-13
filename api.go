@@ -94,6 +94,7 @@ func jsonerror(w http.ResponseWriter, status int, msg string) {
 	if err != nil {
 		panic(err)
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	w.Write(b)
 }
@@ -257,6 +258,7 @@ func (robo *Robot) apiThink(w http.ResponseWriter, r *http.Request) {
 	log := slog.With(slog.String("api", "think"), slog.Any("trace", uuid.New()))
 	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
 	defer log.InfoContext(ctx, "done")
+	w.Header().Set("Content-Type", "application/json")
 	where := r.PathValue("channel")
 	// TODO(zeph): this processing is TMI-specific
 	where = strings.ToLower(where)
@@ -356,6 +358,7 @@ func (robo *Robot) apiSpoken(w http.ResponseWriter, r *http.Request) {
 	log := slog.With(slog.String("api", "spoken"), slog.Any("trace", uuid.New()))
 	log.InfoContext(ctx, "handle", slog.String("route", r.Pattern), slog.String("remote", r.RemoteAddr))
 	defer log.InfoContext(ctx, "done")
+	w.Header().Set("Content-Type", "application/json")
 	where := r.PathValue("channel")
 	// TODO(zeph): this processing is TMI-specific
 	where = strings.ToLower(where)
