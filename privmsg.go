@@ -428,7 +428,7 @@ var twitchAny = []twitchCommand{
 		name:  "affection",
 	},
 	{
-		parse: regexp.MustCompile(`^(?i)i?\s*love\s+y?o?u[^r]|^ILoveM?y?W`),
+		parse: regexp.MustCompile(`^(?i)i?\s*love\s+y?o?u(?:[^r]|\b)|^ILoveM?y?W`),
 		fn:    command.ILoveMyWife,
 		name:  "ILoveMyWife",
 	},
