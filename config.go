@@ -344,11 +344,13 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				Emotes:      emotes,
 				Effects:     effects,
 			}
-			v.Message = func(ctx context.Context, msg message.Sent) {
-				if msg.To == "" {
-					msg.To = v.Name
+			if robo.tmi != nil {
+				v.Message = func(ctx context.Context, msg message.Sent) {
+					if msg.To == "" {
+						msg.To = v.Name
+					}
+					robo.sendTMI(ctx, robo.tmi.send, msg)
 				}
-				robo.sendTMI(ctx, robo.tmi.send, msg)
 			}
 			robo.channels.Store(p, v)
 		}
