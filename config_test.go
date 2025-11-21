@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	main "github.com/zephyrtronium/robot"
+	"github.com/zephyrtronium/robot/channel"
 )
 
 //go:embed example.toml
@@ -20,6 +21,8 @@ func eqcase[T comparable](t *testing.T, name string, val T, eq T) {
 }
 
 func TestExampleConfig(t *testing.T) {
+	t.Setenv("CREDENTIALS_DIRECTORY", "CREDENTIALS_DIRECTORY")
+	t.Setenv("ROBOT_SQLITE", "ROBOT_SQLITE")
 	cfg, _, err := main.Load(context.Background(), strings.NewReader(exampleToml))
 	if err != nil {
 		t.Errorf("failed to load example.toml: %v", err)
@@ -30,6 +33,9 @@ func TestExampleConfig(t *testing.T) {
 	eqcase(t, "DB.KVBrain", cfg.DB.KVBrain, "")
 	eqcase(t, "DB.KVFlag", cfg.DB.KVFlag, "")
 	eqcase(t, "HTTP.Listen", cfg.HTTP.Listen, ":4959")
+	eqcase(t, "Global.Links", cfg.Global.Links, channel.Block)
+	eqcase(t, "Global.BotCommands", cfg.Global.BotCommands, channel.Meme)
+	eqcase(t, "Global.OneWord", cfg.Global.OneWord, channel.Meme)
 	eqcase(t, "Global.Block", cfg.Global.Block, `(?i)bad\s+stuff[^$x]`)
 	eqcase(t, "Global.Emotes[``]", cfg.Global.Emotes[``], 4)
 	eqcase(t, "Global.Emotes[`;)`]", cfg.Global.Emotes[`;)`], 1)
@@ -49,6 +55,9 @@ func TestExampleConfig(t *testing.T) {
 	eqcase(t, "Twitch[`bocchi`].Channels[0]", cfg.Twitch[`bocchi`].Channels[0], `#bocchi`)
 	eqcase(t, "Twitch[`bocchi`].Learn", cfg.Twitch[`bocchi`].Learn, `bocchi`)
 	eqcase(t, "Twitch[`bocchi`].Send", cfg.Twitch[`bocchi`].Send, `bocchi`)
+	eqcase(t, "Twitch[`bocchi`].Links", cfg.Twitch[`bocchi`].Links, channel.DefaultBlock)
+	eqcase(t, "Twitch[`bocchi`].BotCommands", cfg.Twitch[`bocchi`].BotCommands, channel.Block)
+	eqcase(t, "Twitch[`bocchi`].OneWord", cfg.Twitch[`bocchi`].OneWord, channel.DefaultBlock)
 	eqcase(t, "Twitch[`bocchi`].Block", cfg.Twitch[`bocchi`].Block, `(?i)cucumber[^$x]`)
 	eqcase(t, "Twitch[`bocchi`].Responses", cfg.Twitch[`bocchi`].Responses, 0.02)
 	eqcase(t, "Twitch[`bocchi`].Rate.Every", cfg.Twitch[`bocchi`].Rate.Every, 10.1)

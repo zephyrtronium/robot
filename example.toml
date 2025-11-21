@@ -46,6 +46,22 @@ listen = ':4959'
 
 # global includes chat settings that apply to all channels.
 [global]
+# links may be set to 'learn', 'meme', or 'block' to control handling of messages
+# containing what appear to be hyperlinks:
+# any word containing '://', or groups of letters, numbers, and dashes separated by a period.
+# 'learn' allows the bot to learn such messages to repeat later.
+# 'meme' allows them to be detected as copypasta, but not learned.
+# 'block' causes the bot to ignore them.
+# This option must be specified.
+links = 'block'
+# botcommands is as above for messages containing what appear to be commands
+# for other bots: messages beginning with any of !?#]>`$. (Not including the period.)
+# This option must be specified.
+botcommands = 'meme'
+# oneword is as above for messages that contain no whitespace and also are not
+# handled as links or other bot commands.
+# This option must be specified.
+oneword = 'meme'
 # block is a regex that blocks messages from being learned or copypastad in any channel.
 # Unlike most string options, it is not expanded with environment variables.
 block = '(?i)bad\s+stuff[^$x]'
@@ -109,6 +125,11 @@ learn = 'bocchi'
 # collect data, but actually doing this could be a privacy concern.
 # Usually, send should match learn within a channel.
 send = 'bocchi'
+# links, botcommands, and oneword are as for the [global] section.
+# When they are not specified for a channel, the global values apply instead.
+# links = 'block'
+botcommands = 'block'
+# oneword = 'meme'
 # block is a regex that blocks messages from being learned in this channel. Any
 # message containing text matching this or the global block regex is not used
 # for learning. block also prevents a message from contributing to copypasta

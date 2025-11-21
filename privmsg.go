@@ -40,7 +40,21 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	log.InfoContext(ctx, "privmsg", slog.Duration("bias", time.Since(m.Time())))
 	defer log.InfoContext(ctx, "end")
 	perms := ch.Permissions[m.Sender.ID]
+	handling := channel.Learn
+	if ch.Links != channel.Learn && isLink(m.Text) {
+		handling = min(handling, ch.Links)
+	}
+	if ch.BotCommands != channel.Learn && isBotCommand(m.Text) {
+		handling = min(handling, ch.BotCommands)
+	}
+	if ch.OneWord != channel.Learn && isOneWord(m.Text) {
+		handling = min(handling, ch.OneWord)
+	}
 	if ch.Block.MatchString(m.Text) && !ch.Meme.MatchString(m.Text) {
+		handling = channel.Block
+	}
+	if handling <= channel.Block {
+		// Don't even check for commands.
 		log.InfoContext(ctx, "blocked message", slog.String("text", m.Text), slog.Bool("meme", false))
 		return
 	}
@@ -73,7 +87,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 		log.DebugContext(ctx, "stripped reply mention", slog.String("text", t))
 		m.Text = t
 	}
-	if !perms.DisableLearn {
+	if !perms.DisableLearn && handling == channel.Learn {
 		robo.learn(ctx, log, ch, robo.hashes(), m)
 	}
 	if !perms.DisableMemes {
@@ -341,6 +355,23 @@ func parseCommand(name, text string) (string, bool) {
 		return strings.TrimSpace(text[:k]), true
 	}
 	return "", false
+}
+
+var reLink = regexp.MustCompile(`://|(\pN*\pL+\pN*)+\.([\w-]+|みんな)`)
+
+func isLink(s string) bool {
+	return reLink.MatchString(s)
+}
+
+func isBotCommand(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	return strings.IndexByte("!?#]>`$", s[0]) >= 0
+}
+
+func isOneWord(s string) bool {
+	return strings.IndexFunc(s, unicode.IsSpace) < 0
 }
 
 type twitchCommand struct {

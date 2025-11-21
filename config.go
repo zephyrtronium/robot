@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -42,6 +43,15 @@ func Load(ctx context.Context, r io.Reader) (*Config, *toml.MetaData, error) {
 	md, err := toml.NewDecoder(r).Decode(&cfg)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't decode config: %w", err)
+	}
+	// Check that global message handling settings are configured.
+	switch channel.DefaultBlock {
+	case cfg.Global.Links:
+		return nil, nil, fmt.Errorf("global links handling is not set")
+	case cfg.Global.BotCommands:
+		return nil, nil, fmt.Errorf("global botcommands handling is not set")
+	case cfg.Global.OneWord:
+		return nil, nil, fmt.Errorf("global oneword handling is not set")
 	}
 	expandcfg(&cfg, func(s string) string {
 		v, ok := os.LookupEnv(s)
@@ -335,6 +345,9 @@ func (robo *Robot) SetTwitchChannels(ctx context.Context, global Global, channel
 				Name:        p,
 				Learn:       ch.Learn,
 				Send:        ch.Send,
+				Links:       cmp.Or(ch.Links, global.Links, channel.Block),
+				BotCommands: cmp.Or(ch.BotCommands, global.BotCommands, channel.Block),
+				OneWord:     cmp.Or(ch.OneWord, global.OneWord, channel.Block),
 				Block:       blk,
 				Meme:        meme,
 				Responses:   ch.Responses,
@@ -515,6 +528,14 @@ type ChannelCfg struct {
 	Learn string `toml:"learn"`
 	// Send is the tag used for generating messages for these channels.
 	Send string `toml:"send"`
+	// Links describes how messages containing links are handled in the channel.
+	Links channel.BlockOption `toml:"links"`
+	// BotCommands describes how messages that look like invocations for other
+	// bots are handled in the channel.
+	BotCommands channel.BlockOption `toml:"botcommands"`
+	// OneWord describes how messages that aren't links and aren't bot commands
+	// but contain no whitespace are handled in the channel.
+	OneWord channel.BlockOption `toml:"oneword"`
 	// Block is a regular expression of messages to ignore.
 	Block string `toml:"block"`
 	// Responses is the probability of generating a random message when
@@ -537,6 +558,14 @@ type ChannelCfg struct {
 
 // Global is the configuration for globally applied options.
 type Global struct {
+	// Links describes how messages containing links are handled everywhere.
+	Links channel.BlockOption `toml:"links"`
+	// BotCommands describes how messages that look like invocations for other
+	// bots are handled everywhere.
+	BotCommands channel.BlockOption `toml:"botcommands"`
+	// OneWord describes how messages that aren't links and aren't bot commands
+	// but contain no whitespace are handled everywhere.
+	OneWord channel.BlockOption `toml:"oneword"`
 	// Block is a regular expression of messages to ignore everywhere.
 	Block string `toml:"block"`
 	// Meme is a regular expression of messages to allow to be copypasta even
