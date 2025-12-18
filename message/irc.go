@@ -2,6 +2,7 @@ package message
 
 import (
 	"strconv"
+	"strings"
 
 	"gitlab.com/zephyrtronium/tmi"
 )
@@ -25,17 +26,18 @@ func FromTMI(m *tmi.Message) *Received[User] {
 }
 
 func moderator(m *tmi.Message) bool {
-	t, _ := m.Tag("mod")
-	if t == "1" {
-		return true
+	// The mod tag is unreliable, as it is false for broadcasters and
+	// lead moderators. Badges are the only reliable source for this info.
+	badges, _ := m.Tag("badges")
+	for badges != "" {
+		b, rest, _ := strings.Cut(badges, ",")
+		b, _, _ = strings.Cut(b, "/")
+		switch b {
+		case "broadcaster", "lead_moderator", "moderator":
+			return true
+		}
+		badges = rest
 	}
-	// The broadcaster seems to get mod=0, but their nick is equal to the
-	// channel name.
-	if to := m.To(); to[0] == '#' && to[1:] == m.Nick {
-		return true
-	}
-	// We could additionally check badges and user-type, but that's a lot of
-	// scanning tags for not much gain.
 	return false
 }
 
@@ -44,10 +46,9 @@ func elevated(m *tmi.Message) bool {
 	if sub == "1" {
 		return true
 	}
-	vip, _ := m.Tag("vip")
-	// Again, we could check badges, but those tend to be unreliable anyway,
-	// not to mention subject to change.
-	return vip == "1"
+	_, vip := m.Tag("vip")
+	// Fortunately, Twitch documentation no longer demands checking badges for this info.
+	return vip
 }
 
 // ToTMI creates a message to send to TMI. If reply is not empty, then the
