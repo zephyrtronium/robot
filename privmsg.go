@@ -41,6 +41,10 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	defer log.InfoContext(ctx, "end")
 	perms := ch.Permissions[m.Sender.ID]
 	handling := channel.Learn
+	// There isn't a meaningful way for a Markov chain bot to handle GIFs.
+	if _, ok := msg.Tag("gifs"); ok {
+		handling = channel.Block
+	}
 	if ch.Links != channel.Learn && isLink(m.Text) {
 		handling = min(handling, ch.Links)
 	}
@@ -74,7 +78,7 @@ func (robo *Robot) tmiMessage(ctx context.Context, send chan<- *tmi.Message, msg
 	// Check for the channel being silent. This prevents learning, copypasta,
 	// and random speaking (among other things), which happens to be all the
 	// rest of this function.
-	if s := ch.SilentTime(); msg.Time().Before(s) {
+	if s := ch.SilentTime(); m.Time().Before(s) {
 		log.DebugContext(ctx, "channel is silent", slog.Time("until", s))
 		return
 	}
