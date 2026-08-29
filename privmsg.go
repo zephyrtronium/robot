@@ -503,26 +503,6 @@ var twitchAny = []twitchCommand{
 		name:  "contact",
 	},
 	{
-		parse: regexp.MustCompile(`^(?i:(?:check)?\s*(?:current)?\s*status$)`),
-		fn:    command.Tamagotchi,
-		name:  "tamagotchi",
-	},
-	{
-		parse: regexp.MustCompile(`^(?i:eat|(?:have|wh?at(?:'|\s*i)?s?)\s*(?:s[ou]me?|fo?r|4)?\s*(?:brea?kfa?st|lu?nch|din*e*r))`),
-		fn:    command.Eat,
-		name:  "eat",
-	},
-	{
-		parse: regexp.MustCompile(`^(?i:(?:let(?:'|\s*u)s|go)?\s*clean)`),
-		fn:    command.Clean,
-		name:  "clean",
-	},
-	{
-		parse: regexp.MustCompile(`^(?i:\**(?:head\s*)?p[ae]t|(?:chin\s*)scritch|(?:cheek|shoulder|back|foot)?\s*rub|(?:bi+g\s+)hug|g[ou]+d\s+(?:girl|gril|boy|bot|pet|wife|waifu|h[ua]su?bando?|partner|spouse|daddy|mommy))|^(?::?\w+P[aAeE][tT][sS]?:?\s*)+\W*$`),
-		fn:    command.Pat,
-		name:  "pat",
-	},
-	{
 		parse: regexp.MustCompile(`(?i)^hap+y?\s+bir(?:f|th)(?:day)?`),
 		fn:    command.HappyBirthdayToYou,
 		name:  "birthday",
